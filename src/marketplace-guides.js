@@ -538,8 +538,9 @@ export function earlyBlackFriday(site, now = Date.now(), country = VIEW_BASE) {
   const data = site.earlyBlackFriday || {};
   const today = ukDay(new Date(now));
   const ours = new Map(awinStores(site).filter(s => deliversHere(s, country)).map(s => [s.slug, s]));
-  // Never an entry of a store that is hidden (L215).
-  const hidden = new Set((site.stores || []).filter(s => !storeListed(site, s)).map(s => s.slug));
+  // Never an entry of a store that is hidden (L215), or of a direct store (L226: its pages have no Black Friday part,
+  // and an entry would link its name to searches on the Gear World sites, where its products never are).
+  const hidden = new Set((site.stores || []).filter(s => !storeListed(site, s) || isDirectStore(s)).map(s => s.slug));
   const codes = Array.isArray(data.codes) ? data.codes : [];
   return (Array.isArray(data.started) ? data.started : [])
     .filter(r => r && r.name && /^[a-z0-9]+(-[a-z0-9]+)*$/.test(r.slug || '') && DAY_RE.test(r.from || '') && DAY_RE.test(r.hide || '')
@@ -1136,7 +1137,9 @@ function storeCard(c, store, products) {
   const thumbs = (products || []).slice(0, 3);
   if (isDirectStore(store)) {
     // Its own products, from its sets and ideas (L226): the card opens our page of the store, never the store itself.
-    const own = directPicks(store).slice(0, 3);
+    // For a direct store the home page's data is the list of its photos that did not open (directPhotos).
+    const broken = new Set(Array.isArray(products) ? products.filter(x => typeof x === 'string') : []);
+    const own = directPicks(store).filter(p => !broken.has(p.image)).slice(0, 3);
     return html`<li class="store-card">
   <div class="store-mark">${storeMark(site, store)}</div>
   <h3><a class="store-link" href="${c.href(`/stores/${store.slug}/`)}"><span translate="no">${store.name}</span></a></h3>
@@ -1288,10 +1291,49 @@ export function directPicks(store) {
   const d = (store && store.direct) || {};
   return [...(d.sets || []).flatMap(x => x.items || []), ...(d.ideas || []).map(x => x.item)].filter(p => p && p.image && p.name);
 }
+// The photos of a direct store's sets and ideas, checked like every other photo of this site (L211): from the store's
+// own image servers; a photo that does not open is left out with its product. The result (the photos that did not open)
+// is kept 6 hours, 10 minutes when a check did not finish in time or every server refused, so a page checks at most once.
+// later: the home page does not wait (it checks in the background and shows the photos at once, L211).
+const DIRECT_PHOTO_TTL = 21600;
+export const directPhotosKey = (site, store) => `${storeCacheKey(site, store)}&part=direct-photos&h=${showcaseHash(directPicks(store).map(p => p.image))}`;
+export async function directPhotos(site, store, deps = {}, ctx = null, { later = false } = {}) {
+  const images = [...new Set(directPicks(store).map(p => p.image))];
+  const cache = deps.cache || null;
+  const key = directPhotosKey(site, store);
+  if (cache) {
+    try {
+      const hit = await cache.match(key);
+      if (hit) {
+        const data = await hit.json();
+        if (data && Array.isArray(data.broken)) return new Set(data.broken);
+      }
+    } catch { /* a broken copy is checked again */ }
+  }
+  if (!deps.photoFetch || !images.length) return new Set();
+  const check = async () => {
+    const opts = { timeoutMs: deps.photoTimeoutMs, userAgent: storeUserAgent(site), limit: deps.photoLimit || null };
+    const seen = await keepOpenPhotos(images.map(image => ({ image })), deps.photoFetch, images.length,
+      { ...opts, deadlineMs: later ? PHOTO_LATER_DEADLINE_MS : (deps.photoDeadlineMs || PHOTO_DEADLINE_MS) });
+    const open = new Set(seen.products.map(p => p.image));
+    const broken = images.filter(i => !open.has(i));
+    if (cache) {
+      const ttl = seen.late || seen.blocked ? 600 : DIRECT_PHOTO_TTL;
+      const res = new Response(JSON.stringify({ broken }), { headers: { 'Content-Type': 'application/json', 'Cache-Control': `public, max-age=${ttl}` } });
+      try { await cache.put(key, res); } catch { /* the next visit checks again */ }
+    }
+    return new Set(broken);
+  };
+  if (later && ctx && typeof ctx.waitUntil === 'function') {
+    ctx.waitUntil(check().catch(() => null));
+    return new Set();
+  }
+  return check();
+}
 const DIRECT_REL = 'sponsored nofollow noopener';
-function directProduct(c, store, p) {
+function directProduct(c, store, p, broken = new Set()) {
   const href = directUrl(store, p.url, c.lw);
-  if (!href || !/^https:\/\/[^/]+\//.test(String(p.image || ''))) return '';
+  if (!href || !/^https:\/\/[^/]+\//.test(String(p.image || '')) || broken.has(p.image)) return '';
   return html`<div class="sc-item">
     <a class="sc-photo" href="${href}" rel="${DIRECT_REL}" target="_blank"><img src="${p.image}" alt="${p.name}" width="200" height="200" loading="lazy" decoding="async" referrerpolicy="no-referrer"></a>
     <p class="sc-name" translate="no">${p.name}</p>
@@ -1299,8 +1341,8 @@ function directProduct(c, store, p) {
   </div>`;
 }
 // An idea: one product of the store, or (AB, which has no product feed) one of its categories, as a text link.
-function directIdea(c, store, idea) {
-  if (idea.item) return directProduct(c, store, idea.item);
+function directIdea(c, store, idea, broken) {
+  if (idea.item) return directProduct(c, store, idea.item, broken);
   const href = directUrl(store, idea.url, c.lw);
   return href ? html`<a class="sc-link" href="${href}" rel="${DIRECT_REL}" target="_blank"><span>${c.t('See them on {0}', keep(store.name))}</span></a>` : '';
 }
@@ -1311,11 +1353,12 @@ function directDisclosure(c, store) {
   <p>${c.t('Prices, stock and delivery are on the page you open. We do not sell anything and we do not track prices.')}</p>
 </div>`;
 }
-export function directStorePage(c, store) {
+// broken: the photos that did not open (directPhotos): their products are left out, and a set needs 2 products (L221).
+export function directStorePage(c, store, broken = new Set()) {
   const { site, t, tx } = c;
   const d = store.direct || {};
-  const sets = (d.sets || []).map(set => ({ set, items: (set.items || []).map(p => directProduct(c, store, p)).filter(Boolean) })).filter(x => x.items.length);
-  const ideas = (d.ideas || []).map(idea => ({ idea, body: directIdea(c, store, idea) })).filter(x => toString(x.body));
+  const sets = (d.sets || []).map(set => ({ set, items: (set.items || []).map(p => directProduct(c, store, p, broken)).filter(Boolean) })).filter(x => x.items.length >= 2);
+  const ideas = (d.ideas || []).map(idea => ({ idea, body: directIdea(c, store, idea, broken) })).filter(x => toString(x.body));
   return shell(c, {
     title: tx('{0} on {1}', store.name, site.name),
     description: `${tx(store.line)} ${tx('Each idea opens its page on {0}, which shows the price, the stock and the delivery.', store.name)}`,
@@ -1557,8 +1600,10 @@ const LEGAL = {
 <li>${c.t('We do not sell anything and we do not take payments.')}</li>
 <li>${c.t('We do not track prices or send price alerts.')}</li>
 <li>${c.t('We do not show prices: they are on the page each button opens, where they are up to date.')}</li>
-<li>${c.t('The store pages show product photos, names and brands from the Gear World sites, each with its Gear World product page.')}</li>
-${directNames(c) ? html`<li>${c.t('The pages of {0} show gift ideas of the store itself, each with a Linkwise link to its page on the store’s own site.', directNames(c))}</li>` : ''}
+${directNames(c)
+    ? html`<li>${c.t('The pages of the other stores show product photos, names and brands from the Gear World sites, each with its Gear World product page.')}</li>
+<li>${c.t('The pages of {0} show gift ideas of the store itself, each with a Linkwise link to its page on the store’s own site.', directNames(c))}</li>`
+    : html`<li>${c.t('The store pages show product photos, names and brands from the Gear World sites, each with its Gear World product page.')}</li>`}
 </ul>
 ${c.mode === 'on' ? html`<p>${amazonStatement(c)}</p>` : ''}`
   }),
@@ -1577,7 +1622,9 @@ ${withMarkets(c.mode)
 ${c.mode === 'on' ? html`<h2 translate="no">Amazon</h2><p>${amazonStatement(c)}</p><p>${c.t(AMAZON_TRADEMARK)}</p>` : ''}
 ${directNames(c) ? html`<h2 translate="no">Linkwise</h2><p>${c.t('The gift ideas on the pages of {0} are our own affiliate links through Linkwise, an affiliate network. If you buy after following one, the store may pay us a commission. You pay the same price as you would if you went to the store directly.', directNames(c))}</p>` : ''}
 <h2>${c.t('The Gear World sites')}</h2>
-<p>${c.t('The "Browse on" buttons open a category of a Gear World site, and the "See it on" buttons of the store pages open a product page of a Gear World site. Those sites have their own affiliate links and explain them on their own "How we make money" page.')}</p>
+<p>${directNames(c)
+    ? c.t('The "Browse on" buttons open a category of a Gear World site, and the "See it on" buttons of the other store pages open a product page of a Gear World site. Those sites have their own affiliate links and explain them on their own "How we make money" page.')
+    : c.t('The "Browse on" buttons open a category of a Gear World site, and the "See it on" buttons of the store pages open a product page of a Gear World site. Those sites have their own affiliate links and explain them on their own "How we make money" page.')}</p>
 <h2>${c.t('How this affects what you see')}</h2>
 <p>${c.t('The ideas are not ranked by commission, and nobody pays to be in a guide. We do not show prices: the page each button opens has the current price.')}</p>`
   }),
@@ -1703,13 +1750,19 @@ export function createGuidesWorker(site, deps = {}) {
   const nowMs = () => (typeof deps.now === 'function' ? deps.now() : Date.now());
   // Every store's products for the home page cards (from the cache, or read now); never breaks the page. Only the
   // stores the visitor's country sees (L210): the others are not even read.
-  async function allStoreData(ctx, country = VIEW_BASE) {
+  async function allStoreData(ctx, country = VIEW_BASE, lw = '') {
     const list = awinStores(site).filter(s => deliversHere(s, country));
     // One photo limit for the whole page; the home page never waits for the photo check (L211).
     const rt = { ...runtime(), photoLater: true };
-    const r = await Promise.allSettled(list.map(s => storeProducts(site, s, rt, ctx)));
+    const direct = directStores(site, country, lw);
+    const [r, d] = await Promise.all([
+      Promise.allSettled(list.map(s => storeProducts(site, s, rt, ctx))),
+      Promise.allSettled(direct.map(s => directPhotos(site, s, rt, ctx, { later: true })))
+    ]);
     const out = {};
     list.forEach((s, i) => { out[s.slug] = r[i].status === 'fulfilled' ? r[i].value.products : []; });
+    // A direct store (L226): the photos of its card that did not open.
+    direct.forEach((s, i) => { out[s.slug] = d[i].status === 'fulfilled' ? [...d[i].value] : []; });
     return out;
   }
   return {
@@ -1767,14 +1820,18 @@ export function createGuidesWorker(site, deps = {}) {
           // The app row (L218) as on the home page: this visitor's own country and browser.
           const edHome = edCtx('/');
           edHome.app = appBarWanted(country, request.headers.get('user-agent'));
-          return page(homePage(edHome, new Date(nowMs()), await allStoreData(ctx, ed.country)), 200, edLang);
+          return page(homePage(edHome, new Date(nowMs()), await allStoreData(ctx, ed.country, lw)), 200, edLang);
         }
         const em = rest.match(/^\/stores\/([a-z0-9-]+)\/?$/);
         const edStore = em && editionStores(site, ed, lw).find(s => s.slug === em[1]);
         if (edStore) {
           if (!rest.endsWith('/')) { url.pathname = `${url.pathname}/`; return redirect(url.toString(), 301); }
           // A direct store (L226): its own sets and ideas, nothing read from a Gear World database.
-          if (isDirectStore(edStore)) return page(directStorePage(edCtx(`/stores/${edStore.slug}/`), edStore), 200, edLang);
+          if (isDirectStore(edStore)) {
+            let broken = new Set();
+            try { broken = await directPhotos(site, edStore, runtime(), ctx); } catch { broken = new Set(); }
+            return page(directStorePage(edCtx(`/stores/${edStore.slug}/`), edStore, broken), 200, edLang);
+          }
           // The store's list first, then its showcase: never both at once on the same site's database (L221).
           const rt = runtime();
           let products = [];
@@ -1791,7 +1848,7 @@ export function createGuidesWorker(site, deps = {}) {
         // The app row (L218): this visitor's country and browser; the page is private already.
         const home = ctxFor('/');
         home.app = appBarWanted(country, request.headers.get('user-agent'));
-        return page(homePage(home, new Date(nowMs()), await allStoreData(ctx, country)));
+        return page(homePage(home, new Date(nowMs()), await allStoreData(ctx, country, lw)));
       }
       if (url.pathname === '/guides' || url.pathname === '/guides/') return redirect(`https://${site.domain}${keepLang('/#guides')}`, 302);
       if (url.pathname === '/stores' || url.pathname === '/stores/') return redirect(`https://${site.domain}${keepLang('/#stores')}`, 302);
@@ -1806,7 +1863,11 @@ export function createGuidesWorker(site, deps = {}) {
         if (shown && store.amazon) return page(amazonStorePage(ctxFor(`/stores/${store.slug}/`), store));
         // A store not listed for the visitor's country (L210): the page says so, with no products or codes.
         if (shown && !deliversHere(store, country)) return page(storeElsewherePage(ctxFor(`/stores/${store.slug}/`), store));
-        if (shown && isDirectStore(store)) return page(directStorePage(ctxFor(`/stores/${store.slug}/`), store));
+        if (shown && isDirectStore(store)) {
+          let broken = new Set();
+          try { broken = await directPhotos(site, store, runtime(), ctx); } catch { broken = new Set(); }
+          return page(directStorePage(ctxFor(`/stores/${store.slug}/`), store, broken));
+        }
         if (shown) {
           // The store's list first, then its showcase: never both at once on the same site's database (L221).
           const rt = runtime();

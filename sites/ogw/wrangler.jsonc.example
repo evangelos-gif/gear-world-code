@@ -1,4 +1,5 @@
-// Mega Stores Gear World - Wrangler config TEMPLATE (no database, no secrets).
+// Mega Stores Gear World - Wrangler config TEMPLATE (no database, no secrets in this file: the Linkwise code is the
+// Worker secret LINKWISE_CODE, given by tools/ogw-site.ps1 at deploy time, lessons L226).
 // tools/ogw-site.ps1 makes the real wrangler.jsonc on the PC: the test Worker "mega-stores-gear-world-preview" on its
 // *.workers.dev address, or the live Worker "mega-stores-gear-world" on megastoresgearworld.com and www (only with the
 // owner's phrase). AMAZON_LINKS is set at deploy time (--var): "preview" on the test Worker, "on" on the live Worker

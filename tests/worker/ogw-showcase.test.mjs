@@ -89,7 +89,7 @@ test('L221: /gr/stores/<store>/ shows the logo, the sets and the ideas, in Greek
     const { r, text, calls } = await get(`/gr/stores/${s.slug}/`);
     assert.equal(r.status, 200, s.slug);
     assert.match(text, new RegExp(`<span class="store-logo store-logo-lg"><img src="/assets/${s.logo.replace('.', '\\.')}\\?v=[^"]+" alt="${s.name}" width="120" height="60"`), `${s.slug}: the logo`);
-    assert.ok(words(text).includes(`Σετ από το ${s.name}`) && words(text).includes(`Ιδέες δώρου από το ${s.name}`), `${s.slug}: both parts, in Greek`);
+    assert.ok(words(text).includes(`Σετ από το κατάστημα ${s.name}`) && words(text).includes(`Ιδέες δώρου από το κατάστημα ${s.name}`), `${s.slug}: both parts, in Greek`);
     for (const set of s.showcase.sets) assert.ok(text.includes(`<h3>${set.title.el}</h3>`), `${s.slug}: ${set.title.en}`);
     for (const idea of s.showcase.ideas) assert.ok(text.includes(`<h3>${idea.title.el}</h3>`), `${s.slug}: ${idea.title.en}`);
     assert.equal((text.match(/<li class="sc-set">/g) || []).length, 2);

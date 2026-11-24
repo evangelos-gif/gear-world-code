@@ -197,7 +197,7 @@ export default {
         program: 138, hosts: ['www.kotsovolos.gr'],
         sets: [
           { title: { el: 'Η γωνιά του καφέ', en: 'The coffee corner' }, line: { el: 'Μηχανή espresso, συσκευή για αφρόγαλα και μύλος καφέ.', en: 'An espresso machine, a milk frother and a coffee grinder.' }, items: [
-            { name: 'Delonghi Magnifca Start ECAM220.30.SB Μηχανή Espresso', image: 'https://assets.kotsovolos.gr/product/273143-l.jpg', url: 'https://www.kotsovolos.gr/ProductDisplay?partNumber=273143' },
+            { name: 'Delonghi Magnifica Start ECAM220.30.SB Μηχανή Espresso', image: 'https://assets.kotsovolos.gr/product/273143-l.jpg', url: 'https://www.kotsovolos.gr/ProductDisplay?partNumber=273143' },
             { name: 'Jura Automatic Milk Frother Hot & Cold Συσκευή για Αφρόγαλα', image: 'https://assets.kotsovolos.gr/product/302616-l.jpg', url: 'https://www.kotsovolos.gr/ProductDisplay?partNumber=302616' },
             { name: 'Smeg CGF11PGEU Pistachio Green Μύλος Καφέ', image: 'https://assets.kotsovolos.gr/product/320952-l.jpg', url: 'https://www.kotsovolos.gr/ProductDisplay?partNumber=320952' }] },
           { title: { el: 'Για όποιον έχει PS5', en: 'For someone with a PS5' }, line: { el: 'Χειριστήριο, ακουστικά gaming και κάθετη βάση.', en: 'A controller, a gaming headset and a vertical stand.' }, items: [
@@ -231,7 +231,7 @@ export default {
           { title: { el: 'Για στιγμές που μένουν', en: 'For moments to keep' }, line: { el: 'Instant φωτογραφική μηχανή.', en: 'An instant camera.' },
             item: { name: 'Instant Camera Polaroid Now Generation 3 - Coral', image: 'https://external.webstorage.gr/mmimages/image/26/96/90/97/2029041-INSTANT-CAM-POLAROID-NOW-GEN3-CORAL-hero-800x800.jpg', url: 'https://www.public.gr/product/fotografia/fotografikes-mixanes/instant-cameras/instant-camera-polaroid-now-generation-3--coral/2029041' } },
           { title: { el: 'Για τα ταξίδια', en: 'For travel' }, line: { el: 'Ακουστικά κεφαλής με ακύρωση θορύβου.', en: 'Noise-cancelling headphones.' },
-            item: { name: 'Aσύρματα Ακουστικά Κεφαλής Bose QuietComfort (2nd Gen) - White Smoke', image: 'https://external.webstorage.gr/mmimages/image/80/38/3/70/2181582-BOSE-0017817859707-hero-800x800.jpg', url: 'https://www.public.gr/product/ihos/akoustika/akoystika-kefalis/asurmata-akoustika-kefalis-bose-quietcomfort-2nd-gen--white-smoke/2181582' } },
+            item: { name: 'Ασύρματα Ακουστικά Κεφαλής Bose QuietComfort (2nd Gen) - White Smoke', image: 'https://external.webstorage.gr/mmimages/image/80/38/3/70/2181582-BOSE-0017817859707-hero-800x800.jpg', url: 'https://www.public.gr/product/ihos/akoustika/akoystika-kefalis/asurmata-akoustika-kefalis-bose-quietcomfort-2nd-gen--white-smoke/2181582' } },
           { title: { el: 'Για πάρτι', en: 'For parties' }, line: { el: 'Μεγάλο φορητό ηχείο.', en: 'A big portable speaker.' },
             item: { name: 'JBL Boombox 3 Φορητό Ηχείο 180W - Μαύρο', image: 'https://external.webstorage.gr/mmimages/image/63/14/7/5/1710621-JBL-BOOMBOX+3-hero-800x800.jpg', url: 'https://www.public.gr/product/ihos/hxeia/forita-hxeia/jbl-boombox-3-forito-ixeio-180w--mauro/1710621' } }
         ]
@@ -250,7 +250,7 @@ export default {
             { name: 'Lancôme - Hypnôse 5-Color Eyeshadow Palette', image: 'https://media.sephora.eu/content/dam/gdam/europe/digital/pim/published/L/LANCOME/476611/443626-media_swatch.jpg?scaleWidth=500&scaleHeight=500&scaleMode=fit', url: 'https://www.sephora.gr/p/hypnose-high-pigment-5-color-eyeshadow-palette-476611.html' }] }
         ],
         ideas: [
-          { title: { el: 'Για εκείνη', en: 'For her' }, line: { el: 'Σετ με άρωμα.', en: 'A fragrance set.' },
+          { title: { el: 'Για εκείνη', en: 'For her' }, line: { el: 'Σετ ταξιδιού με καλλυντικά.', en: 'A travel beauty set.' },
             item: { name: 'Rare Beauty - Rare Beginnings - Σετ ταξιδιού', image: 'https://media.sephora.eu/content/dam/gdam/europe/digital/pim/published/R/RARE_BEAUTY/820799/407317-media_swatch-0.jpg?scaleWidth=500&scaleHeight=500&scaleMode=fit', url: 'https://www.sephora.gr/p/rare-beginnings---set-taxidiou-820799.html' } },
           { title: { el: 'Για εκείνον', en: 'For him' }, line: { el: 'Ανδρικό άρωμα.', en: 'A men’s fragrance.' },
             item: { name: 'Dior - Sauvage Eau de Toilette', image: 'https://media.sephora.eu/content/dam/gdam/europe/digital/pim/published/D/DIOR/362059/82265-media_swatch.jpg?scaleWidth=500&scaleHeight=500&scaleMode=fit', url: 'https://www.sephora.gr/p/sauvage-eau-de-toilette-362059.html' } },

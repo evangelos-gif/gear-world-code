@@ -6,11 +6,11 @@
 // Fake fetch, a fixed day, a fake code.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, statSync } from 'node:fs';
+import { readFileSync, statSync, readdirSync } from 'node:fs';
 import site from '../../sites/ogw/site.config.js';
 import {
   createGuidesWorker, isDirectStore, directUrl, linkwiseCode, directStores, shownStores, awinStores, editionStores, pagePaths,
-  directPicks, storeCodes, earlyBlackFriday, EDITIONS
+  directPicks, storeCodes, earlyBlackFriday, EDITIONS, directPhotos, directPhotosKey
 } from '../../src/marketplace-guides.js';
 
 const LIVE = 'https://megastoresgearworld.com';
@@ -150,8 +150,10 @@ test('L226: without our code the 5 stores are on no page, card, menu or sitemap,
 
 test('L226: the 5 stores are never read from a Gear World site, and have no codes, Black Friday entry or product list', async () => {
   for (const s of DIRECT) assert.ok(!awinStores(site).includes(s), `${s.slug}: not among the stores read for products`);
-  assert.ok(!storeCodes(site, NOW, null, 'GR').some(c => SLUGS.includes(c.slug)), 'no code');
-  assert.ok(!earlyBlackFriday(site, NOW, 'GR').some(r => SLUGS.includes(r.slug)), 'no Black Friday entry');
+  // Even with a code of their own on a Gear World site, or an entry of their own in black-friday.json.
+  assert.ok(!storeCodes(site, NOW, null, 'GR').some(c => SLUGS.includes(c.store.slug)), 'no code');
+  const bf = { ...site, earlyBlackFriday: { ...site.earlyBlackFriday, started: [{ slug: 'kotsovolos-gr', name: 'Κωτσόβολος', from: '2026-11-20', hide: '2026-12-01', sites: ['TGW'], deliversTo: ['GR'] }], codes: [] } };
+  assert.deepEqual(earlyBlackFriday(bf, NOW, 'GR'), [], 'no Black Friday entry for a direct store');
   const home = await get('/gr/');
   for (const u of home.calls) assert.ok(!SLUGS.some(x => (u.searchParams.get('retailer') || '').includes(DIRECT.find(s => s.slug === x).name)), `never read: ${u}`);
   for (const s of DIRECT) {
@@ -175,7 +177,7 @@ test('L226: /gr/ lists the 5 after the 7, each card with its logo and three of i
     const photos = [...card.matchAll(/<li><img src="([^"]+)" alt="" width="96" height="96" loading="lazy" decoding="async" referrerpolicy="no-referrer"><\/li>/g)].map(m => m[1].replace(/&amp;/g, '&'));
     assert.deepEqual(photos, directPicks(s).slice(0, 3).map(p => p.image), `${s.slug}: its own photos`);
     assert.ok(!card.includes('go.linkwi.se') && !card.includes(s.direct.hosts[0]), `${s.slug}: the card opens our page, not the store`);
-    assert.ok(visible(card).includes(s.slug === 'ab-gr' ? `Ιδέες δώρου από το ${s.name}` : `Σετ και ιδέες δώρου από το ${s.name}`), `${s.slug}: its line under the card`);
+    assert.ok(visible(card).includes(s.slug === 'ab-gr' ? `Ιδέες δώρου από το κατάστημα ${s.name}` : `Σετ και ιδέες δώρου από το κατάστημα ${s.name}`), `${s.slug}: its line under the card`);
   }
   assert.ok(visible(text).includes('για μερικά καταστήματα, ιδέες δώρου που ανοίγουν τη σελίδα του ίδιου του καταστήματος'), 'the lede says so');
   assert.match(text, /<span class="jump-meta">12 καταστήματα<\/span>/, 'the hero button counts them');
@@ -197,9 +199,9 @@ test('L226: a store page: the logo, the sets and the ideas in Greek, each one a 
     const words = visible(text);
     assert.ok(words.includes(`μέσω της Linkwise, ενός δικτύου affiliate`) && words.includes('μπορεί να κερδίσουμε προμήθεια'), `${s.slug}: the note says what the links are`);
     const d = s.direct;
-    if (d.sets.length) assert.ok(words.includes(`Σετ από το ${s.name}`), `${s.slug}: the sets`);
+    if (d.sets.length) assert.ok(words.includes(`Σετ από το κατάστημα ${s.name}`), `${s.slug}: the sets`);
     else assert.ok(!text.includes('id="sets-h"'), `${s.slug}: no sets part`);
-    assert.ok(words.includes(`Ιδέες δώρου από το ${s.name}`), `${s.slug}: the ideas`);
+    assert.ok(words.includes(`Ιδέες δώρου από το κατάστημα ${s.name}`), `${s.slug}: the ideas`);
     for (const part of [...d.sets, ...d.ideas]) assert.ok(text.includes(`<h3>${part.title.el}</h3>`), `${s.slug}: ${part.title.en}`);
     assert.equal((text.match(/<li class="sc-set">/g) || []).length, d.sets.length);
     assert.equal((text.match(/<li class="sc-idea">/g) || []).length, d.ideas.length);
@@ -268,4 +270,60 @@ test('L226: the code is never in the repository, the config or a test fixture ot
   const tool = readFileSync('tools/ogw-site.ps1', 'utf8');
   assert.match(tool, /--secrets-file/, 'the tool gives the code to Cloudflare as a secret');
   assert.match(tool, /linkwise-code\.dat/, 'from the encrypted file of the PC (DPAPI)');
+});
+
+test('L226: a hidden network (L215) hides the 5 too, even with the code', async () => {
+  const hidden = { ...site, hiddenNetworks: ['linkwise'] };
+  assert.deepEqual(directStores(hidden, 'GR', CODE), []);
+  assert.ok(!pagePaths(hidden, 'on', CODE).some(p => SLUGS.some(x => p.includes(x))), 'not in the sitemap');
+  const home = await get('/gr/', { s: hidden });
+  for (const s of DIRECT) assert.ok(!home.text.includes(`/stores/${s.slug}/`) && !home.text.includes('go.linkwi.se'), `/gr/: no ${s.slug}`);
+  for (const s of DIRECT) assert.equal((await get(`/gr/stores/${s.slug}/`, { s: hidden })).r.status, 404, `${s.slug}: 404 while hidden`);
+});
+
+test('L226 (L211): a photo of a direct store that does not open is left out with its product, and the check is kept', async () => {
+  const k = DIRECT.find(s => s.slug === 'kotsovolos-gr');
+  const gone = k.direct.sets[0].items[0].image; // the espresso machine of the coffee set
+  const goneIdea = k.direct.ideas[0].item.image; // the air fryer
+  const asked = [];
+  const photoFetch = async (url, init) => {
+    asked.push({ url: String(url), init });
+    return new Response('x', { status: [gone, goneIdea].includes(String(url)) ? 404 : 206, headers: { 'Content-Type': [gone, goneIdea].includes(String(url)) ? 'text/html' : 'image/jpeg' } });
+  };
+  const store = new Map();
+  const cache = { match: async key => (store.has(key) ? new Response(store.get(key)) : undefined), put: async (key, res) => { store.set(key, await res.text()); } };
+  const w = createGuidesWorker(site, { fetch: makeFetch(), photoFetch, cache, now: () => NOW });
+  const req = () => { const r = new Request(`${LIVE}/gr/stores/kotsovolos-gr/`, { headers: { 'user-agent': BROWSER } }); Object.defineProperty(r, 'cf', { value: { country: 'GR' } }); return r; };
+  const text = await (await w.fetch(req(), LW)).text();
+  assert.equal(asked.length, directPicks(k).length, 'every photo checked once');
+  for (const a of asked) assert.ok(!/linkwi/.test(a.url) && /^https:\/\/assets\.kotsovolos\.gr\//.test(a.url), `only the store's image server: ${a.url}`);
+  assert.ok(!text.includes(gone) && !text.includes(goneIdea), 'the products whose photo does not open are left out');
+  assert.equal((text.match(/<li class="sc-set">/g) || []).length, 2, 'the coffee set keeps its 2 other products (a set needs 2)');
+  assert.equal((text.match(/<li class="sc-idea">/g) || []).length, 2, 'the idea without its photo goes');
+  assert.deepEqual(JSON.parse(store.get(directPhotosKey(site, k))).broken.sort(), [gone, goneIdea].sort(), 'the result is kept');
+  await w.fetch(req(), LW);
+  assert.equal(asked.length, directPicks(k).length, 'the next visit uses the kept check');
+  // The home page uses the kept result for the card, without waiting for a check of its own.
+  const home = await (await w.fetch((() => { const r = new Request(`${LIVE}/gr/`, { headers: { 'user-agent': BROWSER } }); Object.defineProperty(r, 'cf', { value: { country: 'GR' } }); return r; })(), LW)).text();
+  const card = home.split('<li class="store-card">').find(c => c.includes('href="/gr/stores/kotsovolos-gr/"'));
+  assert.ok(card && !card.includes(gone), 'the card leaves the photo out too');
+  // A set with only one product left is not shown.
+  const twoGone = new Set(k.direct.sets[1].items.slice(0, 2).map(p => p.image));
+  const broken = await directPhotos(site, k, { photoFetch: async url => new Response('x', { status: twoGone.has(String(url)) ? 404 : 200, headers: { 'Content-Type': 'image/jpeg' } }) });
+  assert.deepEqual([...broken].sort(), [...twoGone].sort());
+});
+
+test('L226: no Linkwise affiliate code anywhere in the repository (the only one is the fake of the tests)', () => {
+  const roots = ['src', 'sites', 'tools', 'tests', 'docs', 'promos', 'README.md', 'CLAUDE.md', '.github'];
+  const text = /\.(m?js|json|jsonc|md|ps1|psm1|txt|html|css|ya?ml|example|toml|cmd|sh|svg|tpl)$/i;
+  const found = [];
+  const walk = p => {
+    let st;
+    try { st = statSync(p); } catch { return; }
+    if (st.isDirectory()) { for (const n of readdirSync(p)) if (n !== 'node_modules' && n !== '.git') walk(`${p}/${n}`); return; }
+    if (!text.test(p)) return;
+    for (const m of readFileSync(p, 'utf8').matchAll(/(?<![A-Za-z0-9])CD\d{3,9}(?!\d)/g)) if (m[0] !== 'CD12345') found.push(`${p}: ${m[0]}`);
+  };
+  for (const r of roots) walk(r);
+  assert.deepEqual(found, []);
 });

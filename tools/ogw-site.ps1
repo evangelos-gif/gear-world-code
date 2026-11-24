@@ -435,7 +435,9 @@ function Test-Site([string]$base, [string]$mode) {
     # our own pages: a Linkwise link is never opened (it would count as a click).
     $dStores = @('kotsovolos-gr', 'public-gr', 'sephora-gr', 'e-shop-gr', 'ab-gr')
     $dMissing = @($dStores | Where-Object { -not $ed.text.Contains('href="/gr/stores/' + $_ + '/"') })
-    $dp = Get-Page ($base + '/gr/stores/kotsovolos-gr/')
+    # Without a code of this run and none of the 5 on /gr/, the page is not asked (it is a 404, asked again on a preview).
+    $dp = @{ status = 0; text = ''; location = ''; robots = '' }
+    if ($script:LwCode -or $dMissing.Count -lt $dStores.Count) { $dp = Get-Page ($base + '/gr/stores/kotsovolos-gr/') }
     $dLinks = @([regex]::Matches($dp.text, 'href="https://go\.linkwi\.se/z/138-0/(CD\d{3,9})/\?lnkurl=https%3A%2F%2Fwww\.kotsovolos\.gr%2F[^"]*" rel="sponsored nofollow noopener" target="_blank"'))
     $dAll = [regex]::Matches($dp.text, 'href="https://go\.linkwi\.se/').Count
     $dCodes = @($dLinks | ForEach-Object { $_.Groups[1].Value } | Select-Object -Unique)
@@ -444,6 +446,10 @@ function Test-Site([string]$base, [string]$mode) {
         if ($dMissing.Count -eq 0 -and $dClean -and $dCodes[0] -eq $script:LwCode) { Say ('  Τα 5 μεγάλα καταστήματα της Linkwise στο /gr/ (L226): ΕΝΤΑΞΕΙ - η σελίδα του Κωτσόβολου έχει {0} links της Linkwise με τον κωδικό σου (sponsored, nofollow), κανένα σύμβολο €' -f $dLinks.Count) $Ok }
         else { Say ('  Τα 5 μεγάλα καταστήματα της Linkwise (L226): ΠΡΟΒΛΗΜΑ - λείπουν από το /gr/: {0}; σελίδα Κωτσόβολου: απάντηση {1}, {2} links της Linkwise, ο κωδικός σου: {3}' -f ($dMissing -join ', '), $dp.status, $dLinks.Count, $(if ($dCodes.Count -eq 1 -and $dCodes[0] -eq $script:LwCode) { 'ναι' } else { 'όχι' })) $Bad; $all = $false }
     } elseif ($dMissing.Count -eq 0 -and $dClean) { Say '  Τα 5 μεγάλα καταστήματα της Linkwise (L226): ΕΝΤΑΞΕΙ - με τον κωδικό που είχε ήδη ο Worker' $Ok }
+    elseif ($dMissing.Count -lt $dStores.Count -or $dp.status -eq 200) {
+        # They show (the Worker has a code from before), but not as they should: never only a warning (review 24/11/2026).
+        Say ('  Τα 5 μεγάλα καταστήματα της Linkwise (L226): ΠΡΟΒΛΗΜΑ - φαίνονται, αλλά λείπουν από το /gr/: {0}; σελίδα Κωτσόβολου: απάντηση {1}, {2} σωστά links της Linkwise από {3}, σύμβολο €: {4}' -f ($dMissing -join ', '), $dp.status, $dLinks.Count, $dAll, $dp.text.Contains([string][char]0x20AC)) $Bad; $all = $false
+    }
     else { Say '  Τα 5 μεγάλα καταστήματα της Linkwise (L226): ΠΡΟΣΟΧΗ - δεν φαίνονται (ο Worker δεν έχει τον κωδικό της Linkwise)' $Warn }
     $edSm = Get-Page ($base + '/sitemap.xml')
     if ($edSm.status -eq 200 -and $edSm.text.Contains('<loc>https://' + $Domain + '/gr/</loc>') -and $edSm.text.Contains('<loc>https://' + $Domain + '/gr/stores/kouzinika-gr/</loc>')) { Say '  sitemap.xml με το /gr/ και τις σελίδες των ελληνικών καταστημάτων (L214): ΕΝΤΑΞΕΙ' $Ok }
@@ -514,11 +520,18 @@ function New-LinkwiseSecretsFile {
     return $f
 }
 function Invoke-Deploy([string]$folder, [string]$arguments) {
+    # A file left by a run that was closed half way is deleted first (review 24/11/2026).
+    Get-ChildItem -LiteralPath ([System.IO.Path]::GetTempPath()) -Filter 'gw-lw-*.env' -File -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
     $sf = New-LinkwiseSecretsFile
     $extra = ''
     if ($sf) { $extra = (' --secrets-file "{0}"' -f $sf) }
     try { return (Invoke-Wrangler $folder ($arguments + $extra) -NonInteractive) }
-    finally { if ($sf) { Remove-Item -LiteralPath $sf -Force -ErrorAction SilentlyContinue } }
+    finally {
+        if ($sf) {
+            Remove-Item -LiteralPath $sf -Force -ErrorAction SilentlyContinue
+            if (Test-Path -LiteralPath $sf) { Say ('  ΠΡΟΣΟΧΗ - δεν μπόρεσα να σβήσω το προσωρινό αρχείο του κωδικού της Linkwise ({0}): σβήνεται στην επόμενη εκτέλεση.' -f $sf) $Warn }
+        }
+    }
 }
 # Before a deploy: says what happens to the 5 direct stores; a file that cannot be read stops everything (exit 3).
 function Use-LinkwiseCode {
