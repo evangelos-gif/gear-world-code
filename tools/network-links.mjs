@@ -38,7 +38,7 @@ export { BOL_SITE_ID, bolLink, isBolLink };
 export function isLinkwiseLink(u, code = '') {
   const x = parse(u);
   if (!x || x.protocol !== 'https:' || x.hostname !== 'go.linkwi.se') return false;
-  const m = /^\/z\/(\d{2,9})-\d+\/(CD\d{3,9})\/?$/.exec(x.pathname);
+  const m = /^\/z\/(\d{1,9})-\d+\/(CD\d{3,9})\/?$/.exec(x.pathname); // programme 1 to 9 digits (Tokotoukan is 5, L230)
   return Boolean(m && /^https?:\/\//i.test(x.searchParams.get('lnkurl') || '') && (!code || m[2] === code));
 }
 

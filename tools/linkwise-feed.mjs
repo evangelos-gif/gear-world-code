@@ -27,11 +27,13 @@ export const LINKWISE_COLUMNS = ['product_id', 'sku', 'product_name', 'descripti
   'image_url', 'in_stock', 'availability', 'currency', 'price', 'full_price', 'discount', 'program_id', 'program_name', 'size', 'colour',
   'shipping', 'gtin'];
 export const isAffiliateCode = c => /^CD\d{3,9}$/.test(String(c || ''));
+// A programme number: 1 to 9 digits (Tokotoukan is programme 5, chat 7, 24 Nov 2026, lessons L230).
+export const isProgrammeId = p => /^\d{1,9}$/.test(String(p ?? ''));
 
 // base: only for the tests (a local fake Linkwise at http://127.0.0.1:<port>).
 export function linkwiseFeedUrl(code, programId, base = '') {
   if (!isAffiliateCode(code)) throw new Error('bad Linkwise affiliate code');
-  if (!/^\d{2,9}$/.test(String(programId))) throw new Error('bad Linkwise programme id');
+  if (!isProgrammeId(programId)) throw new Error('bad Linkwise programme id');
   const root = /^http:\/\/127\.0\.0\.1:\d{2,5}$/.test(String(base)) ? base : `https://${LINKWISE_HOST}`;
   return `${root}/feeds/1.2/${code}/programs-joined/columns-${LINKWISE_COLUMNS.join(',')}/catinc-0/catex-0/proginc-${programId}/progex-0/feed.csv`;
 }
@@ -96,6 +98,32 @@ export async function convertLinkwise(stream, programId, outFile) {
   return { rows, header: header || [] };
 }
 
+// Counts the bytes of an answer and keeps its first 512 characters (to say what came when it is not a feed).
+export async function* peek(stream, seen) {
+  for await (const chunk of stream) {
+    const b = Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk));
+    seen.bytes += b.length;
+    if (seen.head.length < 512) seen.head += b.toString('utf8').slice(0, 512 - seen.head.length);
+    yield chunk;
+  }
+}
+// What Linkwise answered instead of a feed (lessons L230), in words that never hold the affiliate code. The reason starts
+// with "empty answer", "a web page" or "no product_name column": tools/linkwise-feed-download.ps1 explains each in Greek.
+export function notAFeed(seen, contentType = '', code = '') {
+  const bytes = Number(seen && seen.bytes) || 0;
+  let head = String(seen && seen.head || '').replace(/^\uFEFF/, '');
+  if (code) head = head.split(code).join('***');
+  head = head.replace(/\bCD\d{3,9}\b/g, 'CD***');
+  const type = String(contentType || '').split(';')[0].trim().toLowerCase().replace(/[^a-z0-9/+.-]/g, '').slice(0, 40);
+  if (!head.trim()) return `empty answer (${bytes} bytes${type ? `, ${type}` : ''})`;
+  if (/^\s*</.test(head) || type === 'text/html') {
+    const title = (/<title[^>]*>([^<]{1,80})/i.exec(head) || [])[1] || '';
+    return `a web page, not a feed (${bytes} bytes${title ? `, title "${title.replace(/[^\p{L}\p{N} .,:|!?()*-]/gu, '').trim().slice(0, 60)}"` : ''})`;
+  }
+  const first = head.split(/\r?\n/)[0].replace(/[^\p{L}\p{N} .,;:_|!?()"'*-]/gu, '').trim().slice(0, 80);
+  return `no product_name column (${bytes} bytes, first line "${first}")`;
+}
+
 // Download one programme into the archive. The old copy goes to <archive>\_old\<stamp>\ only when the new one has products.
 export async function downloadProgramme({ code, programId, archive, stamp, fetchImpl = globalThis.fetch, base = '' }) {
   const final = join(archive, `LINKWISE_${programId}.csv.gz`);
@@ -104,8 +132,12 @@ export async function downloadProgramme({ code, programId, archive, stamp, fetch
   try { res = await fetchImpl(linkwiseFeedUrl(code, programId, base)); } catch (e) { return { programId, ok: false, rows: 0, why: `network: ${String(e && e.message || e).slice(0, 80)}` }; }
   if (!res || !res.ok) return { programId, ok: false, rows: 0, why: `HTTP ${res ? res.status : '?'}` };
   const body = res.body ? Readable.fromWeb(res.body) : Readable.from([await res.text()]);
-  const { rows, header } = await convertLinkwise(body, programId, part);
-  if (!header.includes('product_name')) { try { unlinkSync(part); } catch { /* nothing */ } return { programId, ok: false, rows: 0, why: 'not a Linkwise feed (no product_name column)' }; }
+  const seen = { bytes: 0, head: '' };
+  const { rows, header } = await convertLinkwise(peek(body, seen), programId, part);
+  if (!header.includes('product_name')) {
+    try { unlinkSync(part); } catch { /* nothing */ }
+    return { programId, ok: false, rows: 0, why: notAFeed(seen, res.headers && typeof res.headers.get === 'function' ? res.headers.get('content-type') : '', code) };
+  }
   if (rows === 0) { try { unlinkSync(part); } catch { /* nothing */ } return { programId, ok: false, rows: 0, why: 'empty feed' }; }
   const check = await feedRows(part, ['product_name', 'aw_deep_link']);
   if (!check.ok || check.rows !== rows) { try { unlinkSync(part); } catch { /* nothing */ } return { programId, ok: false, rows, why: 'check of the written file failed' }; }
@@ -149,7 +181,7 @@ async function main() {
   const archive = opt('archive');
   if (!archive || !existsSync(archive)) { say('ERROR no archive folder'); return 2; }
   const programs = opt('programs').split(/[,\s]+/).filter(Boolean);
-  if (!programs.length || programs.some(p => !/^\d{2,9}$/.test(p))) { say('ERROR bad --programs'); return 2; }
+  if (!programs.length || programs.some(p => !isProgrammeId(p))) { say('ERROR bad --programs'); return 2; }
   const base = opt('base');
   if (base && !/^http:\/\/127\.0\.0\.1:\d{2,5}$/.test(base)) { say('ERROR --base is only for a local test server'); return 2; }
   const stamp = new Date().toISOString().replace(/[-:]/g, '').replace('T', '_').slice(0, 15);

@@ -13,7 +13,12 @@
 // (La Redoute, Laura Ashley ...).
 import { PROGRAMMES } from './linkwise-programmes.mjs';
 
-export const NEVER_SHOPS = /\b(public|sephora|e-shop\.gr|ab vasilopoulos|ab βασιλοπουλος|kotsovolos|κωτσοβολος)\b/i;
+// Never on the 13 sites, the Hub or the app, only on Mega Stores (Linkwise's terms, chat 7 18 and 24 Nov 2026, lessons L230):
+// Public, Sephora, e-shop.gr, ΑΒ Βασιλόπουλος, Κωτσόβολος, Aliexpress and Panora. By name and by programme number.
+// Whole words in any script (\b sees only Latin letters, so the Greek names never matched before L230); Greek names are
+// compared without accents (the classifiers fold them with gr()).
+export const NEVER_SHOPS = /(?<![\p{L}\p{N}])(public|sephora|e-shop\.gr|ab vasilopoulos|ab βασιλοπουλος|αβ βασιλοπουλος|kotsovolos|κωτσοβολος|aliexpress|panora)(?![\p{L}\p{N}])/iu;
+export const NEVER_PROGRAMMES = new Set([138, 469, 11183, 11754, 12158, 13026, 13327]);
 
 const fold = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/ς/g, 'σ');
 // Lower case, no accents, final sigma as sigma: "Γυναικεία Φορέματα" -> "γυναικεια φορεματα".
@@ -552,11 +557,12 @@ export function classifierFor(sites) {
 // there to Greece and/or Cyprus with Greek names (deliversTo.retailers and deliversTo.languages "el"), so a Greek shop
 // can never reach the UK view or any other country (Linkwise's terms, lessons L199).
 export async function linkwiseRules(id) {
+  if (NEVER_PROGRAMMES.has(Number(id))) throw new Error(`Linkwise programme ${id} never goes on the sites (only Mega Stores)`);
   const p = programme(id);
   if (!p) throw new Error(`unknown Linkwise programme ${id}`);
   const sites = programmeSites(p);
   for (const s of sites) if (!BY_SITE[s]) throw new Error(`Linkwise programme ${id} is for ${s}, not an older site`);
-  if (NEVER_SHOPS.test(p.name)) throw new Error(`Linkwise programme ${id} (${p.name}) never goes on the sites`);
+  if (NEVER_SHOPS.test(p.name) || NEVER_PROGRAMMES.has(Number(p.id))) throw new Error(`Linkwise programme ${id} (${p.name}) never goes on the sites`);
   const retailer = retailerName(p);
   for (const s of sites) {
     const mod = await import(new URL(`../../../sites/${s}/site.config.js`, import.meta.url).href);

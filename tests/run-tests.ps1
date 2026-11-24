@@ -3103,6 +3103,7 @@ const cols = ['product_id', 'product_name', 'category', 'tracking_url', 'image_u
 http.createServer((q, s) => {
   const m = /^\/feeds\/1\.2\/([^/]+)\/programs-joined\/columns-[^/]+\/catinc-0\/catex-0\/proginc-(\d+)\/progex-0\/feed\.csv$/.exec(q.url);
   if (!m || m[1] !== code) { s.writeHead(403); return s.end('no'); }
+  if (m[2] === '5') { s.writeHead(200, { 'Content-Type': 'text/csv' }); return s.end(''); }
   if (m[2] !== '11532') { s.writeHead(200); return s.end(cols.join(',') + '\n'); }
   const rows = [1, 2, 3].map(i => [String(i), 'Βάζο κεραμικό ' + i, 'Διακόσμηση&gt;Βάζα', 'https://go.linkwi.se/z/11532-0/' + code + '/?lnkurl=https%3A%2F%2Fwww.24home.gr%2Fp' + i,
     'https://img.24home.gr/' + i + '.jpg', 'Y', '24,90', '24home.gr'].map(v => '"' + v + '"').join(','));
@@ -3114,19 +3115,35 @@ http.createServer((q, s) => {
     Start-Sleep -Seconds 2
     try {
         $lwTool = Join-Path (Join-Path $repo 'tools') 'linkwise-feed-download.ps1'
-        $lwArgs = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $lwTool, '-Program', '11532,11533', '-Base', 'http://127.0.0.1:8799', '-SecretFile', $lwSecretFile,
+        $lwArgs = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $lwTool, '-Program', '11532,11533,5', '-Base', 'http://127.0.0.1:8799', '-SecretFile', $lwSecretFile,
             '-Archive', $lwArch, '-OutDir', $lwOut, '-NoClipboard')
         & $exe @lwArgs | Out-Null
         Check ($LASTEXITCODE -eq 0 -and @(Get-ChildItem -LiteralPath $lwArch -File).Count -eq 0) 'linkwise-feed-download: read-only run, exit 0, nothing downloaded'
         & $exe @($lwArgs + @('-Apply', '-Approve', 'wrong phrase')) | Out-Null
         Check ($LASTEXITCODE -eq 1 -and @(Get-ChildItem -LiteralPath $lwArch -File).Count -eq 0) 'linkwise-feed-download: a wrong phrase changes nothing'
+        # L230: an old unfinished file of a programme of this run is cleared, the one of another programme is left alone.
+        $lwStale = Join-Path $lwArch 'LINKWISE_11533.csv.gz.part'
+        $lwOther = Join-Path $lwArch 'LINKWISE_99999.csv.gz.part'
+        Write-Utf8 $lwStale 'half'
+        Write-Utf8 $lwOther 'other'
+        (Get-Item -LiteralPath $lwStale).LastWriteTime = (Get-Date).AddHours(-2)
+        (Get-Item -LiteralPath $lwOther).LastWriteTime = (Get-Date).AddHours(-2)
         & $exe @($lwArgs + @('-Apply', '-Approve', 'ΕΓΚΡΙΝΩ LINKWISE FEED DOWNLOAD')) | Out-Null
         Check ($LASTEXITCODE -eq 0 -and (Test-Path -LiteralPath (Join-Path $lwArch 'LINKWISE_11532.csv.gz')) -and -not (Test-Path -LiteralPath (Join-Path $lwArch 'LINKWISE_11533.csv.gz'))) 'linkwise-feed-download: with the phrase the feed is saved as LINKWISE_11532.csv.gz, an empty one is not'
         $lwAll = (@(Get-ChildItem -LiteralPath $lwOut -Filter 'LINKWISE_FEED_DOWNLOAD_*.txt') | ForEach-Object { [System.IO.File]::ReadAllText($_.FullName) }) -join "`n"
         Check ($lwAll.Contains('11532: OK, 3 προϊόντα') -and $lwAll.Contains('11533: δεν κατέβηκε')) 'linkwise-feed-download: report counts the products and names the empty feed'
+        Check ($lwAll.Contains('5: δεν κατέβηκε (empty answer (0 bytes') -and $lwAll.Contains('δεν έχει product feed για εμάς')) 'linkwise-feed-download (L230): a one-digit programme is asked, and an empty answer is explained'
+        Check (-not (Test-Path -LiteralPath $lwStale) -and (Test-Path -LiteralPath $lwOther) -and $lwAll.Contains('LINKWISE_11533.csv.gz.part') -and -not $lwAll.Contains('LINKWISE_99999')) 'linkwise-feed-download (L230): clears only the old unfinished file of its own programme'
         Check (-not $lwAll.Contains($lwCode) -and -not $lwAll.Contains('0004321')) 'linkwise-feed-download: the code is in no report'
         & $exe @($lwArgs + @('-Apply', '-Approve', 'ΕΓΚΡΙΝΩ LINKWISE FEED DOWNLOAD')) | Out-Null
         Check ($LASTEXITCODE -eq 0 -and @(Get-ChildItem -LiteralPath (Join-Path $lwArch '_old') -Recurse -File -Filter 'LINKWISE_11532.csv.gz').Count -eq 1) 'linkwise-feed-download: a second download keeps the old copy in _old'
+        # L230: a .part written a moment ago means another download is running: stop, change nothing.
+        $lwBusy = Join-Path $lwArch 'LINKWISE_11532.csv.gz.part'
+        Write-Utf8 $lwBusy 'busy'
+        $lwBefore = (Get-Item -LiteralPath (Join-Path $lwArch 'LINKWISE_11532.csv.gz')).LastWriteTimeUtc
+        & $exe @($lwArgs + @('-Apply', '-Approve', 'ΕΓΚΡΙΝΩ LINKWISE FEED DOWNLOAD')) | Out-Null
+        Check ($LASTEXITCODE -eq 5 -and (Test-Path -LiteralPath $lwBusy) -and (Get-Item -LiteralPath (Join-Path $lwArch 'LINKWISE_11532.csv.gz')).LastWriteTimeUtc -eq $lwBefore) 'linkwise-feed-download (L230): another download still writing stops the run, nothing changes'
+        Remove-Item -LiteralPath $lwBusy -Force
         & $exe -NoProfile -ExecutionPolicy Bypass -File $lwTool -Program '11532' -Base 'https://evil.example' -SecretFile $lwSecretFile -Archive $lwArch -OutDir $lwOut -NoClipboard | Out-Null
         Check ($LASTEXITCODE -eq 2) 'linkwise-feed-download: refuses an address that is not Linkwise or the local test server'
         & $exe -NoProfile -ExecutionPolicy Bypass -File $lwTool -Program 'x1' -SecretFile $lwSecretFile -Archive $lwArch -OutDir $lwOut -NoClipboard | Out-Null

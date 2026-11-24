@@ -102,10 +102,10 @@ if (-not (Test-Path -LiteralPath $Archive)) { Say ('Δεν βρήκα τον φ�
 if (-not (Get-Command node -ErrorAction SilentlyContinue)) { Say 'Δεν βρήκα το Node.js σε αυτόν τον υπολογιστή.' 'Red'; Finish 2 }
 
 # 1. The programmes: the ones with import rules (tools\import-rules\lw-<programme>.mjs), or -Program.
-$ids = @($Program | ForEach-Object { $_ -split '[,\s]+' } | Where-Object { $_ } | ForEach-Object { if ($_ -notmatch '^\d{2,9}$') { Say ('Λάθος αριθμός προγράμματος του Linkwise: {0}' -f $_) 'Red'; Finish 2 }; $_ } | Select-Object -Unique)
+$ids = @($Program | ForEach-Object { $_ -split '[,\s]+' } | Where-Object { $_ } | ForEach-Object { if ($_ -notmatch '^\d{1,9}$') { Say ('Λάθος αριθμός προγράμματος του Linkwise: {0}' -f $_) 'Red'; Finish 2 }; $_ } | Select-Object -Unique)
 if ($ids.Count -eq 0) {
     $rulesDir = Join-Path (Join-Path $repo 'tools') 'import-rules'
-    $ids = @(Get-ChildItem -LiteralPath $rulesDir -Filter 'lw-*.mjs' -File | ForEach-Object { $_.BaseName.Substring(3) } | Where-Object { $_ -match '^\d{2,9}$' } | Sort-Object { [int]$_ })
+    $ids = @(Get-ChildItem -LiteralPath $rulesDir -Filter 'lw-*.mjs' -File | ForEach-Object { $_.BaseName.Substring(3) } | Where-Object { $_ -match '^\d{1,9}$' } | Sort-Object { [int]$_ })
 }
 if ($ids.Count -lt 1) { Say 'Δεν βρήκα πρόγραμμα του Linkwise με κανόνες εισαγωγής.' 'Red'; Finish 2 }
 Say ('Προγράμματα: {0} ({1})' -f $ids.Count, ($ids -join ', '))
@@ -144,8 +144,23 @@ Say ('Με -Apply: λήψη {0} feeds στο {1} (LINKWISE_<πρόγραμμα>.
 if (-not $Apply) { Say 'Μόνο ανάγνωση (χωρίς -Apply): δεν κατέβηκε τίποτα.' 'Green'; Say ('Η φράση έγκρισης: {0}' -f $Phrase); Finish 0 }
 if (-not (Confirm-Approval $Phrase)) { Say 'Δεν δόθηκε έγκριση: σταμάτησα χωρίς αλλαγές.' 'Yellow'; Finish 1 }
 
-# 3. Download (to .part), check, then swap (old copy kept). Unfinished .part files of an earlier run are cleared first.
-foreach ($old in @(Get-ChildItem -LiteralPath $Archive -Filter 'LINKWISE_*.csv.gz.part' -File -ErrorAction SilentlyContinue)) {
+# 3. Download (to .part), check, then swap (old copy kept). An unfinished .part of THESE programmes from an earlier run is
+# cleared first; one written in the last 15 minutes means another download is running (lessons L230): stop, change nothing.
+# The .part files of other programmes are never touched.
+$busy = @()
+$stale = @()
+foreach ($id in $ids) {
+    $pf = Join-Path $Archive ('LINKWISE_{0}.csv.gz.part' -f $id)
+    if (-not (Test-Path -LiteralPath $pf)) { continue }
+    $pi = Get-Item -LiteralPath $pf
+    if ($pi.LastWriteTime -gt (Get-Date).AddMinutes(-15)) { $busy += $pi.Name } else { $stale += $pi }
+}
+if ($busy.Count -gt 0) {
+    Say ('Φαίνεται ότι τρέχει ήδη άλλη λήψη σε άλλο παράθυρο ({0}): σταμάτησα χωρίς αλλαγές.' -f ($busy -join ', ')) 'Yellow'
+    Say 'Περίμενε να τελειώσει εκείνη (ή κλείσ'' την) και ξανατρέξε σε 15 λεπτά.' 'Yellow'
+    Finish 5
+}
+foreach ($old in $stale) {
     Remove-Item -LiteralPath $old.FullName -Force -ErrorAction SilentlyContinue
     Say ('Έσβησα ένα μισοτελειωμένο αρχείο από προηγούμενη λήψη: {0}' -f $old.Name)
 }
@@ -162,15 +177,25 @@ try {
     $env:GW_LW_CODE = $null
     if ($oldEnc) { try { [Console]::OutputEncoding = $oldEnc } catch { } }
 }
-$ok = 0; $bad = 0; $rows = 0
+$ok = 0; $bad = 0; $rows = 0; $empty = 0
 foreach ($line in $o) {
     $t = [string]$line
     if ($t -match '^OK (\d+) (\d+)') { $ok++; $rows += [int]$Matches[2]; Say ('{0}: OK, {1} προϊόντα' -f $Matches[1], $Matches[2]) 'Green' }
-    elseif ($t -match '^FAIL (\d+) (\d+) ?(.*)$') { $bad++; Say ('{0}: δεν κατέβηκε ({1}). Κράτησα ό,τι υπήρχε.' -f $Matches[1], $Matches[3]) 'Yellow' }
+    elseif ($t -match '^FAIL (\d+) (\d+) ?(.*)$') {
+        $bad++
+        $why = $Matches[3]
+        Say ('{0}: δεν κατέβηκε ({1}). Κράτησα ό,τι υπήρχε.' -f $Matches[1], $why) 'Yellow'
+        # What the answer means (lessons L230).
+        if ($why -like 'empty answer*') { $empty++; Say '    = ο Linkwise έδωσε άδεια απάντηση: συνήθως το πρόγραμμα δεν έχει product feed για εμάς (όπως το ΑΒ).' 'Yellow' }
+        elseif ($why -like 'a web page*') { Say '    = ο Linkwise έδωσε σελίδα αντί για feed: συνήθως λάθος κωδικός ή το πρόγραμμα δεν είναι στα προγράμματά μας.' 'Yellow' }
+        elseif ($why -like 'no product_name column*') { Say '    = απάντηση χωρίς τις στήλες ενός feed (η πρώτη γραμμή της γράφεται πιο πάνω, χωρίς τον κωδικό).' 'Yellow' }
+        elseif ($why -like 'empty feed*') { Say '    = το feed υπάρχει αλλά δεν έχει κανένα προϊόν αυτή τη στιγμή.' 'Yellow' }
+    }
     elseif ($t -match '^ERROR') { Say $t 'Red' }
 }
 if (Test-Path -LiteralPath $out) { Remove-Item -LiteralPath $out -Force -ErrorAction SilentlyContinue }
 Say ''
+if ($empty -gt 0) { Say ('{0} πρόγραμμα(τα) χωρίς product feed: αυτά δεν μπαίνουν στα sites μέχρι ο Linkwise να δώσει feed (ελέγχεται στη σελίδα του προγράμματος).' -f $empty) 'Yellow' }
 if ($ok -eq 0) { Say 'Δεν κατέβηκε κανένα feed. Τα sites δεν άλλαξαν. Στείλε την αναφορά στο Claude.' 'Red'; Finish 4 }
 Say ('ΕΤΟΙΜΟ: κατέβηκαν {0} από {1} feeds, {2} προϊόντα. Τα παλιά αντίγραφα (αν υπήρχαν): {3}' -f $ok, $ids.Count, $rows, (Join-Path (Join-Path $Archive '_old') '<ώρα>')) 'Green'
 Say 'Τα sites δεν άλλαξαν. Επόμενο βήμα: η δοκιμή της εισαγωγής (legacy-import-batch), μετά η έγκρισή της.'
