@@ -34,7 +34,19 @@ const ADULT = W(["women'?s", 'womens', 'ladies', "men'?s", 'mens']);
 
 export function displayName(name) { return String(name || '').replace(/\bHi Tec\b/g, 'Hi-Tec').replace(/\s{2,}/g, ' ').trim(); }
 
-export function classify({ name }) {
+// CLOSED (lessons L225): Awin closed the Camping World UK programme on 24 Nov 2026 (chat 7). Every product is rejected from
+// now on, so neither an import nor a refresh shows its cards again; the 13 cards on KGW are hidden by
+// tools/cleanup-rules/closed.mjs and the ones on VGW by sites/vgw/sources.json "closed". If it reopens: delete CLOSED and
+// the line below.
+export const CLOSED = '24 Nov 2026: Awin programme closed';
+
+export function classify(product) {
+  if (CLOSED) return { reject: `programme closed (${CLOSED})` };
+  return openClassify(product);
+}
+
+// The rules as they were while the programme was open (kept for a reopening and for the tests).
+export function openClassify({ name }) {
   const n = displayName(name);
   if (!n) return { reject: 'no name' };
   if (!KIDS.test(n) || ADULT.test(n)) return { reject: 'not for children (only children\'s boots come to KGW)' };

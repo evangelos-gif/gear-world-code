@@ -1,0 +1,25 @@
+# Wave 1 UK of the massive import, the one apply of 24 Nov 2026 (lessons L224, L225): the 14 pairs of uk-wave1-1124.txt
+# (their dry run ran on the PC on 24 Nov) and the 5 Adtraction shops (6 pairs, plans checked by chat 3 on the same feeds).
+# legacy-import-batch.ps1 -Pairs 'file:tools/massive/uk-final-1124.txt' -Cleanups 'closed:wgw,closed:kgw' -Sites ... -Apply
+# Left out: Simply Log Cabins (Adtraction 2039563757, a part of the Garden Chic catalogue), Living Chic (empty feed),
+# Tyres.net (Car Gear World, new engine, next wave), C.W. Sellors (same catalogue as W. Hamond), My Little Darling.
+truthbrush-uk:hgw        # Truthbrush (Awin 19976), bamboo toothbrushes
+elegantshowers-uk:hgw    # Elegant Showers (Daisycon 21657), showers, radiators, mirrors, furniture
+opi-uk:wgw               # OPI UK (Rakuten 47972), nail polish
+ekster-uk:mgw            # Ekster UK (Rakuten 53020), wallets, bags, everyday carry
+whamond-uk:wgw           # W. Hamond (Rakuten 54390), jewellery and women's watches
+whamond-uk:mgw           # W. Hamond: watches, cufflinks, men's jewellery
+cottonon-uk:wgw          # Cotton On (Rakuten 41440): Women, Body, Rubi
+cottonon-uk:mgw          # Cotton On Men
+cottonon-uk:kgw          # Cotton On Kids
+greenkidcrafts:kgw       # Green Kid Crafts (Awin 83693, dollars), science and craft kits
+bloomingdales-uk:wgw     # Bloomingdales (Rakuten 37206): women's fashion, jewellery, beauty
+bloomingdales-uk:mgw     # Bloomingdales: men's fashion and fragrance
+bloomingdales-uk:hgw     # Bloomingdales: tableware, bedding, home decor
+bloomingdales-uk:kgw     # Bloomingdales: children's clothes and baby
+gardenchic-uk:ggw        # Garden Chic (Adtraction 2039557167): sheds, log cabins, greenhouses, garden furniture (~7,700)
+gardenchic-uk:hgw        # Garden Chic: House & Home furniture, lighting, decor, heaters (~4,800)
+onlinebedrooms-uk:hgw    # Online Bedrooms (Adtraction 2066244013): wardrobes, media walls, drawers, desks (151)
+sheetstory-uk:hgw        # Sheet Story (Adtraction 1876393696): bamboo and cotton bed linen (93)
+showery-uk:hgw           # Showery (Adtraction 1888673499): shower heads, hoses, mats (37)
+defender-uk:hgw          # Defender (Adtraction 1974721411): home security, timers, bulbs (41)

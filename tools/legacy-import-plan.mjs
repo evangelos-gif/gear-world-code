@@ -186,7 +186,7 @@ export function commonVariantName(names) {
 
 // A CJ link as https (CJ answers on both).
 const httpsLink = u => String(u || '').replace(/^http:\/\//i, 'https://');
-const NETWORK_LABEL = { cj: 'CJ', rakuten: 'Rakuten', daisycon: 'Daisycon', bol: 'bol.com' };
+const NETWORK_LABEL = { cj: 'CJ', rakuten: 'Rakuten', daisycon: 'Daisycon', bol: 'bol.com', linkwise: 'Linkwise', adtraction: 'Adtraction' };
 
 const hostOf = url => { try { return new URL(url).hostname.toLowerCase(); } catch { return ''; } };
 
