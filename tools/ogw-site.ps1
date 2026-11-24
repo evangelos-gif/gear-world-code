@@ -12,6 +12,12 @@
   (wrangler deploy --secrets-file, a temporary file deleted at once); it is never in a report, on the screen or in the
   repository. Without the file the deploy keeps the secret the Worker already has (none on a new test Worker: the 5
   stores are then not shown there).
+  Prices of those stores (owner and Linkwise, 24 Nov 2026, lessons L227): before each deploy the tool reads (only
+  reads) chat 3's Linkwise product feeds, <Downloads>\GW_AWIN_BULK_ARCHIVE\LINKWISE_<programme>.csv.gz (-Archive), with
+  tools/ogw-prices.mjs: the store's own price of each product of its sets and ideas, from a feed of the last 24 hours.
+  They go with the deploy as a second Worker secret, LINKWISE_PRICES (in the same temporary file); the pages show each
+  price with the time its feed was read and never one older than 24 hours. No feed, or an old one: no prices (ΠΡΟΣΟΧΗ,
+  the deploy still goes on). AB Vasilopoulos has no product feed, so no prices.
 
   -Step check           READ-ONLY. Cloudflare login, the live Worker "mega-stores-gear-world" (if any), the test
                         Worker, and what megastoresgearworld.com answers.
@@ -46,6 +52,7 @@
   Exit codes: 0 done, 1 no approval, 3 Node.js or npm, or the Linkwise code file cannot be read (L226), 4 Cloudflare login, 6 the live site did not answer before an
   update, 9 the deploy failed, 11 Cloudflare did not say whether the live Worker exists, 12 wrong test Worker name,
   13 this version lacks the live one (L156), 23 -AfterPreview without a clean preview report of this version.
+  -Archive <folder>     where chat 3's Linkwise feeds are (default <home>\Downloads\GW_AWIN_BULK_ARCHIVE), L227.
   Report: <home>\gear-world-reports\OGW_SITE_<STEP>_<time>.txt (also copied to the clipboard)
 #>
 param(
@@ -61,6 +68,7 @@ param(
     [switch]$AfterPreview,
     [switch]$AmazonOff,
     [string]$SecretFile = '',
+    [string]$Archive = '',
     [string]$Chat = '1 · Gear World Manager' # the chat that gave the command, named in the clipboard line (L116, L208)
 )
 
@@ -81,6 +89,7 @@ $Ok = 'Green'; $Warn = 'Yellow'; $Bad = 'Magenta'
 if (-not $WorkDir) { $WorkDir = Join-Path $HOME 'mega-stores-gear-world' }
 if (-not $OutDir) { $OutDir = Join-Path $HOME 'gear-world-reports' }
 if (-not $SecretFile) { $SecretFile = Join-Path (Join-Path $HOME 'gear-world-secrets') 'linkwise-code.dat' }
+if (-not $Archive) { $Archive = Join-Path (Join-Path $HOME 'Downloads') 'GW_AWIN_BULK_ARCHIVE' }
 $stamp = Get-Date -Format 'yyyyMMdd_HHmmss'
 $DashLink = 'https://dash.cloudflare.com/?to=/:account/workers/services/view/mega-stores-gear-world/production/deployments'
 $DnsLink = 'https://dash.cloudflare.com/?to=/:account/:zone/dns/records'
@@ -92,6 +101,8 @@ $BlackFridayEnd = '2026-11-30'
 $L = New-Object System.Collections.Generic.List[string]
 # L226: our Linkwise code is never written anywhere: every line of the screen and the report goes through Mask.
 $script:LwCode = ''
+$script:LwPrices = ''   # L227: the prices of this run (base64), '' without new prices
+$script:KotsPrices = 0   # L227: how many prices this run sends for Kotsovolos (the page checked after the deploy)
 function Mask([string]$s) {
     if ($script:LwCode) { $s = $s.Replace($script:LwCode, '***') }
     return [regex]::Replace($s, '\bCD\d{3,9}\b', 'CD***')
@@ -431,8 +442,9 @@ function Test-Site([string]$base, [string]$mode) {
     elseif ($esOk) { Say '  /gr/stores/kouzinika-gr/ (L214): ΠΡΟΣΟΧΗ - η σελίδα είναι σωστή, αλλά τα προϊόντα δεν φορτώθηκαν αυτή τη στιγμή (φορτώνονται ξανά σε επόμενη επίσκεψη)' $Warn }
     else { Say ('  /gr/stores/kouzinika-gr/ (L214): ΠΡΟΒΛΗΜΑ - απάντηση {0}' -f $es.status) $Bad; $all = $false }
     # L226 (owner and Linkwise, 24 Nov 2026): the 5 direct stores on /gr/, and the Kotsovolos page: each idea is our Linkwise
-    # link to a page of www.kotsovolos.gr (sponsored, nofollow), with this run's code, never a price. Read-only GETs of
-    # our own pages: a Linkwise link is never opened (it would count as a click).
+    # link to a page of www.kotsovolos.gr (sponsored, nofollow), with this run's code; a euro sign only in its own prices
+    # (L227: <p class="sc-price">, with the note of where they come from). Read-only GETs of our own pages: a Linkwise
+    # link is never opened (it would count as a click).
     $dStores = @('kotsovolos-gr', 'public-gr', 'sephora-gr', 'e-shop-gr', 'ab-gr')
     $dMissing = @($dStores | Where-Object { -not $ed.text.Contains('href="/gr/stores/' + $_ + '/"') })
     # Without a code of this run and none of the 5 on /gr/, the page is not asked (it is a 404, asked again on a preview).
@@ -441,14 +453,20 @@ function Test-Site([string]$base, [string]$mode) {
     $dLinks = @([regex]::Matches($dp.text, 'href="https://go\.linkwi\.se/z/138-0/(CD\d{3,9})/\?lnkurl=https%3A%2F%2Fwww\.kotsovolos\.gr%2F[^"]*" rel="sponsored nofollow noopener" target="_blank"'))
     $dAll = [regex]::Matches($dp.text, 'href="https://go\.linkwi\.se/').Count
     $dCodes = @($dLinks | ForEach-Object { $_.Groups[1].Value } | Select-Object -Unique)
-    $dClean = ($dp.status -eq 200 -and $dLinks.Count -ge 2 -and $dAll -eq $dLinks.Count -and $dCodes.Count -eq 1 -and -not $dp.text.Contains([string][char]0x20AC) -and -not ($dp.text -match 'href="[^"]*gearworld\.com/(out|go)/') -and $dp.text.Contains('/assets/logos/kotsovolos-gr.png?v='))
+    $dPrices = [regex]::Matches($dp.text, '<p class="sc-price"><span translate="no">[0-9.,]+\s?(&nbsp;)?\S?\s?\u20AC</span> <span class="sc-when">[^<]+</span></p>').Count
+    $dRest = [regex]::Replace($dp.text, '<p class="sc-price">.*?</p>', '')
+    $dEuro = $dRest.Contains([string][char]0x20AC)
+    $dPriceOk = (($dPrices -eq 0 -or $dp.text.Contains('product feed')) -and ($script:KotsPrices -eq 0 -or $dPrices -gt 0))
+    $dPriceText = 'καμία τιμή'
+    if ($dPrices -gt 0) { $dPriceText = ('{0} τιμές από το feed της Linkwise, με την ώρα ελέγχου' -f $dPrices) }
+    $dClean = ($dp.status -eq 200 -and $dLinks.Count -ge 2 -and $dAll -eq $dLinks.Count -and $dCodes.Count -eq 1 -and -not $dEuro -and $dPriceOk -and -not ($dp.text -match 'href="[^"]*gearworld\.com/(out|go)/') -and $dp.text.Contains('/assets/logos/kotsovolos-gr.png?v='))
     if ($script:LwCode) {
-        if ($dMissing.Count -eq 0 -and $dClean -and $dCodes[0] -eq $script:LwCode) { Say ('  Τα 5 μεγάλα καταστήματα της Linkwise στο /gr/ (L226): ΕΝΤΑΞΕΙ - η σελίδα του Κωτσόβολου έχει {0} links της Linkwise με τον κωδικό σου (sponsored, nofollow), κανένα σύμβολο €' -f $dLinks.Count) $Ok }
-        else { Say ('  Τα 5 μεγάλα καταστήματα της Linkwise (L226): ΠΡΟΒΛΗΜΑ - λείπουν από το /gr/: {0}; σελίδα Κωτσόβολου: απάντηση {1}, {2} links της Linkwise, ο κωδικός σου: {3}' -f ($dMissing -join ', '), $dp.status, $dLinks.Count, $(if ($dCodes.Count -eq 1 -and $dCodes[0] -eq $script:LwCode) { 'ναι' } else { 'όχι' })) $Bad; $all = $false }
-    } elseif ($dMissing.Count -eq 0 -and $dClean) { Say '  Τα 5 μεγάλα καταστήματα της Linkwise (L226): ΕΝΤΑΞΕΙ - με τον κωδικό που είχε ήδη ο Worker' $Ok }
+        if ($dMissing.Count -eq 0 -and $dClean -and $dCodes[0] -eq $script:LwCode) { Say ('  Τα 5 μεγάλα καταστήματα της Linkwise στο /gr/ (L226): ΕΝΤΑΞΕΙ - η σελίδα του Κωτσόβολου έχει {0} links της Linkwise με τον κωδικό σου (sponsored, nofollow), {1}, κανένα άλλο σύμβολο €' -f $dLinks.Count, $dPriceText) $Ok }
+        else { Say ('  Τα 5 μεγάλα καταστήματα της Linkwise (L226): ΠΡΟΒΛΗΜΑ - λείπουν από το /gr/: {0}; σελίδα Κωτσόβολου: απάντηση {1}, {2} links της Linkwise, ο κωδικός σου: {3}, τιμές: {4} (στάλθηκαν {5}), σύμβολο € έξω από τις τιμές: {6}' -f ($dMissing -join ', '), $dp.status, $dLinks.Count, $(if ($dCodes.Count -eq 1 -and $dCodes[0] -eq $script:LwCode) { 'ναι' } else { 'όχι' }), $dPrices, $script:KotsPrices, $dEuro) $Bad; $all = $false }
+    } elseif ($dMissing.Count -eq 0 -and $dClean) { Say ('  Τα 5 μεγάλα καταστήματα της Linkwise (L226): ΕΝΤΑΞΕΙ - με τον κωδικό που είχε ήδη ο Worker, {0}' -f $dPriceText) $Ok }
     elseif ($dMissing.Count -lt $dStores.Count -or $dp.status -eq 200) {
         # They show (the Worker has a code from before), but not as they should: never only a warning (review 24/11/2026).
-        Say ('  Τα 5 μεγάλα καταστήματα της Linkwise (L226): ΠΡΟΒΛΗΜΑ - φαίνονται, αλλά λείπουν από το /gr/: {0}; σελίδα Κωτσόβολου: απάντηση {1}, {2} σωστά links της Linkwise από {3}, σύμβολο €: {4}' -f ($dMissing -join ', '), $dp.status, $dLinks.Count, $dAll, $dp.text.Contains([string][char]0x20AC)) $Bad; $all = $false
+        Say ('  Τα 5 μεγάλα καταστήματα της Linkwise (L226): ΠΡΟΒΛΗΜΑ - φαίνονται, αλλά λείπουν από το /gr/: {0}; σελίδα Κωτσόβολου: απάντηση {1}, {2} σωστά links της Linkwise από {3}, σύμβολο € έξω από τις τιμές: {4}' -f ($dMissing -join ', '), $dp.status, $dLinks.Count, $dAll, $dEuro) $Bad; $all = $false
     }
     else { Say '  Τα 5 μεγάλα καταστήματα της Linkwise (L226): ΠΡΟΣΟΧΗ - δεν φαίνονται (ο Worker δεν έχει τον κωδικό της Linkwise)' $Warn }
     $edSm = Get-Page ($base + '/sitemap.xml')
@@ -516,8 +534,54 @@ function Read-LinkwiseCode {
 function New-LinkwiseSecretsFile {
     if (-not $script:LwCode) { return '' }
     $f = Join-Path ([System.IO.Path]::GetTempPath()) ('gw-lw-' + [guid]::NewGuid().ToString('N').Substring(0, 12) + '.env')
-    [System.IO.File]::WriteAllText($f, ('LINKWISE_CODE=' + $script:LwCode + "`n"), [System.Text.Encoding]::ASCII)
+    $body = 'LINKWISE_CODE=' + $script:LwCode + "`n"
+    # L227: the prices of the direct stores (base64, only letters, digits, + / =), when this run read some.
+    if ($script:LwPrices) { $body += 'LINKWISE_PRICES=' + $script:LwPrices + "`n" }
+    [System.IO.File]::WriteAllText($f, $body, [System.Text.Encoding]::ASCII)
     return $f
+}
+# L227: the prices of the direct stores from chat 3's Linkwise feeds (only read). One line per store: how many of its
+# products have a price and when its feed was read. No feed, an old one or an error: no new prices (a warning only).
+function Read-LinkwisePrices {
+    $script:LwPrices = ''
+    $script:KotsPrices = 0
+    $tool = Join-Path (Join-Path $repo 'tools') 'ogw-prices.mjs'
+    $out = Join-Path ([System.IO.Path]::GetTempPath()) ('gw-lwp-' + [guid]::NewGuid().ToString('N').Substring(0, 12) + '.b64')
+    $lines = @()
+    $old = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = 'Continue'
+        $lines = @(& node $tool --archive $Archive --out $out 2>$null)
+    } catch { $lines = @('PRICES-ERROR node') }
+    finally { $ErrorActionPreference = $old }
+    if (Test-Path -LiteralPath $out) {
+        $v = ([System.IO.File]::ReadAllText($out)).Trim()
+        Remove-Item -LiteralPath $out -Force -ErrorAction SilentlyContinue
+        if ($v -match '^[A-Za-z0-9+/=]{8,20000}$') { $script:LwPrices = $v }
+    }
+    $seen = $false
+    foreach ($l in $lines) {
+        $p = ([string]$l).Trim().Split(' ')
+        if ($p[0] -eq 'PRICES' -and $p.Count -ge 8) {
+            $seen = $true
+            $when = '-'
+            if ($p[7] -ne '-') {
+                try { $when = ([datetime]::Parse($p[7], [System.Globalization.CultureInfo]::InvariantCulture, [System.Globalization.DateTimeStyles]::RoundtripKind)).ToLocalTime().ToString('dd/MM HH:mm') } catch { $when = $p[7] }
+            }
+            if ($p[3] -eq 'OK') {
+                if ($p[1] -eq 'kotsovolos-gr') { $script:KotsPrices = [int]$p[4] }
+                $gone = ''
+                if ([int]$p[6] -gt 0) { $gone = (', {0} εξαντλημένα (χωρίς τιμή)' -f $p[6]) }
+                Say ('  - Τιμές {0}: {1} από τα {2} προϊόντα, από το feed της Linkwise της {3} (ώρα υπολογιστή){4}' -f $p[1], $p[4], $p[5], $when, $gone) $Ok
+            }
+            elseif ($p[3] -eq 'OLD') { Say ('  - Τιμές {0}: ΠΡΟΣΟΧΗ - το feed είναι της {1}, παλιότερο από 24 ώρες: χωρίς νέες τιμές.' -f $p[1], $when) $Warn }
+            elseif ($p[3] -eq 'MISSING') { Say ('  - Τιμές {0}: ΠΡΟΣΟΧΗ - δεν βρήκα το feed LINKWISE_{1}.csv.gz στο {2}: χωρίς νέες τιμές.' -f $p[1], $p[2], $Archive) $Warn }
+            elseif ($p[3] -eq 'NONE') { Say ('  - Τιμές {0}: ΠΡΟΣΟΧΗ - κανένα από τα {1} προϊόντα δεν βρέθηκε (σε απόθεμα, σε ευρώ) στο feed της {2}: χωρίς νέες τιμές.' -f $p[1], $p[5], $when) $Warn }
+            elseif ($p[3] -eq 'SKIP') { Say ('  - Τιμές {0}: δεν έχει product feed (μόνο κατηγορίες): χωρίς τιμές.' -f $p[1]) }
+        }
+    }
+    if (-not $seen) { Say '  - Τιμές: ΠΡΟΣΟΧΗ - το εργαλείο των τιμών δεν απάντησε: χωρίς νέες τιμές (όσες έχει ήδη ο Worker κρύβονται μόνες τους μετά από 24 ώρες).' $Warn }
+    elseif ($script:LwPrices) { Say '  - Οι τιμές πάνε στην Cloudflare μαζί με τον κωδικό, ως μυστικό LINKWISE_PRICES του Worker.' }
 }
 function Invoke-Deploy([string]$folder, [string]$arguments) {
     # A file left by a run that was closed half way is deleted first (review 24/11/2026).
@@ -536,7 +600,7 @@ function Invoke-Deploy([string]$folder, [string]$arguments) {
 # Before a deploy: says what happens to the 5 direct stores; a file that cannot be read stops everything (exit 3).
 function Use-LinkwiseCode {
     $state = Read-LinkwiseCode
-    if ($state -eq 'ok') { Say '  - Τα 5 μεγάλα καταστήματα της Linkwise (L226): ο κωδικός σου πάει στην Cloudflare ως μυστικό του Worker (δεν γράφεται πουθενά).'; return }
+    if ($state -eq 'ok') { Say '  - Τα 5 μεγάλα καταστήματα της Linkwise (L226): ο κωδικός σου πάει στην Cloudflare ως μυστικό του Worker (δεν γράφεται πουθενά).'; Read-LinkwisePrices; return }
     if ($state -eq 'missing') { Say ('  - Τα 5 μεγάλα καταστήματα της Linkwise (L226): ΠΡΟΣΟΧΗ - δεν βρήκα τον φυλαγμένο κωδικό ({0}). Ο Worker κρατά όποιον κωδικό ήδη έχει· αν δεν έχει, τα 5 δεν φαίνονται.' -f $SecretFile) $Warn; return }
     Say ('Δεν μπόρεσα να διαβάσω τον φυλαγμένο κωδικό της Linkwise ({0}). Δεν άλλαξε τίποτα. Στείλε στο Claude αυτή την αναφορά.' -f $SecretFile) $Bad
     Finish 3

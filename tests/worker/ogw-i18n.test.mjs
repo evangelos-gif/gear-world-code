@@ -8,7 +8,7 @@ import liveSite from '../../sites/ogw/site.config.js';
 import {
   AMAZON_STATEMENT, BASE_LANG, HUB_LANGS, I18N_MISSING, createGuidesWorker, legalPaths, awinStores, languageCode,
   countryLanguage as ogwCountryLanguage, readsEnglish as ogwReadsEnglish, QA_BOT as OGW_QA_BOT, OTHER_CRAWLER as OGW_CRAWLER, GOOGLE_CRAWLER as OGW_GOOGLE,
-  earlyBlackFriday, blackFridayParts, storeCodes, shownStores
+  earlyBlackFriday, blackFridayParts, storeCodes, shownStores, priceKey
 } from '../../src/marketplace-guides.js';
 import { countryLanguage, readsEnglish, QA_BOT, OTHER_CRAWLER, GOOGLE_CRAWLER } from '../../src/engine.js';
 import { translatableTexts } from './i18n-keys.mjs';
@@ -52,6 +52,18 @@ async function get(path, env = ON, { ua = BROWSER, headers = {}, cf = null, work
 }
 const STORE_PAGES = awinStores(site).map(s => `/stores/${s.slug}/`);
 const DIRECT_PAGES = site.stores.filter(s => s.direct).map(s => `/stores/${s.slug}/`);
+// L227: the prices of the direct stores (the secret LINKWISE_PRICES), read an hour before `now`: a price for every
+// product of their sets and ideas, so the pages use the texts of prices too.
+const pricesAt = now => {
+  const s = {};
+  for (const st of site.stores.filter(x => x.direct)) {
+    const p = {};
+    for (const set of st.direct.sets || []) for (const i of set.items) p[priceKey(i.url)] = 19.9;
+    for (const idea of st.direct.ideas || []) if (idea.item) p[priceKey(idea.item.url)] = 1299;
+    if (Object.keys(p).length) s[String(st.direct.program)] = { t: new Date(now - 3600000).toISOString(), p };
+  }
+  return { ...LW, LINKWISE_PRICES: Buffer.from(JSON.stringify({ v: 1, s })).toString('base64') };
+};
 const PAGES = ['/', ...site.guides.map(g => `/guides/${g.slug}/`), `/guides/${site.checks.slug}/`, ...legalPaths(), ...STORE_PAGES];
 const withLang = (p, l) => `${p}${p.includes('?') ? '&' : '?'}lang=${l}`;
 const withoutOffers = text => text.replace(/<p class="promo-offer">[\s\S]*?<\/p>/g, '');
@@ -135,7 +147,7 @@ test('L195: every text the pages use is in every dictionary, and every dictionar
         const w = createGuidesWorker(s, { fetch, cache: null, now: () => at(day) });
         // The UK page, Greece (its own stores) and a country no store is listed for (L210: their own lines).
         for (const cc of ['GB', 'GR', 'US']) {
-          for (const env of [ON, OFF, PRE, LW]) for (const lang of langs) for (const p of paths) {
+          for (const env of [ON, OFF, PRE, LW, pricesAt(at(day))]) for (const lang of langs) for (const p of paths) {
             const req = new Request(LIVE + withLang(p, lang));
             Object.defineProperty(req, 'cf', { value: { country: cc } });
             await (await w.fetch(req, env)).text();

@@ -1,7 +1,8 @@
 // The 5 big Greek stores of Linkwise on Mega Stores (owner and Linkwise, 24 Nov 2026, lessons L226): Public, Sephora,
 // e-shop.gr, AB Vasilopoulos and Kotsovolos accept no comparison site, so their products are never on the 13 sites, the
 // Hub or the app. Julia (Linkwise) agreed to their pages here like the 7 of L221 (the programme logo, sets and gift
-// ideas, no prices), with one difference: each idea opens the store's own page through our Linkwise link. Our affiliate
+// ideas; their own prices since L227, tests/worker/ogw-prices.test.mjs), with one difference: each idea opens the store's
+// own page through our Linkwise link. Our affiliate
 // code is never in the repository: the Worker secret LINKWISE_CODE; without it these stores are on no page.
 // Fake fetch, a fixed day, a fake code.
 import { test } from 'node:test';

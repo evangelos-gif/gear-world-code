@@ -3506,12 +3506,27 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     [System.IO.File]::WriteAllText($ogSecret, (ConvertFrom-SecureString (ConvertTo-SecureString $ogFakeCode -AsPlainText -Force)), [System.Text.Encoding]::ASCII)
     $script:ogSecretArg = $ogSecret
     $ogTempBefore = @(Get-ChildItem -LiteralPath ([System.IO.Path]::GetTempPath()) -Filter 'gw-lw-*.env' -File -ErrorAction SilentlyContinue).Count
+    # L227: a fake Linkwise feed of Kotsovolos as chat 3's tool writes it (gz, Awin column names), read an hour ago; the
+    # other stores have none. The tool reads it (only reads) and sends the price with the code, in the same secrets file.
+    $ogArch = Join-Path $work 'ogw-archive'
+    New-Item -ItemType Directory -Path $ogArch -Force | Out-Null
+    $ogFeed = Join-Path $ogArch 'LINKWISE_138.csv.gz'
+    $ogCsv = "product_name,merchant_deep_link,search_price,currency,in_stock`n" + 'Delonghi,https://www.kotsovolos.gr/ProductDisplay?partNumber=273143,399.00,EUR,1' + "`n" + 'Other,https://www.kotsovolos.gr/other,9.00,EUR,1' + "`n"
+    $ogFs = [System.IO.File]::Create($ogFeed)
+    try {
+        $ogGz = New-Object System.IO.Compression.GZipStream($ogFs, [System.IO.Compression.CompressionMode]::Compress)
+        $ogBytes = [System.Text.Encoding]::UTF8.GetBytes($ogCsv)
+        $ogGz.Write($ogBytes, 0, $ogBytes.Length)
+        $ogGz.Close()
+    } finally { $ogFs.Close() }
+    (Get-Item -LiteralPath $ogFeed).LastWriteTime = (Get-Date).AddHours(-1)
+    $ogPriceTempBefore = @(Get-ChildItem -LiteralPath ([System.IO.Path]::GetTempPath()) -Filter 'gw-lwp-*.b64' -File -ErrorAction SilentlyContinue).Count
     $oldPath = $env:PATH
     $env:PATH = $ogBin + ';' + $oldPath
     $env:GW_FAKE_STATE = $ogState
     $ogCalls = Join-Path $ogState 'calls.log'
     function Run-Og([string[]]$a) {
-        $all = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $ogTool, '-WorkDir', $ogWork, '-OutDir', $ogOut, '-SkipInstall', '-NoClipboard', '-NoHttpCheck', '-SecretFile', $script:ogSecretArg) + $a
+        $all = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $ogTool, '-WorkDir', $ogWork, '-OutDir', $ogOut, '-SkipInstall', '-NoClipboard', '-NoHttpCheck', '-SecretFile', $script:ogSecretArg, '-Archive', $ogArch) + $a
         & $exe @all | Out-Null
         return $LASTEXITCODE
     }
@@ -3536,7 +3551,17 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         $ogSecretsLog = Join-Path $ogState 'secrets.log'
         $ogSl = ''
         if (Test-Path -LiteralPath $ogSecretsLog) { $ogSl = [System.IO.File]::ReadAllText($ogSecretsLog) }
-        Check (([regex]::Matches((OgCalls), '--secrets-file "[^"]+gw-lw-[0-9a-f]{12}\.env"')).Count -eq 1 -and $ogSl.Trim() -eq ('LINKWISE_CODE=' + $ogFakeCode)) 'ogw preview: the Linkwise code goes to the deploy as a secret (--secrets-file) (L226)'
+        $ogSlLines = @($ogSl.Trim() -split "`r?`n")
+        Check (([regex]::Matches((OgCalls), '--secrets-file "[^"]+gw-lw-[0-9a-f]{12}\.env"')).Count -eq 1 -and $ogSlLines[0] -eq ('LINKWISE_CODE=' + $ogFakeCode)) 'ogw preview: the Linkwise code goes to the deploy as a secret (--secrets-file) (L226)'
+        # L227: the prices go in the same file, as LINKWISE_PRICES (base64 of the store's own prices of the last 24 hours).
+        $ogPv = ''
+        if ($ogSlLines.Count -eq 2 -and $ogSlLines[1] -match '^LINKWISE_PRICES=([A-Za-z0-9+/=]+)$') { $ogPv = $Matches[1] }
+        $ogPj = $null
+        if ($ogPv) { try { $ogPj = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($ogPv)) | ConvertFrom-Json } catch { $ogPj = $null } }
+        Check ($ogPj -and $ogPj.v -eq 1 -and @($ogPj.s.PSObject.Properties).Count -eq 1 -and @($ogPj.s.'138'.p.PSObject.Properties).Count -eq 1 -and @($ogPj.s.'138'.p.PSObject.Properties)[0].Value -eq 399) 'ogw preview: the price of Kotsovolos goes with the code, as LINKWISE_PRICES (only its own product, L227)'
+        $ogPr = OgLastReport 'PREVIEW'
+        Check ($ogPr.Contains('Τιμές kotsovolos-gr: 1 από τα 9 προϊόντα, από το feed της Linkwise') -and $ogPr.Contains('Τιμές public-gr: ΠΡΟΣΟΧΗ - δεν βρήκα το feed LINKWISE_469.csv.gz') -and $ogPr.Contains('Τιμές ab-gr: δεν έχει product feed') -and -not $ogPr.Contains('ΠΡΟΒΛΗΜΑ') -and -not ($ogPv -and $ogPr.Contains($ogPv))) 'ogw preview: one line per store about its prices, a missing feed only a warning, the prices themselves in no report (L227)'
+        Check (@(Get-ChildItem -LiteralPath ([System.IO.Path]::GetTempPath()) -Filter 'gw-lwp-*.b64' -File -ErrorAction SilentlyContinue).Count -le $ogPriceTempBefore) 'ogw preview: the temporary file of the prices is deleted (L227)'
         Check (-not (OgCalls).Contains($ogFakeCode) -and -not (OgLastReport 'PREVIEW').Contains($ogFakeCode) -and (OgLastReport 'PREVIEW').Contains('ο κωδικός σου πάει στην Cloudflare ως μυστικό')) 'ogw preview: the code is in no command line and no report (L226)'
         $ogSfPaths = @([regex]::Matches((OgCalls), '--secrets-file "([^"]+)"') | ForEach-Object { $_.Groups[1].Value })
         Check ($ogSfPaths.Count -ge 1 -and @($ogSfPaths | Where-Object { Test-Path -LiteralPath $_ }).Count -eq 0 -and @(Get-ChildItem -LiteralPath ([System.IO.Path]::GetTempPath()) -Filter 'gw-lw-*.env' -File -ErrorAction SilentlyContinue).Count -le $ogTempBefore) 'ogw preview: the temporary secrets file is deleted (L226)'
@@ -3555,11 +3580,19 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         $env:GW_GUARD_TEST_COMPARE = 'diverged'
         Check ((Run-Og @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ OGW LIVE')) -eq 13 -and (OgDeploys) -eq 3) 'ogw live update from a version without the live one: exit 13, no deploy (L156)'
         $env:GW_GUARD_TEST_COMPARE = 'ahead'
+        # L227: a feed older than 24 hours gives no prices: the deploy goes on with the code only, and the report says so.
+        (Get-Item -LiteralPath $ogFeed).LastWriteTime = (Get-Date).AddHours(-25)
+        [System.IO.File]::WriteAllText($ogSecretsLog, '', [System.Text.Encoding]::ASCII)
         Check ((Run-Og @('-Step', 'live', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ OGW LIVE')) -eq 0 -and (OgDeploys) -eq 4 -and (OgLastReport 'LIVE').Contains('rollback ' + $ogVer)) 'ogw live update: deploys, with the rollback line of the live version'
+        $ogSl = [System.IO.File]::ReadAllText($ogSecretsLog)
+        Check ($ogSl.Trim() -eq ('LINKWISE_CODE=' + $ogFakeCode) -and (OgLastReport 'LIVE').Contains('παλιότερο από 24 ώρες: χωρίς νέες τιμές') -and -not (OgLastReport 'LIVE').Contains('ΠΡΟΒΛΗΜΑ')) 'ogw live with a feed older than 24 hours: the code only, no prices, a warning (L227)'
+        (Get-Item -LiteralPath $ogFeed).LastWriteTime = (Get-Date).AddMinutes(-5)
+        [System.IO.File]::WriteAllText($ogSecretsLog, '', [System.Text.Encoding]::ASCII)
         Check ((Run-Og @('-Step', 'live', '-Apply', '-AmazonOff', '-Approve', 'ΕΓΚΡΙΝΩ OGW LIVE;ΕΓΚΡΙΝΩ OGW AMAZON LINKS')) -eq 0 -and (OgDeploys) -eq 5) 'ogw live -AmazonOff: deploys once'
         $lastDeploy = @((OgCalls) -split "`n" | Where-Object { $_ -match 'wrangler deploy --config' } | Select-Object -Last 1)[0]
         Check ($lastDeploy -match 'AMAZON_LINKS:off') 'ogw live -AmazonOff: no Amazon links even with the Amazon phrase'
         Check ($lastDeploy -match '--secrets-file "' -and ([regex]::Matches((OgCalls), '--secrets-file').Count -eq (OgDeploys))) 'ogw live: every deploy with the Linkwise code gives it as a secret (L226)'
+        Check ([System.IO.File]::ReadAllText($ogSecretsLog) -match ('^LINKWISE_CODE=' + $ogFakeCode + '\r?\nLINKWISE_PRICES=[A-Za-z0-9+/=]+\s*$')) 'ogw live with a fresh feed: the code and the prices again (L227)'
         # L226: no code file: the deploy goes on without --secrets-file (the Worker keeps the secret it has); a file that
         # cannot be read stops everything before a change (exit 3).
         $script:ogSecretArg = Join-Path $ogState 'no-such-linkwise-code.dat'
@@ -3875,6 +3908,8 @@ Check ($l215Hub.Contains("`$grOk = (`$grHome.status -eq 200 -and `$grMissing.Cou
 Check ($ogSrc.Contains("Get-Page (`$base + '/gr/')") -and $ogSrc.Contains("Get-Page (`$base + '/gr/stores/kouzinika-gr/')") -and $ogSrc.Contains("'/gr/</loc>'")) 'ogw-site.ps1: checks /gr/, a Greek store page and the sitemap (L214)'
 Check ($ogSrc.Contains("Get-Page (`$base + '/gr/stores/kotsovolos-gr/')") -and $ogSrc.Contains('rel="sponsored nofollow noopener" target="_blank"') -and $ogSrc.Contains('$dCodes[0] -eq $script:LwCode') -and -not ($ogSrc -match 'Get-Page[^\r\n]*linkwi\.se')) 'ogw-site.ps1: checks the 5 direct stores and their Linkwise links with this code, never opens one (L226)'
 Check ($ogSrc.Contains('function Mask([string]$s)') -and $ogSrc.Contains('$text = Mask $text') -and $ogSrc.Contains("Remove-Item -LiteralPath `$sf -Force") -and $ogSrc.Contains('ZeroFreeBSTR')) 'ogw-site.ps1: the Linkwise code masked on the screen and in the report, its temporary file deleted (L226)'
+Check ($ogSrc.Contains('$lines = @(& node $tool --archive $Archive --out $out 2>$null)') -and $ogSrc.Contains("`$ErrorActionPreference = 'Continue'") -and $ogSrc.Contains("if (`$script:LwPrices) { `$body += 'LINKWISE_PRICES=' + `$script:LwPrices") -and -not ($ogSrc -match 'Say[^\r\n]*LwPrices\b[^.]')) 'ogw-site.ps1: the prices are read by tools/ogw-prices.mjs (stderr never stops PowerShell 5.1), sent in the same secrets file, never written on the screen (L227)'
+Check ($ogSrc.Contains('$dRest = [regex]::Replace($dp.text, ''<p class="sc-price">.*?</p>'', '''')') -and $ogSrc.Contains('-not $dEuro -and $dPriceOk') -and $ogSrc.Contains("(`$script:KotsPrices -eq 0 -or `$dPrices -gt 0)")) 'ogw-site.ps1: a euro sign only inside the prices; prices sent but not shown is ΠΡΟΒΛΗΜΑ (L227)'
 Check ($ogSrc.Contains('elseif ($dMissing.Count -lt $dStores.Count -or $dp.status -eq 200) {') -and $ogSrc.Contains("-Filter 'gw-lw-*.env' -File") -and $ogSrc.Contains('if (Test-Path -LiteralPath $sf) {')) 'ogw-site.ps1: the 5 shown but wrong is ΠΡΟΒΛΗΜΑ even without the code file; an old temporary file is deleted, one that stays is said (L226 review)'
 $l214Hub = [System.IO.File]::ReadAllText((Join-Path (Join-Path $repo 'tools') 'gwh-hub-v2.ps1'))
 Check ($l214Hub.Contains('function Assert-MegaStoresGr {') -and $l214Hub.Contains("if (`$Step -eq 'live') { Assert-MegaStoresGr }") -and $l214Hub.Contains("Say-Stores (Test-Stores)`r`n    Assert-MegaStoresGr") -and $l214Hub.Contains("if (`$NoHttpCheck -or -not `$workerText.Contains('https://megastoresgearworld.com/gr/')) { return }") -and $l214Hub.Contains('Finish 25') -and $l214Hub.Contains('megastoresgearworld\.com/gr/')) 'gwh-hub-v2.ps1: the Hub preview and live go on only when Mega Stores /gr/ is live (exit 25), never asked with -NoHttpCheck, and the Greek bar and card are checked (L214)'

@@ -216,6 +216,9 @@ p { margin: 0 0 1em; }
 .sc-photo { display: block; aspect-ratio: 1; background: #fff; border-radius: 8px; overflow: hidden; }
 .sc-photo img { display: block; width: 100%; height: 100%; object-fit: contain; }
 .sc-name { margin: 0; font-size: .82rem; line-height: 1.3; color: var(--text); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+/* The store's own price from its Linkwise feed, with the time it was read (L227): plain text, no colour of its own. */
+.sc-price { margin: 0; font-size: .95rem; font-weight: 700; color: #fff; }
+.sc-when { display: block; font-size: .75rem; font-weight: 400; color: var(--text-2); }
 .sc-link { margin-top: auto; display: inline-flex; align-items: center; min-height: 44px; font-size: .85rem; font-weight: 600; }
 .sc-ideas { display: grid; gap: 14px; }
 .sc-idea .sc-item { height: auto; max-width: 260px; }

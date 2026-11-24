@@ -23,6 +23,7 @@ import { promosFor } from '../promos/promos.js';
 import { activePromos } from './lib/promos.js';
 import { COUNTRY_LANGUAGES, MULTI_LANGUAGE_COUNTRIES } from './lib/country-language.js';
 import { APP_BAR_TEXT, APP_BADGE_LABEL, appBarWanted, appPlayUrl, appBadgeFile } from './lib/app.js';
+import { PRICE_MAX_AGE_MS, priceKey } from './lib/price-key.js';
 
 export const AMAZON_STATEMENT = 'As an Amazon Associate I earn from qualifying purchases.';
 const AMAZON_TRADEMARK = 'Amazon and the Amazon logo are trademarks of Amazon.com, Inc. or its affiliates.';
@@ -726,6 +727,56 @@ export function directUrl(store, page, code) {
   return `https://go.linkwi.se/z/${store.direct.program}-0/${code}/?lnkurl=${encodeURIComponent(u.toString())}`;
 }
 
+// ---------------- Prices of the direct stores (owner, 24 Nov 2026, «επιλογή 2», lessons L227) ----------------
+// Linkwise allows prices on the store pages here (Julia, 24 Nov 2026), with no comparison: one store per page. A price is
+// the store's own price in its Linkwise product feed (Downloads\GW_AWIN_BULK_ARCHIVE\LINKWISE_<programme>.csv.gz, read on
+// the PC by tools/ogw-prices.mjs, matched to each idea by src/lib/price-key.js), shown with the date and time the feed
+// was read; one older than 24 hours is never shown (the idea stays, without a price). The prices reach the Worker with
+// the deploy, as the secret LINKWISE_PRICES (base64 of
+// {"v":1,"s":{"<programme>":{"t":"<ISO time the feed was read>","p":{"<priceKey(idea page)>":<euros>}}}}): no feed data is in
+// this repository. Never a price of Amazon, of a store of the Gear World sites (L221) or of another store on the page.
+export { PRICE_MAX_AGE_MS, priceKey };
+let pricesRaw = null;
+let pricesParsed = new Map();
+// env.LINKWISE_PRICES -> Map(programme -> { t: ms, p: Map(key -> euros) }); anything unreadable is left out.
+export function linkwisePrices(env) {
+  const raw = env && typeof env.LINKWISE_PRICES === 'string' ? env.LINKWISE_PRICES.trim() : '';
+  if (raw === pricesRaw) return pricesParsed;
+  const out = new Map();
+  try {
+    if (/^[A-Za-z0-9+/=]{8,20000}$/.test(raw)) {
+      const data = JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(raw), ch => ch.charCodeAt(0))));
+      const stores = data && data.v === 1 && data.s && typeof data.s === 'object' ? data.s : {};
+      for (const [prog, e] of Object.entries(stores)) {
+        const t = Date.parse(e && e.t);
+        if (!/^\d{2,9}$/.test(prog) || !Number.isFinite(t) || !e.p || typeof e.p !== 'object') continue;
+        const p = new Map();
+        for (const [k, v] of Object.entries(e.p)) {
+          if (/^[0-9a-f]{8}$/.test(k) && typeof v === 'number' && Number.isFinite(v) && v > 0 && v < 100000) p.set(k, Math.round(v * 100) / 100);
+        }
+        if (p.size) out.set(prog, { t, p });
+      }
+    }
+  } catch { /* no prices */ }
+  pricesRaw = raw;
+  pricesParsed = out;
+  return out;
+}
+// The price of one product of a direct store, or null: only from its own programme, only fresh (24 hours, and never a
+// time ahead of the clock by more than 10 minutes).
+function freshPrices(prices, store, now) {
+  if (!prices || !isDirectStore(store)) return null;
+  const e = prices.get(String(store.direct.program));
+  return e && Number.isFinite(now) && now - e.t <= PRICE_MAX_AGE_MS && e.t - now <= 600000 ? e : null;
+}
+export function directPrice(prices, store, page, now) {
+  const e = freshPrices(prices, store, now);
+  const amount = e ? e.p.get(priceKey(page)) : 0;
+  return amount ? { amount, t: e.t } : null;
+}
+const euros = (c, n) => new Intl.NumberFormat(c.lang, { style: 'currency', currency: 'EUR', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
+const checkedAt = (c, t) => new Intl.DateTimeFormat(c.lang, { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: 'Europe/Athens' }).format(new Date(t));
+
 // The stores shown with this mode, in the config's order: Amazon only with Amazon links (on or preview) and only where
 // Amazon UK delivers; every other store only to the countries in its deliversTo (L210); a direct store only with our
 // Linkwise code (L226).
@@ -1335,9 +1386,13 @@ const DIRECT_REL = 'sponsored nofollow noopener';
 function directProduct(c, store, p, broken = new Set()) {
   const href = directUrl(store, p.url, c.lw);
   if (!href || !/^https:\/\/[^/]+\//.test(String(p.image || '')) || broken.has(p.image)) return '';
+  // Its price in the store's own feed, with the time it was read (L227), only when fresh.
+  const pr = directPrice(c.prices, store, p.url, c.now);
+  if (pr && c.priced) c.priced.push(pr.t);
   return html`<div class="sc-item">
     <a class="sc-photo" href="${href}" rel="${DIRECT_REL}" target="_blank"><img src="${p.image}" alt="${p.name}" width="200" height="200" loading="lazy" decoding="async" referrerpolicy="no-referrer"></a>
     <p class="sc-name" translate="no">${p.name}</p>
+    ${pr ? html`<p class="sc-price"><span translate="no">${euros(c, pr.amount)}</span> <span class="sc-when">${c.t('checked {0}', checkedAt(c, pr.t))}</span></p>` : ''}
     <a class="sc-link" href="${href}" rel="${DIRECT_REL}" target="_blank"><span>${c.t('See it at {0}', keep(store.name))}</span></a>
   </div>`;
 }
@@ -1348,18 +1403,25 @@ function directIdea(c, store, idea, broken) {
   return href ? html`<a class="sc-link" href="${href}" rel="${DIRECT_REL}" target="_blank"><span>${c.t('See them at {0}', keep(store.name))}</span></a>` : '';
 }
 // The note at the top of the page: these buttons are our own Linkwise links to the store (not Gear World pages).
-function directDisclosure(c, store) {
+// shownAt: the time the feed of the prices on the page was read (L227), 0 without a price on the page.
+function directDisclosure(c, store, shownAt = 0) {
   return html`<div class="note" role="note">
   <p>${c.t('The buttons on this page open pages of {0} through Linkwise, an affiliate network. If you buy there, we may earn a commission, at no extra cost to you.', keep(store.name))}</p>
-  <p>${c.t('Prices, stock and delivery are on the page you open. We do not sell anything and we do not track prices.')}</p>
+  <p>${shownAt
+    ? c.t('The prices come from the product feed of {0} on Linkwise and were checked on {1} (Greek time). A price older than 24 hours is not shown. The price, stock and delivery on the store’s page are the ones that count. We do not sell anything.', keep(store.name), checkedAt(c, shownAt))
+    : c.t('Prices, stock and delivery are on the page you open. We do not sell anything and we do not track prices.')}</p>
 </div>`;
 }
 // broken: the photos that did not open (directPhotos): their products are left out, and a set needs 2 products (L221).
 export function directStorePage(c, store, broken = new Set()) {
   const { site, t, tx } = c;
   const d = store.direct || {};
+  c.priced = [];
   const sets = (d.sets || []).map(set => ({ set, items: (set.items || []).map(p => directProduct(c, store, p, broken)).filter(Boolean) })).filter(x => x.items.length >= 2);
   const ideas = (d.ideas || []).map(idea => ({ idea, body: directIdea(c, store, idea, broken) })).filter(x => toString(x.body));
+  // The note says when the prices on the page were read (one feed per store, so one time).
+  const shownAt = c.priced.length ? Math.min(...c.priced) : 0;
+  c.priced = null;
   return shell(c, {
     title: tx('{0} on {1}', store.name, site.name),
     description: `${tx(store.line)} ${tx('Each idea opens its page on {0}, which shows the price, the stock and the delivery.', store.name)}`,
@@ -1370,7 +1432,7 @@ export function directStorePage(c, store, broken = new Set()) {
   <div class="store-title">${storeLogo(site, store, 'store-logo store-logo-lg')}<h1>${t('{0} on {1}', keep(store.name), keep(site.name))}</h1></div>
   <p class="lede">${t(store.line)} ${t('Each idea opens its page on {0}, which shows the price, the stock and the delivery.', keep(store.name))}</p>
 </div></section>
-<section class="wrap section">${directDisclosure(c, store)}</section>
+<section class="wrap section">${directDisclosure(c, store, shownAt)}</section>
 ${sets.length ? html`<section class="wrap section showcase" aria-labelledby="sets-h">
   <h2 id="sets-h">${t('Sets from {0}', keep(store.name))}</h2>
   <p class="section-lede">${t('Products of {0} that go together, chosen by us. Each one opens its page on {0}, which shows the price and the stock.', keep(store.name))}</p>
@@ -1582,10 +1644,10 @@ export function checksPage(c) {
 // NOTE: a starting point that needs review by a qualified adviser (T31), like the other Gear World sites.
 const item = (c, label, text) => html`<li><strong>${c.t(label)}</strong> ${c.t(text)}</li>`;
 // The direct stores the site shows (L226), as "Public, Sephora, …" (names never translated), or '' without them.
-const directNames = c => {
-  const list = directStores(c.site, ANY_COUNTRY, c.lw);
-  return list.length ? html`${list.map((s, i) => html`${i ? ', ' : ''}${keep(s.name)}`)}` : '';
-};
+const storeNames = list => (list.length ? html`${list.map((s, i) => html`${i ? ', ' : ''}${keep(s.name)}`)}` : '');
+const directNames = c => storeNames(directStores(c.site, ANY_COUNTRY, c.lw));
+// The direct stores with prices right now (L227): the legal pages say "prices" only while some are shown.
+const pricedNames = c => storeNames(directStores(c.site, ANY_COUNTRY, c.lw).filter(s => freshPrices(c.prices, s, c.now)));
 const LEGAL = {
   '/about/': c => ({
     title: 'About',
@@ -1600,7 +1662,9 @@ const LEGAL = {
 <ul>
 <li>${c.t('We do not sell anything and we do not take payments.')}</li>
 <li>${c.t('We do not track prices or send price alerts.')}</li>
-<li>${c.t('We do not show prices: they are on the page each button opens, where they are up to date.')}</li>
+<li>${pricedNames(c)
+    ? c.t('We show prices only on the pages of {0}: each price comes from the store’s own product feed on Linkwise, with the date and time it was checked, is never older than 24 hours and is never compared with another store.', pricedNames(c))
+    : c.t('We do not show prices: they are on the page each button opens, where they are up to date.')}</li>
 ${directNames(c)
     ? html`<li>${c.t('The pages of the other stores show product photos, names and brands from the Gear World sites, each with its Gear World product page.')}</li>
 <li>${c.t('The pages of {0} show gift ideas of the store itself, each with a Linkwise link to its page on the store’s own site.', directNames(c))}</li>`
@@ -1627,7 +1691,9 @@ ${directNames(c) ? html`<h2 translate="no">Linkwise</h2><p>${c.t('The gift ideas
     ? c.t('The "Browse on" buttons open a category of a Gear World site, and the "See it on" buttons of the other store pages open a product page of a Gear World site. Those sites have their own affiliate links and explain them on their own "How we make money" page.')
     : c.t('The "Browse on" buttons open a category of a Gear World site, and the "See it on" buttons of the store pages open a product page of a Gear World site. Those sites have their own affiliate links and explain them on their own "How we make money" page.')}</p>
 <h2>${c.t('How this affects what you see')}</h2>
-<p>${c.t('The ideas are not ranked by commission, and nobody pays to be in a guide. We do not show prices: the page each button opens has the current price.')}</p>`
+<p>${pricedNames(c)
+    ? c.t('The ideas are not ranked by commission, and nobody pays to be in a guide. Prices are shown only on the pages of {0}, from each store’s own product feed on Linkwise, with the date and time they were checked, and never compared with another store.', pricedNames(c))
+    : c.t('The ideas are not ranked by commission, and nobody pays to be in a guide. We do not show prices: the page each button opens has the current price.')}</p>`
   }),
 
   '/privacy/': c => ({
@@ -1785,7 +1851,10 @@ export function createGuidesWorker(site, deps = {}) {
       const choice = pickLanguage(site, request, url);
       // Our Linkwise code (the Worker secret, L226): without it the direct stores are on no page.
       const lw = linkwiseCode(env);
-      const ctxFor = path => makeContext(site, choice.lang, choice.chosen, mode, path, country, null, lw);
+      // The prices of the direct stores (L227), checked again for their age on every page.
+      // Every page has them (the legal pages say "prices" only while some are shown).
+      const priced = cc => { cc.prices = linkwisePrices(env); cc.now = nowMs(); return cc; };
+      const ctxFor = path => priced(makeContext(site, choice.lang, choice.chosen, mode, path, country, null, lw));
       const page = (body, status = 200, lang = choice.lang) => {
         // Every page now depends on the visitor's country (its stores, codes and Amazon buttons, L210), and before
         // that a language picked from the country or the browser did too (L175): a page is never kept by a shared
@@ -1813,7 +1882,7 @@ export function createGuidesWorker(site, deps = {}) {
         const crawler = readsEnglish(request) || GOOGLE_CRAWLER.test(request.headers.get('user-agent') || '');
         const asked = crawler ? '' : languageCode(site, url.searchParams.get('lang'));
         const edLang = asked || ed.lang;
-        const edCtx = p => makeContext(site, edLang, Boolean(asked), viewMode(site, baseMode, ed.country), p, ed.country, ed, lw);
+        const edCtx = p => priced(makeContext(site, edLang, Boolean(asked), viewMode(site, baseMode, ed.country), p, ed.country, ed, lw));
         const rest = url.pathname.slice(ed.prefix.length);
         const edKeep = to => (asked ? edCtx('/').href(to) : edCtx('/').at(to));
         if (rest === '/stores' || rest === '/stores/') return redirect(`https://${site.domain}${edKeep('/#stores')}`, 302);

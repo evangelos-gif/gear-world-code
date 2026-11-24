@@ -26,7 +26,7 @@ export default {
   operatorName: 'Evangelos Kalogerakis, United Kingdom',
   // An address that receives mail (the Hub's; megastoresgearworld.com has no email).
   contactEmail: 'contact@gearworldhub.com',
-  assetVersion: '2026-11-24-ogw-11',
+  assetVersion: '2026-11-24-ogw-12',
   // The name of the stores part on every page, never translated (owner, 21 Nov 2026, lessons L208).
   storesLabel: 'Mega Stores',
   // The 12 languages of the 13 Gear World sites, the same codes and the same order as their menu (lessons L162, L195).
@@ -90,8 +90,10 @@ export default {
     // The five big Greek stores of Linkwise (owner and Linkwise, 24 Nov 2026, lessons L226): Public, Sephora,
     // e-shop.gr, AB Vasilopoulos and Kotsovolos do not accept comparison sites, so their products are never on the 13
     // sites, the Hub or the app. Julia (Linkwise) agreed on 24 Nov 2026 to their pages here like the 7 below (the
-    // programme logo, sets and gift ideas, no prices), with one difference: every idea opens the store's own page
-    // through the Linkwise link (never a Gear World product page, never a comparison). `direct.program` is the
+    // programme logo, sets and gift ideas; prices since 24 Nov 2026, see below), with one difference: every idea opens the store's own page
+    // through the Linkwise link (never a Gear World product page, never a comparison). Prices (owner and Julia, 24 Nov 2026, L227):
+    // only the store's own price from its Linkwise product feed, read on the PC by tools/ogw-prices.mjs and shown with
+    // the time it was read, never older than 24 hours, never compared; AB has no product feed, so no prices. `direct.program` is the
     // Linkwise programme, `direct.hosts` the store's own addresses (no other address is ever linked), and the sets and
     // ideas name products as the store gives them in its Linkwise product feed (name, photo, page; read on 24 Nov 2026,
     // in stock), or for AB, which has no product feed, one of its own categories (no photo). The Linkwise link needs
