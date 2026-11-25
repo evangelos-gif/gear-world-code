@@ -24,7 +24,7 @@ import { activePromos } from './lib/promos.js';
 import { COUNTRY_LANGUAGES, MULTI_LANGUAGE_COUNTRIES } from './lib/country-language.js';
 import { APP_BAR_TEXT, APP_BADGE_LABEL, appBarWanted, appPlayUrl, appBadgeFile } from './lib/app.js';
 import { PRICE_MAX_AGE_MS, priceKey } from './lib/price-key.js';
-import { catalogState, catalogFresh, catalogTop, catalogCategory } from './lib/ogw-catalog.js';
+import { catalogState, catalogFresh, catalogTop, catalogCategory, catalogSitemap } from './lib/ogw-catalog.js';
 
 export const AMAZON_STATEMENT = 'As an Amazon Associate I earn from qualifying purchases.';
 const AMAZON_TRADEMARK = 'Amazon and the Amazon logo are trademarks of Amazon.com, Inc. or its affiliates.';
@@ -1940,6 +1940,26 @@ export function pagePaths(site, mode = 'off', lw = '') {
   return ['/', ...stores, ...editions, ...site.guides.map(g => `/guides/${g.slug}/`), `/guides/${site.checks.slug}/`, ...Object.keys(LEGAL)];
 }
 
+// The category pages of the catalogue of the direct stores (L228), for the sitemap (L233): in the edition that lists the
+// store (/gr/), only while its catalogue is fresh and not loading (the pages answer 404 or 503 otherwise), only with our
+// Linkwise code; their first page only (the ?after= pages are noindex). [] when the database does not answer.
+export async function catalogSitemapPaths(site, db, lw, now) {
+  if (!lw || !db) return [];
+  const state = await catalogState(db, now);
+  if (!state.ok) return [];
+  const bases = new Map();
+  for (const e of openEditions(site, lw)) {
+    for (const s of editionStores(site, e, lw).filter(isDirectStore)) {
+      if (!catalogFresh(state.stores.get(String(s.direct.program)), now)) continue;
+      const p = s.direct.program;
+      if (!bases.has(p)) bases.set(p, []);
+      bases.get(p).push(`${e.prefix}/stores/${s.slug}/c/`);
+    }
+  }
+  const rows = await catalogSitemap(db, [...bases.keys()]);
+  return rows.flatMap(r => (bases.get(Number(r.program)) || []).map(b => `${b}${Number(r.id)}-${r.slug}/`));
+}
+
 // deps (tests): fetch, cache (match/put, like caches.default), now (a function giving ms), timeoutMs, and photoFetch /
 // photoTimeoutMs for the photo check (L211).
 export function createGuidesWorker(site, deps = {}) {
@@ -2014,7 +2034,9 @@ export function createGuidesWorker(site, deps = {}) {
         return textResponse(preview ? 'User-agent: *\nDisallow: /\n' : `User-agent: *\nAllow: /\n\nSitemap: https://${site.domain}/sitemap.xml\n`, { method: request.method });
       }
       if (url.pathname === '/sitemap.xml') {
-        const urls = pagePaths(site, baseMode, lw).map(p => `<url><loc>https://${site.domain}${p}</loc></url>`).join('\n');
+        // And the category pages of the direct stores' catalogue (L233), so Google finds them without crawling every store.
+        const cats = env && env.CATALOG ? await catalogSitemapPaths(site, env.CATALOG, lw, nowMs()) : [];
+        const urls = [...pagePaths(site, baseMode, lw), ...cats].map(p => `<url><loc>https://${site.domain}${p}</loc></url>`).join('\n');
         return textResponse(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`, { type: 'application/xml', method: request.method });
       }
       if (lw && env && env.CATALOG) catState = await catalogState(env.CATALOG, nowMs());

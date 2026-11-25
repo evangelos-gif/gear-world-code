@@ -530,6 +530,10 @@ function Test-Site([string]$base, [string]$mode) {
     $edSm = Get-Page ($base + '/sitemap.xml')
     if ($edSm.status -eq 200 -and $edSm.text.Contains('<loc>https://' + $Domain + '/gr/</loc>') -and $edSm.text.Contains('<loc>https://' + $Domain + '/gr/stores/kouzinika-gr/</loc>')) { Say '  sitemap.xml με το /gr/ και τις σελίδες των ελληνικών καταστημάτων (L214): ΕΝΤΑΞΕΙ' $Ok }
     else { Say ('  sitemap.xml χωρίς το /gr/ (L214, απάντηση {0}): ΠΡΟΒΛΗΜΑ' -f $edSm.status) $Bad; $all = $false }
+    # L233: the category pages of the catalogue of the Greek stores (only while the catalogue is fresh: a warning otherwise).
+    $smCats = ([regex]::Matches($edSm.text, '<loc>https://' + [regex]::Escape($Domain) + '/gr/stores/[a-z0-9-]+/c/\d+-[a-z0-9-]*/</loc>')).Count
+    if ($smCats -gt 0) { Say ('  sitemap.xml με {0} σελίδες κατηγοριών του καταλόγου στο /gr/ (L233): ΕΝΤΑΞΕΙ' -f $smCats) $Ok }
+    else { Say '  sitemap.xml χωρίς σελίδες κατηγοριών (L233): ΠΡΟΣΟΧΗ - ο κατάλογος είναι παλιός ή φορτώνει (μπαίνουν μόνες τους μετά την ανανέωση)' $Warn }
     # L232 (owner, 25 Nov 2026): Mega Stores of Germany, Austria, the Netherlands, Belgium, the US, Poland and Ireland, each at its
     # own address in its language (asked as a UK visitor, as Google reads them): its canonical and hreflang, at least 3
     # of its stores, nothing of the UK, in the sitemap; one store page with products read for that country (a warning

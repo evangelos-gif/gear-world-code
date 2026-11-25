@@ -62,6 +62,17 @@ export async function catalogTop(db, program) {
     return (r && r.results) || [];
   } catch { return null; }
 }
+// Every category with products of the given stores, for the sitemap (L233): one query, biggest first in each store,
+// at most `limit` rows (a sitemap holds 50,000 addresses); [] when the database does not answer.
+export const SITEMAP_CATEGORY_LIMIT = 40000;
+export async function catalogSitemap(db, programs, limit = SITEMAP_CATEGORY_LIMIT) {
+  const ids = (programs || []).map(Number).filter(p => Number.isInteger(p) && p > 0);
+  if (!db || typeof db.prepare !== 'function' || !ids.length) return [];
+  try {
+    const r = await withTimeout(db.prepare(`SELECT program, id, slug FROM categories WHERE products > 0 AND program IN (${ids.map(() => '?').join(', ')}) ORDER BY program, products DESC, id LIMIT ?`).bind(...ids, limit).all());
+    return ((r && r.results) || []).filter(x => Number.isInteger(Number(x.id)) && Number(x.id) > 0 && /^[a-z0-9-]*$/.test(String(x.slug || '')));
+  } catch { return []; }
+}
 // One category of one store: itself, the categories above it, the ones below it and one page of its products (after
 // the place `after`, in the store's stable order). null: no such category; throws when the database does not answer.
 export async function catalogCategory(db, program, id, after = 0) {

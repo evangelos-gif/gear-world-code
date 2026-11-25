@@ -228,3 +228,36 @@ test('L228: the prices of the sets come from the catalogue when its feed is newe
   const stores = await catalogStores(env.CATALOG, NOW + 1);
   assert.ok(catalogFresh(stores.get('138'), NOW));
 });
+
+test('L233: the sitemap lists the category pages of the catalogue (in /gr/, while it is fresh), each a page that answers 200', async () => {
+  const env = await catalogEnv();
+  const sm = await get('/sitemap.xml', env, { cc: null });
+  assert.equal(sm.r.status, 200);
+  const locs = [...sm.text.matchAll(/<loc>([^<]+)<\/loc>/g)].map(m => m[1]);
+  assert.equal(new Set(locs).size, locs.length, 'every address once');
+  const cats = locs.filter(l => l.includes('/c/'));
+  const want = env.CATALOG.sqlite.prepare('SELECT id, slug FROM categories WHERE program = 138 AND products > 0').all();
+  assert.equal(want.length > 3, true);
+  assert.deepEqual(cats.slice().sort(), want.map(c => `${LIVE}/gr/stores/kotsovolos-gr/c/${c.id}-${c.slug}/`).sort(), 'every category with products, in the Greek edition');
+  assert.ok(locs.includes(`${LIVE}/gr/stores/kotsovolos-gr/`) && locs.includes(`${LIVE}/`), 'the other pages as before');
+  for (const loc of cats) {
+    const { r, text } = await get(loc.slice(LIVE.length), env);
+    assert.equal(r.status, 200, loc);
+    assert.ok(text.includes(`<link rel="canonical" href="${loc}">`) && !text.includes('name="robots"'), `${loc}: its own canonical, indexed`);
+  }
+  // None without our Linkwise code, with a catalogue older than 72 hours or in the middle of a load; the sitemap stays
+  // whole when the database does not answer.
+  const noCode = { ...(await catalogEnv()), LINKWISE_CODE: '' };
+  const stale = await catalogEnv({ ago: CATALOG_MAX_AGE_MS + 3600000 });
+  const loading = await catalogEnv();
+  loading.CATALOG.sqlite.prepare('UPDATE stores SET loading = 1').run();
+  const busy = await catalogEnv({ failOn: /FROM categories/ });
+  const down = await catalogEnv({ failOn: /FROM stores/ });
+  for (const [name, e] of [['no code', noCode], ['stale', stale], ['loading', loading], ['categories busy', busy], ['database down', down]]) {
+    const x = await get('/sitemap.xml', e, { cc: null });
+    assert.equal(x.r.status, 200, name);
+    assert.ok(!x.text.includes('/c/') && x.text.includes(`<loc>${LIVE}/</loc>`) && x.text.trimEnd().endsWith('</urlset>'), `${name}: no category, the rest as before`);
+  }
+  const without = await get('/sitemap.xml', {}, { cc: null });
+  assert.ok(!without.text.includes('/c/'), 'no CATALOG database: as before');
+});
