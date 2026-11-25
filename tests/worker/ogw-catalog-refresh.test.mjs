@@ -51,8 +51,9 @@ test('L231: a refresh sends only what changed and ends exactly like a full load 
   const db = fakeD1(day1.sql).sqlite;
   assert.equal(day1.left.length, 0, 'no temporary file left');
   const state1 = day1.states['138'].trim().split('\n');
-  assert.equal(state1.length, 62, 'one line per product');
-  assert.ok(state1.every(l => /^[^\t]+\t[0-9a-f]{16}$/.test(l)), 'id, a tab and a hash');
+  assert.equal(state1[0], `#loaded ${new Date(NOW - 3600000).toISOString()}`, 'the time of the feed of that load first');
+  assert.equal(state1.length, 63, 'then one line per product');
+  assert.ok(state1.slice(1).every(l => /^[^\t]+\t[0-9a-f]{16}\t[0-9a-f]{8}$/.test(l)), 'id, the hash of the row, the hash of its place and categories');
   // The same feed again: nothing to send but the store's row.
   const dir = stateDir(day1.states);
   try {
@@ -67,6 +68,14 @@ test('L231: a refresh sends only what changed and ends exactly like a full load 
     const text = day2.sql.join('\n');
     assert.ok(!/loading\) VALUES \(138, 'kotsovolos-gr', '[^']+', 0, 1\)|DELETE FROM products WHERE program = 138;/.test(text), 'never "loading", never every product out');
     assert.ok(statements(day2.sql).every(l => Buffer.byteLength(l) <= MAX_STATEMENT), 'every statement under the D1 limit');
+    // Review 25/11/2026 (D1 cost): a new price or photo updates only the product's own columns (no index row); a new
+    // product or one in another category, every column.
+    const light = statements(day2.sql).filter(l => /DO UPDATE SET name = excluded\.name/.test(l));
+    const whole = statements(day2.sql).filter(l => /^INSERT INTO products .* DO UPDATE SET pos = excluded\.pos/.test(l));
+    assert.equal(light.length, 1);
+    assert.ok(light[0].includes("'100010'") && light[0].includes("'100020'") && !light[0].includes("'900001'") && !/c1 = excluded/.test(light[0]));
+    assert.equal(whole.length, 1);
+    assert.ok(whole[0].includes("'900001'") && whole[0].includes("'100100'") && !whole[0].includes("'100010'"));
     const written = changes(db, day2.sql);
     const fresh = fakeD1((await catalogSql({ 138: nextDay() }, NOW)).sql).sqlite;
     assert.equal(dump(db), dump(fresh), 'the refreshed store is the same as a full load of the new feed');
@@ -202,6 +211,48 @@ test('L231: the PC tool from the command line: --full 0 (no store in full) and -
     writeFileSync(join(dir, '138.tsv'), readFileSync(join(dir, 'out', '138.state'), 'utf8'));
     rmSync(join(dir, 'out'), { recursive: true, force: true });
     assert.match(run('--full', '0', '--state', dir).stdout, / OK 5 \d+ 0 \S+ 1 refresh 0 0\r?\n/, 'with the state file: nothing to send');
+    const iso = new Date(NOW - 3600000).toISOString();
+    assert.match(run('--full', '0', '--state', dir, '--have', `138=${iso}`).stdout, / refresh 0 0\r?\n/, '--have with the time of that load: a refresh');
+    assert.match(run('--full', '0', '--state', dir, '--have', '0').stdout, / check 5 -1\r?\n/, '--have without the store: every product checked');
+    assert.match(run('--full', '0', '--state', dir, '--have', `138=2026-01-01T00:00:00.000Z`).stdout, / check 5 -1\r?\n/, '--have with another time: every product checked');
     assert.ok(readdirSync(join(dir, 'out')).includes('138.state'));
   } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('L231 review: the state file counts only when it is the load the database has (a restore, another PC)', async () => {
+  const DAY1 = NOW - 24 * 3600000;
+  const day1 = await catalogSql({ 138: kotsovolosRows(60) }, DAY1);
+  const iso1 = new Date(DAY1 - 3600000).toISOString();
+  const db = fakeD1(day1.sql).sqlite;
+  const before = fakeD1(day1.sql).sqlite; // the database as it was before day 2 (a Time Travel restore brings it back)
+  assert.equal(db.prepare('SELECT checked_at FROM stores').get().checked_at, iso1);
+  const dir = stateDir(day1.states);
+  try {
+    // Day 2 with the database's own time: a refresh.
+    const day2 = await catalogSql({ 138: nextDay() }, NOW, 3600000, { full: [], stateDir: dir, loaded: { 138: iso1 } });
+    assert.match(day2.lines[0], / refresh 4 1$/);
+    changes(db, day2.sql);
+    writeFileSync(join(dir, '138.tsv'), day2.states['138']);
+    // The database restored to the day before: its time is day 1's, the file says day 2: every product is checked,
+    // and the store ends exactly as the feed says (without the review fix, the dearer price and the new product were lost).
+    const again = await catalogSql({ 138: nextDay() }, NOW, 3600000, { full: [], stateDir: dir, loaded: { 138: before.prepare('SELECT checked_at FROM stores').get().checked_at } });
+    assert.match(again.lines[0], / check 62 -1$/);
+    changes(before, again.sql);
+    assert.equal(dump(before), dump(fakeD1((await catalogSql({ 138: nextDay() }, NOW)).sql).sqlite));
+    // No time for the store in the database, or a file without its first line: checked too.
+    assert.match((await catalogSql({ 138: nextDay() }, NOW, 3600000, { full: [], stateDir: dir, loaded: {} })).lines[0], / check /);
+    writeFileSync(join(dir, '138.tsv'), day2.states['138'].split('\n').slice(1).join('\n'));
+    assert.match((await catalogSql({ 138: nextDay() }, NOW, 3600000, { full: [], stateDir: dir, loaded: { 138: new Date(NOW - 3600000).toISOString() } })).lines[0], / check /);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('L231 review: a slug like "constructor" is no category; an id of 2 KB keeps every delete under the limit', () => {
+  const spec = PATH_CATEGORIES[12158];
+  for (const bad of ['constructor', '__proto__', 'toString', 'hasOwnProperty']) {
+    assert.equal(pathLevels(`https://www.ab.gr/el/eshop/${bad}/x/p/1`, spec), null, bad);
+    assert.deepEqual(pathLevels(`https://www.ab.gr/el/eshop/Oporopoleio/${bad}/p/1`, spec), ['Οπωροπωλείο'], bad);
+  }
+  const keys = sortKeys(Array.from({ length: 300 }, (_, i) => `https://www.kotsovolos.gr/${"'".repeat(900)}${String(i).padStart(4, '0')}`));
+  const del = rangeDeletes('products', 138, 'pid', keys, v => `'${String(v).replace(/'/g, "''")}'`);
+  assert.ok(del.length > 1 && del.every(x => Buffer.byteLength(x) <= MAX_STATEMENT), Math.max(...del.map(x => Buffer.byteLength(x))));
 });

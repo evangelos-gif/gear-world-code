@@ -845,25 +845,34 @@ if ($Step -eq 'catalog-db') {
 
 # ---------------- catalog: the stores' products into it (L228, L231) ----------------
 if ($Step -eq 'catalog') {
-    $progs = @($Program -split '[,\s]+' | Where-Object { $_ })
+    # Each programme once (review 25/11/2026: twice would send its files twice).
+    $progs = @($Program -split '[,\s]+' | Where-Object { $_ } | Select-Object -Unique)
     foreach ($pg in $progs) { if ($CatalogPrograms -notcontains $pg) { Say ('Λάθος πρόγραμμα για τον κατάλογο: {0} (μόνο {1}).' -f $pg, ($CatalogPrograms -join ', ')) $Bad; Finish 2 } }
     $f = Find-CatalogDb $ogw
     if (-not $f.ok) { Say 'Η Cloudflare δεν απάντησε για τις βάσεις D1. Δεν άλλαξε τίποτα. Ξανατρέξε σε λίγα λεπτά.' $Bad; Finish 11 }
     if (-not $f.found) { Say ('Η βάση "{0}" δεν υπάρχει ακόμα: πρώτα το βήμα catalog-db. Δεν άλλαξε τίποτα.' -f $CatalogDb) $Bad; Finish 14 }
     # What the database has now, before the feeds are read (L231): a store with products whose last load ended well is
     # only refreshed (what changed); a new one, one that stopped half-way (loading = 1) or -Reload is loaded in full.
-    $q0 = Invoke-Wrangler $ogw ('d1 execute {0} --remote --json --command "SELECT program, products, loading FROM stores"' -f $CatalogDb) -NonInteractive -Retry
+    $q0 = Invoke-Wrangler $ogw ('d1 execute {0} --remote --json --command "SELECT program, products, loading, checked_at FROM stores"' -f $CatalogDb) -NonInteractive -Retry
     $have = Get-JsonArray $q0.text
     if ($null -eq $have) { Say 'Η βάση του καταλόγου δεν απάντησε (μπορεί να φορτώνει ήδη): δεν άλλαξε τίποτα. Ξανατρέξε σε λίγα λεπτά.' $Bad; Finish 11 }
     $loaded = @{}
     $was = @{}
+    $at = @()
     foreach ($block in @($have)) {
         foreach ($row in @($block.results)) {
             if (-not $row) { continue }
             $was[[string]$row.program] = [int]$row.products
-            if ([int]$row.products -gt 0 -and [int]$row.loading -eq 0) { $loaded[[string]$row.program] = [int]$row.products }
+            if ([int]$row.products -gt 0 -and [int]$row.loading -eq 0) {
+                $loaded[[string]$row.program] = [int]$row.products
+                # The time of the feed of its last load: the state file of the PC counts only for that load (review 25/11/2026).
+                $when0 = [string]$row.checked_at
+                if ($when0 -match '^\S+$') { $at += ('{0}={1}' -f $row.program, $when0) }
+            }
         }
     }
+    $haveArg = '0'
+    if ($at.Count -gt 0) { $haveArg = $at -join ',' }
     $hasImage = Test-CategoryImage $ogw
     if ($null -eq $hasImage) { Say 'Η βάση του καταλόγου δεν απάντησε (μπορεί να φορτώνει ήδη): δεν άλλαξε τίποτα. Ξανατρέξε σε λίγα λεπτά.' $Bad; Finish 11 }
     $full = @($progs | Where-Object { $Reload -or -not $loaded.ContainsKey($_) })
@@ -878,11 +887,12 @@ if ($Step -eq 'catalog') {
     $old = $ErrorActionPreference
     try {
         $ErrorActionPreference = 'Continue'
-        $lines = @(& node $tool --archive $Archive --out $out --program ($progs -join ',') --full $fullArg --state $StateDir 2>$null)
+        $lines = @(& node $tool --archive $Archive --out $out --program ($progs -join ',') --full $fullArg --state $StateDir --have $haveArg 2>$null)
     } catch { $lines = @('CATALOG-ERROR node') }
     finally { $ErrorActionPreference = $old }
     $ready = @()
     $names = @{}
+    $modes = @{}
     $anyFull = $false
     $anyRefresh = $false
     Say ''
@@ -891,6 +901,7 @@ if ($Step -eq 'catalog') {
         $p = ([string]$line).Trim().Split(' ')
         if ($p[0] -ne 'CATALOG' -or $p.Count -lt 12) { continue }
         $names[$p[2]] = $p[1]
+        $modes[$p[2]] = $p[9]
         $when = $p[7]
         if ($p[7] -ne '-') { try { $when = ([datetime]::Parse($p[7], [System.Globalization.CultureInfo]::InvariantCulture, [System.Globalization.DateTimeStyles]::RoundtripKind)).ToLocalTime().ToString('dd/MM HH:mm') } catch { $when = $p[7] } }
         if ($p[3] -eq 'OK') {
@@ -902,7 +913,7 @@ if ($Step -eq 'catalog') {
                 $anyFull = $true
                 $why = 'νέο κατάστημα στον κατάλογο'
                 if ($Reload -and $loaded.ContainsKey($p[2])) { $why = 'με -Reload' }
-                elseif ($prev -gt 0) { $why = 'η προηγούμενη φόρτωσή του σταμάτησε στη μέση' }
+                elseif ($was.ContainsKey($p[2])) { $why = 'η προηγούμενη φόρτωσή του σταμάτησε στη μέση' }
                 Say ('  - {0}: ΠΛΗΡΗΣ φόρτωση ({1}): μπαίνουν {2} προϊόντα σε {3} κατηγορίες, {4} · ~{5} εκατ. εγγραφές D1' -f $p[1], $why, $p[4], $p[5], $feed, [math]::Round(([int]$p[4] + $prev) * 4 / 1000000, 1))
             }
             elseif ($p[9] -eq 'refresh') {
@@ -911,7 +922,7 @@ if ($Step -eq 'catalog') {
             }
             else {
                 $anyRefresh = $true
-                Say ('  - {0}: ανανέωση: {1} προϊόντα στο feed· ελέγχονται όλα, γιατί δεν υπάρχει αρχείο από την προηγούμενη φόρτωση (πρώτη ανανέωση ή η προηγούμενη δεν τελείωσε)· γράφονται μόνο όσα άλλαξαν, το πολύ ~{2} εκατ. εγγραφές D1 · {3} κατηγορίες, {4}' -f $p[1], $p[4], [math]::Round(([int]$p[4]) * 4 / 1000000, 1), $p[5], $feed)
+                Say ('  - {0}: ανανέωση: {1} προϊόντα στο feed· ελέγχονται όλα, γιατί δεν υπάρχει αρχείο της προηγούμενης φόρτωσης που να ταιριάζει με τη βάση (πρώτη ανανέωση, επαναφορά της βάσης, άλλος υπολογιστής ή η προηγούμενη δεν τελείωσε)· γράφονται μόνο όσα άλλαξαν, το πολύ ~{2} εκατ. εγγραφές D1 · {3} κατηγορίες, {4}' -f $p[1], $p[4], [math]::Round(([int]$p[4]) * 4 / 1000000, 1), $p[5], $feed)
             }
         }
         elseif ($p[3] -eq 'OLD') { Say ('  - {0}: ΠΡΟΣΟΧΗ - το feed είναι της {1}, παλιότερο από 23 ώρες: δεν φορτώνεται (κατέβασε νέα feeds).' -f $p[1], $when) $Warn }
@@ -933,7 +944,7 @@ if ($Step -eq 'catalog') {
     $restoreCmd = 'npx wrangler d1 time-travel restore {0} --bookmark={1}' -f $CatalogDb, $bm.Value
     $bdir = Join-Path $WorkDir 'backups'
     if (-not (Test-Path -LiteralPath $bdir)) { New-Item -ItemType Directory -Path $bdir -Force | Out-Null }
-    $note = @(('Mega Stores catalogue restore point before import, {0}' -f (Get-Date -Format 'yyyy-MM-dd HH:mm')), ('bookmark: {0}' -f $bm.Value), 'To go back (only with approval), in PowerShell:', ('  cd "{0}"' -f $ogw), ('  {0}' -f $restoreCmd), ('After a restore, delete the folder {0} (the next run then checks every product).' -f $StateDir)) -join "`r`n"
+    $note = @(('Mega Stores catalogue restore point before import, {0}' -f (Get-Date -Format 'yyyy-MM-dd HH:mm')), ('bookmark: {0}' -f $bm.Value), 'To go back (only with approval), in PowerShell:', ('  cd "{0}"' -f $ogw), ('  {0}' -f $restoreCmd), ('After a restore the next catalog run checks every product by itself (its state files in {0} no longer match the database).' -f $StateDir)) -join "`r`n"
     $backup = Join-Path $bdir ('ogw-catalog-restore-point-' + $stamp + '.txt')
     [System.IO.File]::WriteAllText($backup, $note, (New-Object System.Text.UTF8Encoding($false)))
     Say ('Σημείο επαναφοράς: {0}' -f $backup) $Ok
@@ -950,14 +961,16 @@ if ($Step -eq 'catalog') {
     foreach ($pg in $ready) {
         $files = @(Get-ChildItem -LiteralPath $out -Filter ('{0}-*.sql' -f $pg) -File | Sort-Object Name)
         $stateNow = Join-Path $StateDir ('{0}.tsv' -f $pg)
-        if (Test-Path -LiteralPath $stateNow) { Remove-Item -LiteralPath $stateNow -Force }
+        try { if (Test-Path -LiteralPath $stateNow) { Remove-Item -LiteralPath $stateNow -Force } }
+        catch { Say ('Δεν μπόρεσα να σβήσω το {0} (ίσως το κρατά ανοιχτό άλλο πρόγραμμα): ΔΕΝ έστειλα τίποτα για το {1}. Ξανατρέξε σε λίγο.' -f $stateNow, $names[$pg]) $Bad; Remove-Item -LiteralPath $out -Recurse -Force -ErrorAction SilentlyContinue; Finish 12 }
         foreach ($file in $files) {
             $x = Invoke-Wrangler $ogw ('d1 execute {0} --remote --file "{1}"' -f $CatalogDb, $file.FullName) -NonInteractive -Retry
             if ($x.code -ne 0) {
                 Say ('Λάθος στο {0}: ΠΡΟΒΛΗΜΑ. Σταμάτησα· τα προηγούμενα αρχεία φορτώθηκαν.' -f $file.Name) $Bad
                 foreach ($l2 in @($x.text -split "`n" | Select-Object -Last 15)) { Say ('  ' + $l2) }
                 Say ('Επαναφορά (μόνο με έγκριση): {0}' -f $restoreCmd)
-                Say ('Το {0} ξαναγίνεται σωστά με το ίδιο βήμα catalog (χωρίς -Reload): όσα ήδη πέρασαν δεν γράφονται ξανά.' -f $names[$pg])
+                if ($modes[$pg] -eq 'full') { Say ('Το {0} δείχνει «ενημερώνεται» μέχρι να ξανατρέξει το βήμα catalog: τότε φορτώνεται ξανά ολόκληρο (χωρίς -Reload).' -f $names[$pg]) }
+                else { Say ('Το {0} μένει στο site· ξαναγίνεται σωστά με το ίδιο βήμα catalog (χωρίς -Reload): ελέγχονται όλα του τα προϊόντα και γράφονται μόνο όσα δεν πέρασαν.' -f $names[$pg]) }
                 Remove-Item -LiteralPath $out -Recurse -Force -ErrorAction SilentlyContinue
                 Finish 12
             }
@@ -967,8 +980,9 @@ if ($Step -eq 'catalog') {
             Write-Host ('  {0} ({1}/{2}) OK' -f $file.Name, $n, $all)
         }
         $newState = Join-Path $out ('{0}.state' -f $pg)
-        if (Test-Path -LiteralPath $newState) { Move-Item -LiteralPath $newState -Destination $stateNow -Force }
-        Say ('  {0}: ΟΚ' -f $names[$pg]) $Ok
+        try { if (Test-Path -LiteralPath $newState) { Move-Item -LiteralPath $newState -Destination $stateNow -Force } }
+        catch { Say ('  ΠΡΟΣΟΧΗ - το {0} φορτώθηκε, αλλά δεν κράτησα το αρχείο του για την επόμενη φορά: την επόμενη φορά ελέγχονται όλα του τα προϊόντα.' -f $names[$pg]) $Warn }
+        Say ('  {0}: OK' -f $names[$pg]) $Ok
     }
     Say ('Φορτώθηκαν {0} αρχεία SQL.' -f $n) $Ok
     if ($known) { Say ('Εγγραφές D1 αυτής της εκτέλεσης (όπως τις μέτρησε η Cloudflare): {0}' -f $written.ToString('N0', [System.Globalization.CultureInfo]::GetCultureInfo('el-GR'))) }

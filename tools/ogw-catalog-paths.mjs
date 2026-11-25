@@ -90,8 +90,11 @@ export function pathLevels(page, spec) {
   let parts;
   try { parts = new URL(page).pathname.split('/').filter(Boolean).map(p => decodeURIComponent(p)); } catch { return null; }
   if (!spec || parts.length < spec.base.length + 1 || spec.base.some((b, i) => parts[i] !== b)) return null;
-  const top = spec.names[parts[spec.base.length]];
+  // Own keys only (review 25/11/2026: a slug such as "constructor" is not a category).
+  const k1 = parts[spec.base.length];
+  const top = Object.hasOwn(spec.names, k1) ? spec.names[k1] : null;
   if (!top) return null;
-  const sub = top[1][parts[spec.base.length + 1]];
+  const k2 = parts[spec.base.length + 1];
+  const sub = k2 !== undefined && Object.hasOwn(top[1], k2) ? top[1][k2] : '';
   return sub ? [top[0], sub] : [top[0]];
 }

@@ -1426,7 +1426,7 @@ function directIdea(c, store, idea, broken) {
 // All the products of the store, in its own categories, one store per page, never compared; each one opens its own page
 // on the store's site through our Linkwise link. Only on the pages of /gr/.
 const catalogHref = (c, store, cat) => c.href(`/stores/${store.slug}/c/${cat.id}-${cat.slug}/`);
-const catalogCount = (c, n) => c.t('{0} products', new Intl.NumberFormat(c.lang).format(Number(n) || 0));
+const catalogCount = (c, n) => (Number(n) === 1 ? c.t('1 product') : c.t('{0} products', new Intl.NumberFormat(c.lang).format(Number(n) || 0)));
 // One card of a category (L231), like the category cards of the other Gear World sites: the photo of one of its own
 // products (from the store's own image server, left out when it did not open at the last check, L211), its name and
 // how many products it has. A card without a photo keeps its place.
@@ -2020,7 +2020,7 @@ export function createGuidesWorker(site, deps = {}) {
             to.pathname = `${ed.prefix}/stores/${cStore.slug}/c/${data.cat.id}-${data.cat.slug}/`;
             return redirect(to.toString(), 301);
           }
-          // The photos of the page (L211), checked after it is sent, and not for crawlers (48 checks a page).
+          // The photos of the page (L211), checked after it is sent, and not for crawlers (48 products and up to 300 cards).
           let broken = new Set();
           // The photos of its category cards too (L231), in the same check.
           if (!crawler) { try { broken = await catalogPhotos(site, cStore, [...data.products.map(p => p.image), ...data.children.map(k => k.image).filter(Boolean)], runtime(), ctx); } catch { broken = new Set(); } }

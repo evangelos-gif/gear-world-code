@@ -3519,7 +3519,9 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         'echo [{"results":[{"n":3}],"success":true}]',
         'exit /b 0',
         ':d1loaded',
-        'echo [{"results":[{"program":"138","products":5,"loading":0},{"program":"469","products":7,"loading":1}],"success":true}]',
+        'set CA=none',
+        'if exist "%GW_FAKE_STATE%\checkedat.txt" set /p CA=<"%GW_FAKE_STATE%\checkedat.txt"',
+        'echo [{"results":[{"program":"138","products":5,"loading":0,"checked_at":"%CA%"},{"program":"469","products":7,"loading":1,"checked_at":"x"}],"success":true}]',
         'exit /b 0',
         ':d1busy',
         'echo [WARNING] D1 is busy importing',
@@ -3677,15 +3679,20 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         # L231: with the phrase: restore point, the photo column, the store's files, then its state file for the next run.
         $ogStateFile = Join-Path (Join-Path $ogWork 'catalog-state') '138.tsv'
         Check ((Run-Og @('-Step', 'catalog', '-Program', '138', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ OGW ΚΑΤΑΛΟΓΟΣ')) -eq 0 -and ((OgCalls) -match 'd1 time-travel info mega-stores-gear-world-catalog') -and ((OgCalls) -match 'ADD COLUMN image') -and ((OgCalls) -match '--file "[^"]+138-0001\.sql"') -and (Test-Path -LiteralPath $ogStateFile) -and @([System.IO.File]::ReadAllLines($ogStateFile) | Where-Object { $_ -match '\t[0-9a-f]{16}$' }).Count -eq 2 -and (OgLastReport 'CATALOG').Contains('(όπως τις μέτρησε η Cloudflare): 4')) 'ogw catalog with the phrase: restore point, photo column, the files, the rows D1 wrote, and the state file of the store (L231)'
-        Check ((Run-Og @('-Step', 'catalog', '-Program', '138')) -eq 0 -and (OgLastReport 'CATALOG').Contains('kotsovolos-gr: ανανέωση μόνο με ό,τι άλλαξε: 2 προϊόντα στο feed, αλλάζουν ή μπαίνουν 0, φεύγουν 0') -and -not (OgLastReport 'CATALOG').Contains('νέα στήλη')) 'ogw catalog the next day: only what changed (nothing here), the column already there (L231)'
+        Check ((Run-Og @('-Step', 'catalog', '-Program', '138')) -eq 0 -and (OgLastReport 'CATALOG').Contains('kotsovolos-gr: ανανέωση: 2 προϊόντα στο feed· ελέγχονται όλα') -and -not (OgLastReport 'CATALOG').Contains('νέα στήλη')) 'ogw catalog: a state file of another load than the database has (a restore, another PC) is not trusted (L231 review)'
+        # The database says the time of the load the state file is of: only what changed.
+        $ogHdr = @([System.IO.File]::ReadAllLines($ogStateFile))[0] -replace '^#loaded ', ''
+        [System.IO.File]::WriteAllText((Join-Path $ogState 'checkedat.txt'), $ogHdr, [System.Text.Encoding]::ASCII)
+        Check ($ogHdr -match '^\d{4}-\d\d-\d\dT\S+Z$' -and (Run-Og @('-Step', 'catalog', '-Program', '138,138')) -eq 0 -and (OgLastReport 'CATALOG').Contains('kotsovolos-gr: ανανέωση μόνο με ό,τι άλλαξε: 2 προϊόντα στο feed, αλλάζουν ή μπαίνουν 0, φεύγουν 0') -and ([regex]::Matches((OgLastReport 'CATALOG'), 'kotsovolos-gr: ανανέωση')).Count -eq 1 -and -not (OgLastReport 'CATALOG').Contains('νέα στήλη')) 'ogw catalog the next day: only what changed (nothing here), each store once, the column already there (L231)'
         [System.IO.File]::WriteAllText((Join-Path $ogState 'filefail.txt'), 'yes')
-        Check ((Run-Og @('-Step', 'catalog', '-Program', '138', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ OGW ΚΑΤΑΛΟΓΟΣ')) -eq 12 -and -not (Test-Path -LiteralPath $ogStateFile) -and (OgLastReport 'CATALOG').Contains('ξαναγίνεται σωστά με το ίδιο βήμα catalog')) 'ogw catalog: a file that fails stops (exit 12) and the store has no state file, so the next run checks every product (L231)'
+        Check ((Run-Og @('-Step', 'catalog', '-Program', '138', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ OGW ΚΑΤΑΛΟΓΟΣ')) -eq 12 -and -not (Test-Path -LiteralPath $ogStateFile) -and (OgLastReport 'CATALOG').Contains('μένει στο site· ξαναγίνεται σωστά με το ίδιο βήμα catalog')) 'ogw catalog: a file that fails stops (exit 12) and the store has no state file, so the next run checks every product (L231)'
         Remove-Item -LiteralPath (Join-Path $ogState 'filefail.txt') -Force
         Check ((Run-Og @('-Step', 'catalog', '-Program', '138')) -eq 0 -and (OgLastReport 'CATALOG').Contains('kotsovolos-gr: ανανέωση: 2 προϊόντα στο feed· ελέγχονται όλα')) 'ogw catalog after a failed file: every product is checked (L231)'
-        Remove-Item -LiteralPath (Join-Path $ogState 'image.txt') -Force -ErrorAction SilentlyContinue
+        Remove-Item -LiteralPath (Join-Path $ogState 'image.txt'), (Join-Path $ogState 'checkedat.txt') -Force -ErrorAction SilentlyContinue
         Remove-Item -LiteralPath (Join-Path $ogState 'catalogloaded.txt') -Force
         [System.IO.File]::WriteAllText((Join-Path $ogState 'catalogbusy.txt'), 'yes')
-        Check ((Run-Og @('-Step', 'catalog', '-Program', '138')) -eq 11 -and -not ((OgCalls) -match 'time-travel')) 'ogw catalog: the catalogue database does not answer: exit 11, nothing loaded (L228)'
+        $ogTt = ([regex]::Matches((OgCalls), 'time-travel')).Count
+        Check ((Run-Og @('-Step', 'catalog', '-Program', '138')) -eq 11 -and ([regex]::Matches((OgCalls), 'time-travel')).Count -eq $ogTt) 'ogw catalog: the catalogue database does not answer: exit 11, nothing loaded (L228)'
         Remove-Item -LiteralPath (Join-Path $ogState 'catalogbusy.txt') -Force
         Check ((Run-Og @('-Step', 'preview', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ OGW PREVIEW')) -eq 0 -and [System.IO.File]::ReadAllText((Join-Path $ogWork 'wrangler.preview.jsonc')).Contains('"d1_databases": [ { "binding": "CATALOG", "database_name": "mega-stores-gear-world-catalog", "database_id": "fakecatalogdb01" } ],')) 'ogw preview with the catalogue database: the Worker reads it (binding CATALOG, its id from Cloudflare) (L228)'
         Remove-Item -LiteralPath (Join-Path $ogState 'catalogdb.txt') -Force
