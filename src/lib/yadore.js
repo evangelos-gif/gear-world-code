@@ -29,6 +29,7 @@ export const YADORE_ASK = 30; // offers asked from Yadore per word (the API allo
 export const YADORE_CACHE_SECONDS = 3600; // one answer of Yadore kept per data centre
 export const YADORE_TIMEOUT_MS = 2500; // a slow Yadore never holds the page
 export const YADORE_LINK_HOURS = 26; // a /out/y/ link older than this goes back to the page (fresh offers there)
+export const YADORE_GAP_SECONDS = 10; // at most one Yadore click per site in this many seconds (no bursts, "steady")
 export const YADORE_PER_VISITOR = 3; // clicks in the box a day per visitor and site (a one-way hash of the IP, cache only)
 // Clicks a day (UTC day), per site and per store on that site. Few and steady at the start (Anna, 20 Nov 2026). A higher
 // step is a new line with its date, after the Manager's decision and an email to Yadore when it is 20% or more.
@@ -55,8 +56,9 @@ const NEVER_WORDS = /amazon|aliexpress|sephora|kotsovolos|κωτσόβολος|�
 // The words the sites never use (lessons L107). A title or a store name with one of them is left out (never rewritten).
 export const L107_WORDS = /\bshop|\bcart\b|\bsale\b|\bdeals?\b|\bofficial\b|\bpartner|lowest price|% ?off\b|\bsave\b|buy now|\bwas\s*£|uk retailers/i;
 // Sale words of a title in Greek too (L107 is about our texts; a store's title with them is left out, never rewritten):
-// προσφορά, έκπτωση, ξεπούλημα, and a percentage like "-30%" (not "100%").
-export const PROMO_TITLE = /προσφορ|εκπτωσ|ξεπουλ|black friday|cyber monday|(?:^|[^\d])-?\d{1,2}\s?%/i;
+// προσφορά, έκπτωση/εκπτωτικό, ευκαιρία, εκκαθάριση, ξεπούλημα, χαμηλότερη τιμή, Black Friday/Week, Cyber Monday/Week,
+// and a percentage only as a discount ("-30%", "έως 50%", "up to 40%"), never a material ("95% βαμβάκι", "0% λιπαρά").
+export const PROMO_TITLE = /προσφορ|εκπτω|ευκαιρι|εκκαθαρισ|ξεπουλ|χαμηλοτερη τιμη|black[\s-]?(?:friday|week)|cyber[\s-]?(?:monday|week)|(?:^|[\s(])[-−–]\s?\d{1,2}(?:[.,]\d+)?\s?%|(?:εως|μεχρι|up to)\s?[-−–]?\s?\d{1,2}(?:[.,]\d+)?\s?%/i;
 export function promoTitle(t) {
   return PROMO_TITLE.test(String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase());
 }
@@ -71,8 +73,8 @@ export function neverStore(name) {
   const k = storeKey(name);
   if (!k) return true;
   // The first word or label: "public.gr", "Public GR", "Public Greece", "AB Vasilopoulos" (independent review).
-  const label = k.split(/[.\s-]/)[0];
-  return NEVER_LABELS.includes(label) || NEVER_WORDS.test(k);
+  const labels = [k.split(/[.\s]/)[0], k.split(/[.\s-]/)[0]];
+  return labels.some(l => NEVER_LABELS.includes(l)) || NEVER_WORDS.test(k);
 }
 
 export function yadoreKey(env) {
@@ -295,6 +297,8 @@ export async function yadoreBox(env, ctx, { site, cat, market, own, at, origin }
 // An IPv6 address counts by its /64 (one home or phone gets a whole /64 and can change the rest at will).
 export function visitorAddress(ip) {
   const a = String(ip || '').trim().toLowerCase();
+  const mapped = /^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/.exec(a);
+  if (mapped) return mapped[1];
   if (!a.includes(':')) return a;
   const [head, tail = ''] = a.split('::');
   const h = head ? head.split(':') : [];
@@ -340,8 +344,10 @@ export function notAClick(headers) {
   return '';
 }
 
-// ---- The /out/y/<token> links. The token carries Yadore's click address and the store, signed with a key made from
-// the API key (HMAC-SHA-256), so this site's address never sends anyone to a place it did not list.
+// ---- The /out/y/<token> links. The token carries Yadore's click address and the store, ENCRYPTED (AES-GCM, with a key
+// made from the API key and the site): nobody can read Yadore's address out of our page and skip our checks and record
+// (independent review, round 3), and a changed token fails, so this site's address never sends anyone to a place it did
+// not list. A link of one site never works on another.
 const enc = new TextEncoder();
 function b64url(bytes) {
   let s = '';
@@ -353,41 +359,35 @@ function unb64url(text) {
   const bin = atob(s + '='.repeat((4 - (s.length % 4)) % 4));
   return Uint8Array.from(bin, c => c.charCodeAt(0));
 }
-// One key per site (a link of one site never works on another) made from the API key.
 export async function linkKey(env, site) {
   const k = yadoreKey(env);
   if (!k) return null;
   const code = String((site && site.code) || '').toLowerCase();
-  const raw = await crypto.subtle.digest('SHA-256', enc.encode(`gw-yadore-link-v1|${code}|${k}`));
-  return crypto.subtle.importKey('raw', raw, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign', 'verify']);
-}
-async function mac(key, body) {
-  return b64url(new Uint8Array(await crypto.subtle.sign('HMAC', key, enc.encode(`v1.${body}`))).slice(0, 24));
+  const raw = await crypto.subtle.digest('SHA-256', enc.encode(`gw-yadore-link-v2|${code}|${k}`));
+  return crypto.subtle.importKey('raw', raw, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
 }
 export async function signLink(key, payload) {
-  const body = b64url(enc.encode(JSON.stringify(payload)));
-  return `${body}.${await mac(key, body)}`;
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const sealed = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, enc.encode(JSON.stringify(payload))));
+  const out = new Uint8Array(iv.length + sealed.length);
+  out.set(iv, 0);
+  out.set(sealed, iv.length);
+  return b64url(out);
 }
-export const TOKEN_RE = /^([A-Za-z0-9_-]{20,3000})\.([A-Za-z0-9_-]{32})$/;
-// The payload of a token signed by this site, or null (wrong signature, not ours, damaged).
+export const TOKEN_RE = /^[A-Za-z0-9_-]{40,3000}$/;
+// The payload of a token made by this site, or null (another key or site, changed, damaged).
 export async function readLink(key, token) {
-  const m = TOKEN_RE.exec(String(token || ''));
-  if (!key || !m) return null;
-  const want = await mac(key, m[1]);
-  if (!timingSafeSame(want, m[2])) return null;
+  if (!key || !TOKEN_RE.test(String(token || ''))) return null;
   try {
-    const p = JSON.parse(new TextDecoder().decode(unb64url(m[1])));
+    const bytes = unb64url(token);
+    if (bytes.length < 12 + 16 + 2) return null;
+    const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: bytes.slice(0, 12) }, key, bytes.slice(12));
+    const p = JSON.parse(new TextDecoder().decode(plain));
     if (!p || typeof p !== 'object' || typeof p.u !== 'string' || typeof p.m !== 'string' || typeof p.k !== 'string' || !Number.isFinite(p.t)) return null;
     const u = httpsUrl(p.u);
     if (!u || !/(^|\.)yadore\.com$/i.test(u.hostname)) return null;
     return { url: u.toString(), store: p.m, category: typeof p.c === 'string' ? p.c : '', market: p.k, at: p.t * 1000 };
   } catch { return null; }
-}
-function timingSafeSame(a, b) {
-  if (a.length !== b.length) return false;
-  let d = 0;
-  for (let i = 0; i < a.length; i++) d |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  return d === 0;
 }
 
 // Where a /out/y/ click goes. { to, log } : to = the store through Yadore, or back to the page; log = the click row to

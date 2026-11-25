@@ -26,7 +26,10 @@ const tgw = config.tgw;
 const ggw = config.ggw;
 
 const DAY = Date.parse('2026-12-03T10:00:00Z'); // the day after the start: every seed product is older than 30 days
-useClock(() => DAY);
+// The clock moves 30 seconds with every click of click() (at most one Yadore click per site in 10 seconds).
+let NOW = DAY;
+const clock = () => NOW;
+useClock(clock);
 const STORES = { gr: ['alpha.gr', 'beta.gr', 'gamma.gr', 'public.gr', 'shopflix.gr', 'amazon.de'] };
 useYadoreStores(STORES);
 
@@ -209,13 +212,18 @@ test('L232: links are signed with a key made from the API key and the site, carr
   assert.equal(await linkKey({}, tgw), null);
   const payload = { u: 'https://api.yadore.com/v2/r/abc?x=1', m: 'Άλφα.gr', c: 'laptops-computing', k: 'gr', t: Math.floor(DAY / 1000) };
   const token = await signLink(key, payload);
-  assert.match(token, /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]{32}$/);
+  assert.match(token, /^[A-Za-z0-9_-]{40,}$/);
   assert.deepEqual(await readLink(key, token), { url: payload.u, store: 'Άλφα.gr', category: 'laptops-computing', market: 'gr', at: payload.t * 1000 });
   assert.equal(await readLink(other, token), null, 'another key');
   assert.equal(await readLink(pgwKey, token), null, 'a TGW link does not work on PGW');
-  const [body, sig] = token.split('.');
-  assert.equal(await readLink(key, `${body}x.${sig}`), null, 'changed body');
-  assert.equal(await readLink(key, `${body}.${sig.slice(0, -1)}A`), null, 'changed signature');
+  const flip = (t, i) => t.slice(0, i) + (t[i] === 'A' ? 'B' : 'A') + t.slice(i + 1);
+  assert.equal(await readLink(key, flip(token, 20)), null, 'changed in the middle');
+  assert.equal(await readLink(key, flip(token, token.length - 1)), null, 'changed at the end');
+  assert.equal(await readLink(key, token.slice(0, -4)), null, 'cut short');
+  // Encrypted: Yadore's address and the store cannot be read from the token (round 3 of the review).
+  const bin = Buffer.from(token.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('latin1');
+  assert.ok(!/yadore|api\.|https|laptops/i.test(bin), 'nothing readable in the token');
+  assert.notEqual(await signLink(key, payload), token, 'a new random IV every time');
   const evil = await signLink(key, { ...payload, u: 'https://evil.example/' });
   assert.equal(await readLink(key, evil), null, 'a signed address that is not Yadore');
   assert.equal(await readLink(key, 'not-a-token'), null);
@@ -273,7 +281,7 @@ test('L232: no box for the UK, Cyprus, Google, the Group\'s ?for=GR browsing, be
   assert.equal(box((await get(tgw, { ...env, YADORE_API_KEY: '' }, path)).text), '', 'no key');
   useClock(() => YADORE_FROM - 60000);
   assert.equal(box((await get(tgw, env, path)).text), '', 'one minute before the start');
-  useClock(() => DAY);
+  useClock(clock);
   assert.equal(api.calls.length, 0);
   // The network's own read-only check sees the Greek page (L158), with the box.
   assert.ok(box((await get(tgw, env, path, { country: 'US', ua: QA, headers: { 'X-GW-QA-Country': 'GR' } })).text));
@@ -371,6 +379,10 @@ async function pageTokens(site, env, path) {
   return tokens(box(text));
 }
 async function click(site, env, token, opts = {}) {
+  NOW += 30000;
+  return clickNow(site, env, token, opts);
+}
+async function clickNow(site, env, token, opts = {}) {
   const res = await createWorker(site).fetch(request(site, `/out/y/${token}`, { ...opts, headers: { Referer: `https://${site.domain}/category/x/`, ...(opts.headers || {}) } }), env, { waitUntil: p => p });
   return res;
 }
@@ -401,13 +413,12 @@ test('L232: a click goes to the store through Yadore once recorded; a bot, the U
     assert.equal(new URL(r.headers.get('Location')).pathname, back, name);
   }
   assert.equal(new URL((await click(tgw, { ...env, CLICK_LOG: 'off' }, t)).headers.get('Location')).pathname, back, 'CLICK_LOG off');
-  const [body, sig] = t.split('.');
-  assert.equal(new URL((await click(tgw, env, `${body.slice(0, -2)}AA.${sig}`)).headers.get('Location')).pathname, '/', 'changed link');
+  assert.equal(new URL((await click(tgw, env, t.slice(0, 30) + (t[30] === 'A' ? 'B' : 'A') + t.slice(31))).headers.get('Location')).pathname, '/', 'changed link');
   assert.equal(new URL((await click(tgw, { ...env, YADORE_API_KEY: '' }, t)).headers.get('Location')).pathname, '/', 'no key');
   assert.equal(new URL((await click(tgw, { ...env, YADORE_PAUSE: 'alpha.gr' }, t)).headers.get('Location')).pathname, back, 'paused store');
   useClock(() => DAY + 27 * 3600 * 1000);
   assert.equal(new URL((await click(tgw, env, t)).headers.get('Location')).pathname, back, 'a link older than 26 hours');
-  useClock(() => DAY);
+  useClock(clock);
   assert.equal(env.DB.sql.prepare('SELECT COUNT(*) AS n FROM affiliate_clicks').get().n, 1, 'nothing else recorded');
   // A HEAD request (a link checker) never goes to Yadore either.
   const head = await createWorker(tgw).fetch(Object.defineProperty(new Request(`https://${tgw.domain}/out/y/${t}`, { method: 'HEAD', headers: { 'User-Agent': BROWSER } }), 'cf', { value: { country: 'GR' } }), env, { waitUntil: p => p });
@@ -423,8 +434,6 @@ test('L232: few and steady clicks: 5 a day per store and 15 per site, then the b
   const toks = await pageTokens(tgw, env, '/category/laptops-computing/');
   const first = await click(tgw, env, toks[0]);
   assert.match(first.headers.get('Location'), /^https:\/\/api\.yadore\.com\//, 'the 5th click of today (yesterday\'s does not count)');
-  // The database writes the real time (datetime('now')); the tests run on 3 Dec 2026 (useClock).
-  env.DB.sql.exec("UPDATE affiliate_clicks SET clicked_at = '2026-12-03 10:00:00' WHERE clicked_at < '2026-12-01'");
   const sixth = await click(tgw, env, toks[1]);
   assert.equal(new URL(sixth.headers.get('Location')).pathname, '/category/laptops-computing/', 'the 6th of the same store goes back');
   // A new page copy leaves alpha.gr out of the box.
@@ -617,15 +626,23 @@ test('L232 review 2: clicks at the same moment never pass the caps (one statemen
     N = 0;
     const env = { DB: mk(), YADORE_API_KEY: KEY, YADORE_FETCH: yadoreApi(fullAnswer), FX_FETCH: async () => { throw new Error('offline'); } };
     const toks = [...new Set(await pageTokens(site, env, path))];
-    // The database writes the real time; on the test day every earlier click must count as today.
-    const day = () => env.DB.sql.exec("UPDATE affiliate_clicks SET clicked_at = '2026-12-03 10:00:00' WHERE clicked_at < '2026-12-01'");
-    const burst = await Promise.all(Array.from({ length: 24 }, (_, i) => click(site, env, toks[i % toks.length], { headers: { 'CF-Connecting-IP': `198.51.100.${i + 1}` } })));
-    day();
+    // 24 clicks at the same moment, from 24 people: one goes (no bursts), and it is the one recorded.
+    NOW += 30000;
+    const burst = await Promise.all(Array.from({ length: 24 }, (_, i) => clickNow(site, env, toks[i % toks.length], { headers: { 'CF-Connecting-IP': `198.51.100.${i + 1}` } })));
     const sent = burst.filter(r => /^https:\/\/api\.yadore\.com\//.test(r.headers.get('Location'))).length;
-    const rows = env.DB.sql.prepare("SELECT retailer, COUNT(*) AS n FROM affiliate_clicks WHERE retailer LIKE 'Yadore%' GROUP BY retailer").all();
-    assert.ok(rows.every(r => r.n <= 5), `${site.code}: at most 5 per store (${JSON.stringify(rows)})`);
-    assert.equal(sent, rows.reduce((a, r) => a + r.n, 0), `${site.code}: every click sent to Yadore is recorded, none more`);
-    assert.ok(sent <= 15, `${site.code}: at most 15 for the site`);
+    const rows = () => env.DB.sql.prepare("SELECT retailer, COUNT(*) AS n FROM affiliate_clicks WHERE retailer LIKE 'Yadore%' GROUP BY retailer").all();
+    assert.equal(sent, 1, `${site.code}: one click of the burst`);
+    assert.equal(rows().reduce((a, r) => a + r.n, 0), 1);
+    // Then steady clicks, 30 seconds apart: at most 5 per store and 15 for the site, every one sent is recorded.
+    let more = 0;
+    for (let i = 0; i < 40; i++) {
+      const r = await click(site, env, toks[i % toks.length], { headers: { 'CF-Connecting-IP': `203.0.113.${i + 1}` } });
+      if (/^https:\/\/api\.yadore\.com\//.test(r.headers.get('Location'))) more++;
+    }
+    const all = rows();
+    assert.ok(all.every(r => r.n <= 5), `${site.code}: at most 5 per store (${JSON.stringify(all)})`);
+    assert.equal(1 + more, all.reduce((a, r) => a + r.n, 0), `${site.code}: every click sent to Yadore is recorded, none more`);
+    assert.equal(1 + more, 15, `${site.code}: 15 for the site`);
   }
 });
 
@@ -653,12 +670,15 @@ test('L232 review 2: an IPv6 visitor counts by its /64; the hash is keyed, so an
 
 test('L232 review 2: sale words of a Greek title, a final sigma and "Public-GR" are caught', async () => {
   const { promoTitle } = await import('../../src/lib/yadore.js');
-  for (const t of ['ΠΡΟΣΦΟΡΑ Laptop', 'Laptop Προσφορά!', 'Έκπτωση -30% κράνος', 'κράνος -25%', 'κράνος 40 %', 'ξεπούλημα', 'Black Friday laptop']) assert.equal(promoTitle(t), true, t);
-  for (const t of ['Μπλουζάκι 100% βαμβάκι', 'Laptop 16GB 512GB', 'Κράνος μηχανής XL', 'Τροφή σκύλου 15kg']) assert.equal(promoTitle(t), false, t);
+  for (const t of ['ΠΡΟΣΦΟΡΑ Laptop', 'Laptop Προσφορά!', 'Έκπτωση -30% κράνος', 'κράνος -25%', 'κράνος (-15%)', 'έως 50% κράνη', 'up to 40% helmets', 'ξεπούλημα', 'Black Friday laptop',
+    'BlackFriday laptop', 'black-friday κράνος', 'Black Week', 'Cyber Monday', 'Εκπτωτικό πακέτο', 'Ευκαιρία!', 'Εκκαθάριση αποθήκης', 'Χαμηλότερη τιμή κράνος']) assert.equal(promoTitle(t), true, t);
+  for (const t of ['Μπλουζάκι 100% βαμβάκι', '95% βαμβάκι 5% ελαστάνη', 'Γιαούρτι 0% λιπαρά', 'Οινόπνευμα 70% αλκοόλ', '99,9% καθαρό', 'Σοκολάτα 85% κακάο',
+    'Laptop 16GB 512GB', 'Κράνος μηχανής XL', 'Τροφή σκύλου 15kg', 'Φόρμα εργασίας 65/35']) assert.equal(promoTitle(t), false, t);
   N = 0;
   assert.equal(readOffers({ offers: [offer('alpha.gr', { title: 'Laptop ΠΡΟΣΦΟΡΑ' }), offer('alpha.gr', { title: 'Laptop -20%' }), offer('alpha.gr')] }, {}, 'gr').length, 1);
   assert.equal(storeKey('ΚΑΤΑΣΤΗΜΑ ΚΟΣΜΟΣ'), storeKey('κατάστημα κόσμος'.normalize('NFD').replace(/[\u0300-\u036f]/g, '')), 'a final sigma folds to σ');
   assert.equal(storeKey('Κόσμος'), 'κόσμοσ');
-  for (const n of ['Public-GR', 'public-gr.example', 'AB-Vasilopoulos']) assert.equal(neverStore(n), true, n);
-  assert.equal(neverStore('e-shop.gr'), true);
+  for (const n of ['Public-GR', 'public-gr.example', 'AB-Vasilopoulos', 'e-shop', 'E-Shop Greece', 'e-shop.cy', 'e-shop.gr']) assert.equal(neverStore(n), true, n);
+  const { visitorAddress } = await import('../../src/lib/yadore.js');
+  assert.equal(visitorAddress('::ffff:192.0.2.9'), '192.0.2.9', 'an IPv4-mapped address counts as its IPv4');
 });

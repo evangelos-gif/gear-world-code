@@ -26,7 +26,7 @@ import { deliveryCountries } from './lib/delivery.js';
 import { remindProbe, REMIND_UNTIL, REMIND_URL, REMIND_PATH } from './lib/remind.js';
 import { noAlerts } from './lib/retailer-terms.js';
 import { COUNTRY_LANGUAGES, MULTI_LANGUAGE_COUNTRIES } from './lib/country-language.js';
-import { yadoreMarket, yadoreBox, yadoreClick, visitorGate, notAClick, capsFor, yadoreKey, CLICK_PREFIX } from './lib/yadore.js';
+import { yadoreMarket, yadoreBox, yadoreClick, visitorGate, notAClick, capsFor, yadoreKey, CLICK_PREFIX, YADORE_GAP_SECONDS } from './lib/yadore.js';
 
 // Gear World Hub keeps the one list of members; sites reach it only through a service binding (lessons L92).
 // The address is not public: requests from the internet never carry this host name.
@@ -489,7 +489,7 @@ export function createWorker(site) {
     const r = await yadoreClick({
       env, site, token, at, categories,
       country: String((request.cf && request.cf.country) || ''),
-      bot: request.method !== 'GET' || isBot(request) || Boolean(notAClick(request.headers)),
+      bot: request.method !== 'GET' || isBot(request) || GOOGLE_CRAWLER.test(request.headers.get('user-agent') || '') || Boolean(notAClick(request.headers)),
       preview: isPreviewHost(url.hostname, site.domain) || env.CLICK_LOG === 'off'
     });
     if (!r.log) return redirect(new URL(r.to, url.origin).toString(), 302, { 'X-Robots-Tag': 'noindex, nofollow' });
@@ -512,7 +512,7 @@ export function createWorker(site) {
     let written = 0;
     try {
       written = await db.logYadoreClick(env.DB, { ...r.log, page_path: pagePath, country_code: String((request.cf && request.cf.country) || '').slice(0, 2).toUpperCase() },
-        { day: new Date(at).toISOString().slice(0, 10), site: cap ? cap.site : 0, store: cap ? cap.store : 0, prefix: CLICK_PREFIX, at });
+        { day: new Date(at).toISOString().slice(0, 10), site: cap ? cap.site : 0, store: cap ? cap.store : 0, prefix: CLICK_PREFIX, at, gap: YADORE_GAP_SECONDS });
     } catch (err) {
       console.error('yadore click log failed', err && err.message);
       return toPage;

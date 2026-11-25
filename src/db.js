@@ -1302,11 +1302,13 @@ export async function logClick(db, row) {
 // site has fewer than `site` and the store fewer than `store` clicks since `day` (UTC). D1 runs one write at a time, so
 // clicks at the same moment can never pass the caps together (independent review, 25 Nov 2026). Returns the rows written
 // (0 = a cap was reached). clicked_at is the engine's clock (the real time on the live site; the fixed day in the tests),
-// in the same text form as datetime('now').
-export async function logYadoreClick(db, row, { day, site, store, prefix, at }) {
-  const when = new Date(at).toISOString().replace('T', ' ').slice(0, 19);
-  const caps = 'WHERE (SELECT COUNT(*) FROM affiliate_clicks WHERE clicked_at >= ? AND retailer LIKE ?) < ? AND (SELECT COUNT(*) FROM affiliate_clicks WHERE clicked_at >= ? AND retailer = ?) < ?';
-  const capArgs = [day, `${prefix}%`, site, day, row.retailer, store];
+// in the same text form as datetime('now'). gap: no other Yadore click of the site in the last `gap` seconds (no bursts:
+// clicks at the same moment, from one person or many, go one at a time; round 3 of the review).
+export async function logYadoreClick(db, row, { day, site, store, prefix, at, gap = 0 }) {
+  const text = t => new Date(t).toISOString().replace('T', ' ').slice(0, 19);
+  const when = text(at);
+  const caps = 'WHERE (SELECT COUNT(*) FROM affiliate_clicks WHERE clicked_at >= ? AND retailer LIKE ?) < ? AND (SELECT COUNT(*) FROM affiliate_clicks WHERE clicked_at >= ? AND retailer = ?) < ? AND (SELECT COUNT(*) FROM affiliate_clicks WHERE clicked_at > ? AND retailer LIKE ?) < 1';
+  const capArgs = [day, `${prefix}%`, site, day, row.retailer, store, gap > 0 ? text(at - gap * 1000) : '9999-12-31 23:59:59', `${prefix}%`];
   let r;
   if (LAYOUT.legacy) {
     r = await db
