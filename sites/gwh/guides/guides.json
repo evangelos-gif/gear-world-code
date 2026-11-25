@@ -1,6 +1,6 @@
 {
- "checked": "2026-11-21",
- "note": "Prices and the day each product was last checked come from the databases of the Gear World sites (read-only SELECTs by product id, 21 Nov 2026, lessons L211: 17 new prices after the refresh of 21 Nov; Wahl, Tom Ford, BOSS beanie and Ghost left the feeds and the Stanley multi-tool was out of stock, replaced by Philips, Narciso Rodriguez, FILA, Jimmy Choo and a Santoro Milan tie set (not Plusshop UK or Bazta UK, whose rows did not refresh before), and the Calvin Klein Bold card holder by the slim Slate Blue one; LEGO Technic 42203 (no price check since 11 Nov) by the Technic Ferrari 488 Pista; 13 Nov 2026: Coes, Bazta UK and the older Joybuy rows replaced on 9 Nov, lessons L109). Rebuild the pages with: node tools/gwh-guides.mjs build. Re-check with: node tools/gwh-guides.mjs check.",
+ "checked": "2026-11-25",
+ "note": "Prices and the day each product was last checked come from the databases of the Gear World sites (read-only SELECTs by product id, 21 Nov 2026, lessons L211: 17 new prices after the refresh of 21 Nov; Wahl, Tom Ford, BOSS beanie and Ghost left the feeds and the Stanley multi-tool was out of stock, replaced by Philips, Narciso Rodriguez, FILA, Jimmy Choo and a Santoro Milan tie set (not Plusshop UK or Bazta UK, whose rows did not refresh before), and the Calvin Klein Bold card holder by the slim Slate Blue one; LEGO Technic 42203 (no price check since 11 Nov) by the Technic Ferrari 488 Pista; 13 Nov 2026: Coes, Bazta UK and the older Joybuy rows replaced on 9 Nov, lessons L109). Rebuild the pages with: node tools/gwh-guides.mjs build. Re-check with: node tools/gwh-guides.mjs check. 25 Nov 2026 (read-only SELECTs, lessons L232): 5 prices follow the sites (Olaplex, Calvin Klein card holder, Playmobil, Cluedo, LEGO AT-AT) and Jimmy Choo Blossom (no price check for 30 days) is replaced by Elie Saab Girl Of Now Shine.",
  "guides": [
   {
    "slug": "christmas-gifts-for-him",
@@ -178,13 +178,13 @@
     },
     {
      "group": "Under £25",
-     "name": "Jimmy Choo Blossom Eau de Parfum 40ml",
-     "url": "https://womensgearworld.com/product/jimmy-choo-blossom-eau-de-parfum-40ml-29185/",
-     "why": "A floral Jimmy Choo eau de parfum in a 40ml bottle",
-     "price": 23.9,
+     "name": "Elie Saab Girl Of Now Shine Eau de Parfum 30ml",
+     "url": "https://womensgearworld.com/product/elie-saab-girl-of-now-shine-eau-de-parfum-30-ml-29307/",
+     "why": "A bright Elie Saab eau de parfum in a 30ml bottle",
+     "price": 23.37,
      "retailer": "Joybuy",
-     "image": "https://images1.joy-sourcing.com/da/s800x800_jfsintlpro-000-com/t1/4294967296/4784128/61098360189429/490925/68e54571E37521686/4c765c6ab87a3a67.png",
-     "checked": "2026-11-21"
+     "image": "https://images1.joy-sourcing.com/da/s800x800_jfsintlpro-000-com/t1/4294967296/7143424/6109817190218/590937/68e546b4E1a60d9f6/4c765c6ab87a3a67.png",
+     "checked": "2026-11-24"
     },
     {
      "group": "Under £25",
@@ -201,10 +201,10 @@
      "name": "Olaplex Healthy Hair Discovery Set",
      "url": "https://womensgearworld.com/product/olaplex-healthy-hair-discovery-set-132-5-ml-42578/",
      "why": "A small set to try the Olaplex hair care range",
-     "price": 25,
+     "price": 20,
      "retailer": "Joybuy",
      "image": "https://images1.joy-sourcing.com/da/s800x800_jfsintlpro-000-product/t1/4294967296/3735552/62073701298469/100498/6a8d6761Ea026e85f/42b10752b5083d5e.png",
-     "checked": "2026-11-21"
+     "checked": "2026-11-24"
     },
     {
      "group": "Under £50",
@@ -221,10 +221,10 @@
      "name": "Calvin Klein Leather Emblem Card Holder, Black",
      "url": "https://womensgearworld.com/product/calvin-klein-women-s-leather-rfid-emblem-cardholder-sleek-black-design-for-secure-minimalist-style-20674/",
      "why": "A small leather piece she will use every day",
-     "price": 26.01,
+     "price": 33.99,
      "retailer": "Joybuy",
      "image": "https://images1.joy-sourcing.com/da/s800x800_jfsintlpro-000-product/t1/4294967296/7536640/61097966612680/315692/6a59e745Eda86095e/42b10752b5083d5e.jpg",
-     "checked": "2026-11-21"
+     "checked": "2026-11-24"
     },
     {
      "group": "Under £50",
@@ -292,8 +292,8 @@
    "slug": "christmas-gifts-for-kids",
    "site": "kgw",
    "short": "For kids",
-   "title": "Christmas gifts for kids, by age, from £16 to £62",
-   "metaTitle": "Christmas Gifts for Kids by Age: 12 Toys from £16 | Gear World Hub",
+   "title": "Christmas gifts for kids, by age, from £14 to £62",
+   "metaTitle": "Christmas Gifts for Kids by Age: 12 Toys from £14 | Gear World Hub",
    "description": "Twelve Christmas toys for kids grouped by age, from babies to older kids: LEGO, Playmobil, K'NEX, COBI and more. Prices from Kids' Gear World.",
    "intro": "Twelve toys from the Kids' Gear World range, grouped by age, for parents and family buying for children. We have not tested these toys. We picked well-known toy brands that were in stock. Where two retailers sell the same toy, its page on Kids' Gear World shows both prices. Always check the age label on the product page before you buy, especially for toys with small parts.",
    "tips": [
@@ -365,20 +365,20 @@
      "name": "Playmobil City Action Police Cruiser",
      "url": "https://kidsgearworld.com/product/playmobil-city-action-police-cruiser-toy-car-with-figure-for-thematic-action-figures-playsets-for-kids-5202/",
      "why": "A police car with a figure for role play",
-     "price": 19.99,
+     "price": 14.88,
      "retailer": "Joybuy",
      "image": "https://images1.joy-sourcing.com/da/s800x800_jfsintlpro-000-product/t1/4294967296/6619136/10161432272028477/373756/6886eb4dEfff64166/42b10752b5083d5e.jpg",
-     "checked": "2026-11-21"
+     "checked": "2026-11-24"
     },
     {
      "group": "Ages 6+",
      "name": "Hasbro Cluedo Classic Board Game",
      "url": "https://kidsgearworld.com/product/hasbro-cluedo-classic-board-game-solve-the-mystery-with-detective-skills-for-family-game-night-fun-ages-8-and-up-4086/",
      "why": "A family mystery game, for ages 8 and up",
-     "price": 20.99,
+     "price": 19.99,
      "retailer": "Joybuy",
      "image": "https://images1.joy-sourcing.com/da/s800x800_jfsintlpro-000-product/t1/4294967296/4784128/6109836040104/297269/6a98e5e8E0dac04fa/42b10752b5083d5e.jpg",
-     "checked": "2026-11-21"
+     "checked": "2026-11-24"
     },
     {
      "group": "Ages 6+",
@@ -395,10 +395,10 @@
      "name": "LEGO Star Wars AT-AT 75440",
      "url": "https://kidsgearworld.com/product/lego-star-wars-at-at-building-set-75440-iconic-imperial-walker-vehicle-model-kit-for-kids-and-collectors-4890/",
      "why": "An Imperial walker to build, for Star Wars fans",
-     "price": 43,
+     "price": 41.99,
      "retailer": "Joybuy",
      "image": "https://images1.joy-sourcing.com/da/s800x800_jfsintlpro-000-product/t1/4294967296/7733248/6109817218837/212514/69b07067Ee6acac9f/42b10752b5083d5e.jpg",
-     "checked": "2026-11-21"
+     "checked": "2026-11-24"
     },
     {
      "group": "Ages 6+",
