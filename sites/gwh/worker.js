@@ -1698,7 +1698,7 @@ export const MEGA_BAR_STORES = [
   { slug: "reidl", name: "Reidl", deliversTo: ["DE", "AT"] },
   { slug: "uhrcenter", name: "Uhrcenter", deliversTo: ["DE", "AT"] },
   { slug: "home-tex", name: "HOME-TEX", deliversTo: ["DE", "AT", "NL", "BE", "PL"] },
-  { slug: "invicta-stores", name: "Invicta Stores", deliversTo: ["DE", "AT", "NL", "BE", "PL"] },
+  { slug: "invicta-stores", name: "Invicta Stores", deliversTo: ["DE", "AT", "NL", "BE", "PL", "IE"] },
   { slug: "refurbed-nl", name: "refurbed NL", deliversTo: ["NL", "BE"] },
   { slug: "westwing-nl", name: "Westwing NL", deliversTo: ["NL"] },
   { slug: "la-redoute-nl", name: "La Redoute NL", deliversTo: ["NL"] },
@@ -1721,7 +1721,11 @@ export const MEGA_BAR_STORES = [
   { slug: "pneus-be", name: "Pneus.be", deliversTo: ["BE"] },
   { slug: "123pneus-be", name: "123pneus.be", deliversTo: ["BE"] },
   { slug: "oponytanio-pl", name: "Oponytanio PL", deliversTo: ["PL"] },
-  { slug: "tanie-opony-pl", name: "Tanie-Opony.pl", deliversTo: ["PL"] }
+  { slug: "tanie-opony-pl", name: "Tanie-Opony.pl", deliversTo: ["PL"] },
+  { slug: "plusshop-ie", name: "Plusshop IE", deliversTo: ["IE"] },
+  { slug: "bazta-ie", name: "Bazta IE", deliversTo: ["IE"] },
+  { slug: "miscota-ie", name: "Miscota IE", deliversTo: ["IE"] },
+  { slug: "back-to-the-office-ie", name: "Back to the Office IE", deliversTo: ["IE"] }
 ];
 export function megaCountry(request) {
   const ua = String(request.headers.get("User-Agent") || "");
@@ -1753,12 +1757,12 @@ export function megaStoresFor(country, hidden = MEGA_HIDDEN_NETWORKS) {
 // stores, the one Google shows in Greece). From Greece the bar, the Stores card and the Black Friday line open it; every
 // other country without one opens the home page, which follows the visitor's country.
 export const MEGA_HOME = "https://megastoresgearworld.com/";
-// L232 (owner, 25 Nov 2026): and Germany, Austria, the Netherlands, Belgium, the US and Poland their own (de, at, nl, be,
-// us, pl), each in its language with the stores listed there.
+// L232 (owner, 25 Nov 2026): and Germany, Austria, the Netherlands, Belgium, the US, Poland and Ireland their own (de, at,
+// nl, be, us, pl, ie), each in its language with the stores listed there.
 export const MEGA_EDITION_HOME = {
   GR: "https://megastoresgearworld.com/gr/", DE: "https://megastoresgearworld.com/de/", AT: "https://megastoresgearworld.com/at/",
   NL: "https://megastoresgearworld.com/nl/", BE: "https://megastoresgearworld.com/be/", US: "https://megastoresgearworld.com/us/",
-  PL: "https://megastoresgearworld.com/pl/"
+  PL: "https://megastoresgearworld.com/pl/", IE: "https://megastoresgearworld.com/ie/"
 };
 // A new edition opens with at least 3 stores listed for its country, as megastoresgearworld.com decides (L232: with
 // fewer it sends its visitors to the home page); Greece always (L214).

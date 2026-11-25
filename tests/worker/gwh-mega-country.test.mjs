@@ -43,9 +43,9 @@ test('L211: the bar\'s stores are the stores of megastoresgearworld.com, Amazon 
   // After Linkwise approves megastoresgearworld.com (no network hidden); until then Greece and Cyprus get none (L215).
   assert.deepEqual(megaStoresFor('GR', []).map(s => s.name), GR_NAMES);
   assert.deepEqual(megaStoresFor('CY', []).map(s => s.name), ['Parex GR', 'Tsakiris Mallas GR']);
-  for (const cc of ['IE', 'JP', 'XX']) assert.deepEqual(megaStoresFor(cc), [], `${cc}: none`);
-  // L232: the editions of Germany, Austria, the Netherlands, Belgium, the US and Poland.
-  assert.deepEqual(['DE', 'AT', 'NL', 'BE', 'US', 'PL'].map(cc => megaStoresFor(cc).length), [6, 5, 8, 6, 11, 5]);
+  for (const cc of ['FI', 'JP', 'XX']) assert.deepEqual(megaStoresFor(cc), [], `${cc}: none`);
+  // L232: the editions of Germany, Austria, the Netherlands, Belgium, the US, Poland and Ireland.
+  assert.deepEqual(['DE', 'AT', 'NL', 'BE', 'US', 'PL', 'IE'].map(cc => megaStoresFor(cc).length), [6, 5, 8, 6, 11, 5, 5]);
   assert.ok(coversCountry(['WORLD'], 'JP') && coversCountry('GB GR', 'GR') && coversCountry('', 'GB') && !coversCountry('', 'GR'));
 });
 
@@ -92,7 +92,7 @@ test('L211: from Greece the bar names the 7 Greek stores as text, one link to Me
 });
 
 test('L214: Greece opens Mega Stores /gr/, every other country with stores its home page; the card names its stores', async () => {
-  assert.deepEqual(Object.keys(MEGA_EDITION_HOME), ['GR', 'DE', 'AT', 'NL', 'BE', 'US', 'PL'], 'Greece (L214) and the editions of L232');
+  assert.deepEqual(Object.keys(MEGA_EDITION_HOME), ['GR', 'DE', 'AT', 'NL', 'BE', 'US', 'PL', 'IE'], 'Greece (L214) and the editions of L232');
   for (const [cc, url] of Object.entries(MEGA_EDITION_HOME)) assert.equal(url, `https://megastoresgearworld.com/${cc.toLowerCase()}/`);
   assert.equal(megaHomeFor('us'), 'https://megastoresgearworld.com/us/');
   // L232 (review 25/11/2026): an edition with fewer than 3 stores is closed there too, so the Hub opens the home page.
@@ -100,10 +100,11 @@ test('L214: Greece opens Mega Stores /gr/, every other country with stores its h
   assert.equal(megaHomeFor('PL', [], fewer), 'https://megastoresgearworld.com/', 'Poland with 2 stores: the home page');
   assert.equal(megaHomeFor('DE', [], fewer), 'https://megastoresgearworld.com/de/', 'Germany keeps 5');
   assert.equal(megaHomeFor('PL'), 'https://megastoresgearworld.com/pl/', 'Poland has 5');
+  assert.equal(megaHomeFor('IE'), 'https://megastoresgearworld.com/ie/', 'Ireland has 5 (25 Nov 2026 evening)');
   assert.equal(megaHomeFor('GR', ['linkwise']), 'https://megastoresgearworld.com/gr/', 'Greece always (L214)');
   assert.equal(megaHomeFor('GR'), 'https://megastoresgearworld.com/gr/');
   assert.equal(megaHomeFor('gr'), 'https://megastoresgearworld.com/gr/');
-  for (const cc of ['CY', 'GB', 'IE', 'JP', '', null]) assert.equal(megaHomeFor(cc), 'https://megastoresgearworld.com/', String(cc));
+  for (const cc of ['CY', 'GB', 'FI', 'JP', '', null]) assert.equal(megaHomeFor(cc), 'https://megastoresgearworld.com/', String(cc));
   assert.equal(megaCardNames('GR'), 'Kouzinika GR, Katoikein GR, Minipini GR +4');
   assert.equal(megaCardNames('CY'), 'Parex GR, Tsakiris Mallas GR');
   assert.ok(!megaCardNames('GB').includes('Amazon'), 'never Amazon on the card');
@@ -115,7 +116,12 @@ test('L214: Greece opens Mega Stores /gr/, every other country with stores its h
   assert.ok(de.includes('<a class="gwh2-mega" href="https://megastoresgearworld.com/de/">'), 'Germany: the bar opens /de/ (L232)');
   assert.ok(de.includes('<a class="gwh-quick-world gwh2-stores-card" href="https://megastoresgearworld.com/de/" data-world="STORES">'));
   assert.ok(de.includes('<small class="gwh2-rc-desc" translate="no">Westwing DE, La Redoute DE, Reidl +3</small>'));
-  for (const cc of ['JP', 'IE']) {
+  const ie = await (await withMegaCountry(req('/', { cc: 'IE' }), page(HOME))).text();
+  assert.ok(ie.includes('<a class="gwh2-mega" href="https://megastoresgearworld.com/ie/">'), 'Ireland: the bar opens /ie/ (L232)');
+  assert.ok(ie.includes('<a class="gwh-quick-world gwh2-stores-card" href="https://megastoresgearworld.com/ie/" data-world="STORES">'));
+  assert.ok(ie.includes('<small class="gwh2-rc-desc" translate="no">Invicta Stores, Plusshop IE, Bazta IE +2</small>'));
+  assert.ok(!/data-store="(amazon|joybuy|temu)"/.test(bar(ie)), 'Ireland: no store of the UK or the US on the bar');
+  for (const cc of ['JP', 'FI']) {
     const html = await (await withMegaCountry(req('/', { cc }), page(HOME))).text();
     assert.ok(html.includes('<a class="gwh-quick-world gwh2-stores-card" href="/stores/" data-world="STORES">') && html.includes('data-gwh2="storesDesc"'), `${cc}: no Mega Stores there, the card as in the file`);
   }
@@ -126,10 +132,10 @@ test('L214: Greece opens Mega Stores /gr/, every other country with stores its h
   assert.ok(HOME.includes('<a class="gwh2-mega" href="https://megastoresgearworld.com/">'));
 });
 
-test('L211: from Cyprus only Parex and Tsakiris Mallas; from Japan, Ireland or an unknown country no bar at all', async () => {
+test('L211: from Cyprus only Parex and Tsakiris Mallas; from Japan, Finland or an unknown country no bar at all', async () => {
   const cy = await (await withMegaCountry(req('/', { cc: 'CY' }), page(HOME), [])).text();
   assert.deepEqual(slugsOf(bar(cy)), ['parex-gr', 'tsakiris-mallas-gr', 'parex-gr', 'tsakiris-mallas-gr']);
-  for (const cc of ['JP', 'IE', null]) {
+  for (const cc of ['JP', 'FI', null]) {
     const html = await (await withMegaCountry(req('/', { cc }), page(HOME))).text();
     assert.ok(!html.includes('gwh2-mega-wrap') && !html.includes('megastoresgearworld.com/"') && !html.includes('data-store='), `${cc}: no bar`);
     assert.ok(html.includes('id="hubSearch"') && html.includes('<section class="gwh2-top">') && html.includes('</html>'), `${cc}: the rest of the page`);

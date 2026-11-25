@@ -66,8 +66,8 @@ test('L210: where an entry delivers: its deliversTo, the UK when it has none, WO
   assert.equal(deliversHere({ deliversTo: ['gb', 'gr'] }, 'GR'), true, 'any letter case');
   assert.equal(deliversHere({ deliversTo: ['WORLD'] }, 'JP'), true);
   assert.equal(amazonHere(site, 'GB'), true, 'Amazon UK for the UK');
-  // The editions of L232 (25 Nov 2026): Germany 6, Poland 5 (with its 2 tyre stores) and the US 11 stores of the sites.
-  const listed = { GR: GR_NAMES.length, CY: CY_NAMES.length, DE: 6, PL: 5, US: 11 };
+  // The editions of L232 (25 Nov 2026): Germany 6, Poland 5 (with its 2 tyre stores), the US 11 and Ireland 5 stores of the sites.
+  const listed = { GR: GR_NAMES.length, CY: CY_NAMES.length, DE: 6, PL: 5, US: 11, IE: 5 };
   assert.deepEqual([GR_NAMES.length, CY_NAMES.length], [7, 2], 'the 7 Greek stores, 2 of them for Cyprus too');
   for (const cc of ['GR', 'CY', 'US', 'DE', 'PL', 'IE', 'JP', 'XX', 'T1']) {
     assert.equal(amazonHere(site, cc), false, `${cc}: no Amazon UK`);
@@ -122,11 +122,11 @@ test('L210: the UK home page is as before: every store, Amazon, the Black Friday
 });
 
 for (const [cc, lang, none, noneBf] of [
-  // Germany, Poland and the US have their stores since L232 (their tests: tests/worker/ogw-editions-l232.test.mjs).
+  // Germany, Poland, the US and Ireland have their stores since L232 (their tests: tests/worker/ogw-editions-l232.test.mjs).
   ['IT', 'it-IT', `Nessun negozio di ${MS} è ancora elencato per il tuo paese.`, null],
   ['ES', 'es-ES', `Todavía no hay ninguna tienda de ${MS} para tu país.`, null],
   ['JP', 'en-GB', `No store of ${MS} is listed for your country yet.`, 'No store with Black Friday codes is listed for your country yet.'],
-  ['IE', 'en-GB', `No store of ${MS} is listed for your country yet.`, null],
+  ['FI', 'en-GB', `No store of ${MS} is listed for your country yet.`, null],
   ['XX', 'en-GB', `No store of ${MS} is listed for your country yet.`, null]
 ]) {
   test(`L210: ${cc}: no store, Black Friday store, code or Amazon; a line says so; the guides stay`, async () => {

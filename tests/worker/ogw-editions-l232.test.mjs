@@ -1,5 +1,5 @@
-// Mega Stores in Germany, Austria, the Netherlands, Belgium, the US and Poland (owner, 25 Nov 2026: «να έχουν το δικό
-// τους megastore και οι καινούριες και η Πολωνία», lessons L232): each its own edition like /gr/ (L214), in the language
+// Mega Stores in Germany, Austria, the Netherlands, Belgium, the US, Poland and Ireland (owner, 25 Nov 2026: «να έχουν το
+// δικό τους megastore και οι καινούριες και η Πολωνία», lessons L232): each its own edition like /gr/ (L214), in the language
 // of the country, with the stores of the Gear World sites listed there, open only with at least 3 of them. Fake fetch,
 // a fixed day, never the network.
 import { test } from 'node:test';
@@ -45,24 +45,27 @@ const UK = awinStores(site).filter(s => deliversHere(s, 'GB'));
 const GREEK = awinStores(site).filter(s => deliversHere(s, 'GR'));
 const TITLE = { 'de-DE': 'Händler und Geschenkratgeber', 'nl-NL': null, 'pl-PL': 'Sklepy i poradniki prezentowe', 'en-GB': 'Stores and gift guides' };
 
-test('L232: six new editions, each in its country\'s language, its own hreflang, at least 3 stores; Ireland not yet', () => {
+test('L232: seven new editions, each in its country\'s language, its own hreflang, at least 3 stores', () => {
   assert.deepEqual(EDITIONS.map(e => [e.prefix, e.country, e.lang, e.hreflang]), [
     ['/gr', 'GR', 'el-GR', 'el-GR'], ['/de', 'DE', 'de-DE', 'de-DE'], ['/at', 'AT', 'de-DE', 'de-AT'], ['/nl', 'NL', 'nl-NL', 'nl-NL'],
-    ['/be', 'BE', 'nl-NL', 'nl-BE'], ['/us', 'US', 'en-GB', 'en-US'], ['/pl', 'PL', 'pl-PL', 'pl-PL']]);
+    ['/be', 'BE', 'nl-NL', 'nl-BE'], ['/us', 'US', 'en-GB', 'en-US'], ['/pl', 'PL', 'pl-PL', 'pl-PL'], ['/ie', 'IE', 'en-GB', 'en-IE']]);
   assert.equal(new Set(EDITIONS.map(e => e.hreflang)).size, EDITIONS.length, 'one hreflang per edition');
   const langs = new Set(site.languages.map(l => l.code));
   for (const e of EDITIONS) assert.ok(langs.has(e.lang), `${e.prefix}: a language of the site`);
   assert.equal(MIN_EDITION_STORES, 3);
-  assert.deepEqual(NEW.map(e => e.minStores), [3, 3, 3, 3, 3, 3]);
+  assert.deepEqual(NEW.map(e => e.minStores), [3, 3, 3, 3, 3, 3, 3]);
   const counts = Object.fromEntries(NEW.map(e => [e.country, editionStores(site, e).length]));
-  assert.deepEqual(counts, { DE: 6, AT: 5, NL: 8, BE: 6, US: 11, PL: 5 }, 'with the 6 tyre stores (owner, 25 Nov 2026)');
+  assert.deepEqual(counts, { DE: 6, AT: 5, NL: 8, BE: 6, US: 11, PL: 5, IE: 5 }, 'with the 6 tyre stores and Ireland (owner, 25 Nov 2026)');
   assert.deepEqual(openEditions(site).map(e => e.prefix), EDITIONS.map(e => e.prefix), 'every edition is open');
-  assert.ok(!EDITIONS.some(e => e.country === 'IE'), 'Ireland waits for its stores (chat 7)');
-  // The new stores: Gear World site stores (no network, no logo), listed only for these six countries.
+  // Ireland: the 4 Irish stores of the sites (Plusshop, Bazta, Miscota, Back to the Office) and Invicta Stores; no Amazon.
+  const ie = editionStores(site, EDITIONS.find(e => e.country === 'IE'));
+  assert.deepEqual(ie.map(s => s.slug).sort(), ['back-to-the-office-ie', 'bazta-ie', 'invicta-stores', 'miscota-ie', 'plusshop-ie']);
+  assert.ok(ie.every(s => !s.amazon && !s.network), 'Ireland: no Amazon (Amazon.ie comes later) and no network logo');
+  // The new stores: Gear World site stores (no network, no logo), listed only for these seven countries.
   const fresh = awinStores(site).filter(s => (s.deliversTo || []).some(c => NEW.some(e => e.country === c)));
-  assert.equal(fresh.length, 29);
+  assert.equal(fresh.length, 33);
   for (const s of fresh) {
-    assert.ok(s.deliversTo.every(c => NEW.some(e => e.country === c)), `${s.slug}: only the six countries`);
+    assert.ok(s.deliversTo.every(c => NEW.some(e => e.country === c)), `${s.slug}: only the seven countries`);
     assert.ok(!deliversHere(s, 'GB') && !deliversHere(s, 'GR') && !deliversHere(s, 'CY'), `${s.slug}: never the UK or Greece`);
     assert.ok(s.sites.length >= 1 && s.sites.length <= 6, `${s.slug}: its Gear World sites`);
     assert.ok(!/\b(shop|shopping|cart|sale|official|partner)\b/i.test(s.line), `${s.slug}: L107`);

@@ -530,7 +530,7 @@ function Test-Site([string]$base, [string]$mode) {
     $edSm = Get-Page ($base + '/sitemap.xml')
     if ($edSm.status -eq 200 -and $edSm.text.Contains('<loc>https://' + $Domain + '/gr/</loc>') -and $edSm.text.Contains('<loc>https://' + $Domain + '/gr/stores/kouzinika-gr/</loc>')) { Say '  sitemap.xml με το /gr/ και τις σελίδες των ελληνικών καταστημάτων (L214): ΕΝΤΑΞΕΙ' $Ok }
     else { Say ('  sitemap.xml χωρίς το /gr/ (L214, απάντηση {0}): ΠΡΟΒΛΗΜΑ' -f $edSm.status) $Bad; $all = $false }
-    # L232 (owner, 25 Nov 2026): Mega Stores of Germany, Austria, the Netherlands, Belgium, the US and Poland, each at its
+    # L232 (owner, 25 Nov 2026): Mega Stores of Germany, Austria, the Netherlands, Belgium, the US, Poland and Ireland, each at its
     # own address in its language (asked as a UK visitor, as Google reads them): its canonical and hreflang, at least 3
     # of its stores, nothing of the UK, in the sitemap; one store page with products read for that country (a warning
     # when the Gear World site is slow: they load again on the next visit). Read-only GETs, never /out/ or /go/.
@@ -540,7 +540,8 @@ function Test-Site([string]$base, [string]$mode) {
         @{ p = 'nl'; h = 'nl-NL'; s = 'refurbed-nl'; n = 'Ολλανδία' },
         @{ p = 'be'; h = 'nl-BE'; s = 'refurbed-nl'; n = 'Βέλγιο' },
         @{ p = 'us'; h = 'en-US'; s = 'temu'; n = 'ΗΠΑ' },
-        @{ p = 'pl'; h = 'pl-PL'; s = 'aliexpress-pl'; n = 'Πολωνία' }
+        @{ p = 'pl'; h = 'pl-PL'; s = 'aliexpress-pl'; n = 'Πολωνία' },
+        @{ p = 'ie'; h = 'en-IE'; s = 'plusshop-ie'; n = 'Ιρλανδία' }
     )
     foreach ($e in $editions) {
         $pre = '/' + $e.p + '/'
@@ -562,9 +563,10 @@ function Test-Site([string]$base, [string]$mode) {
         elseif ($es2Ok) { Say ('  {0}stores/{1}/ (L232): ΠΡΟΣΟΧΗ - η σελίδα είναι σωστή, αλλά τα προϊόντα δεν φορτώθηκαν αυτή τη στιγμή (φορτώνονται ξανά σε επόμενη επίσκεψη· τα ελέγχει το Claude μετά το live)' -f $pre, $e.s) $Warn }
         else { Say ('  {0}stores/{1}/ (L232): ΠΡΟΒΛΗΜΑ - απάντηση {2}' -f $pre, $e.s, $es2.status) $Bad; $all = $false }
     }
-    $ieEd = Get-Page ($base + '/ie/')
-    if ($ieEd.status -eq 404) { Say '  /ie/ δεν υπάρχει ακόμα (η Ιρλανδία περιμένει 3 καταστήματα, L232): ΕΝΤΑΞΕΙ' $Ok }
-    else { Say ('  /ie/ απαντά {0} (L232: η Ιρλανδία δεν έχει ακόμα δικό της Mega Stores): ΠΡΟΒΛΗΜΑ' -f $ieEd.status) $Bad; $all = $false }
+    # A country without its own edition (France) has no address of its own (L232).
+    $frEd = Get-Page ($base + '/fr/')
+    if ($frEd.status -eq 404) { Say '  /fr/ δεν υπάρχει (η Γαλλία δεν έχει δικό της Mega Stores, L232): ΕΝΤΑΞΕΙ' $Ok }
+    else { Say ('  /fr/ απαντά {0} (L232: η Γαλλία δεν έχει δικό της Mega Stores): ΠΡΟΒΛΗΜΑ' -f $frEd.status) $Bad; $all = $false }
     $el = Get-Page ($base + '/?lang=el')
     if ($el.status -eq 200 -and $el.text.Contains('<html lang="el-GR"') -and $el.text.Contains('Οδηγοί δώρων')) { Say '  /?lang=el απαντά στα Ελληνικά (Οδηγοί δώρων): ΕΝΤΑΞΕΙ' $Ok }
     else { Say ('  /?lang=el δεν απαντά στα Ελληνικά ({0}): ΠΡΟΒΛΗΜΑ' -f $el.status) $Bad; $all = $false }

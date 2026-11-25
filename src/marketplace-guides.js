@@ -169,8 +169,8 @@ export function viewMode(site, mode, country = VIEW_BASE) {
 // its pages, `hreflang` what Google is told (one per edition: Austria is de-AT next to Germany's de-DE). A new edition
 // (`minStores`) is open only with at least that many stores listed for its country (owner, 25 Nov 2026: «ανοίγει με
 // τουλάχιστον 3 καταστήματα»); with fewer its addresses go to the international page and it is on no sitemap or
-// hreflang. Greece has no minimum: its addresses stay as L214 and L215 made them, whatever is hidden. Ireland is not one
-// yet (chat 7, 25 Nov 2026: two big stores for now).
+// hreflang. Greece has no minimum: its addresses stay as L214 and L215 made them, whatever is hidden. Ireland since the
+// evening of 25 Nov 2026 (the owner's first ask), in English (en-IE), with the 5 stores the sites list for it.
 export const MIN_EDITION_STORES = 3;
 export const EDITIONS = [
   { prefix: '/gr', country: 'GR', lang: 'el-GR', hreflang: 'el-GR' },
@@ -179,7 +179,8 @@ export const EDITIONS = [
   { prefix: '/nl', country: 'NL', lang: 'nl-NL', hreflang: 'nl-NL', minStores: MIN_EDITION_STORES },
   { prefix: '/be', country: 'BE', lang: 'nl-NL', hreflang: 'nl-BE', minStores: MIN_EDITION_STORES },
   { prefix: '/us', country: 'US', lang: 'en-GB', hreflang: 'en-US', minStores: MIN_EDITION_STORES },
-  { prefix: '/pl', country: 'PL', lang: 'pl-PL', hreflang: 'pl-PL', minStores: MIN_EDITION_STORES }
+  { prefix: '/pl', country: 'PL', lang: 'pl-PL', hreflang: 'pl-PL', minStores: MIN_EDITION_STORES },
+  { prefix: '/ie', country: 'IE', lang: 'en-GB', hreflang: 'en-IE', minStores: MIN_EDITION_STORES }
 ];
 export function editionFor(pathname) {
   return EDITIONS.find(e => pathname === e.prefix || String(pathname || '').startsWith(`${e.prefix}/`)) || null;

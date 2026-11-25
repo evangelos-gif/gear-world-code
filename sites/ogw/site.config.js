@@ -296,7 +296,7 @@ export default {
           { site: 'MGW', title: { el: 'Για τα ταξίδια', en: 'For travel' }, line: { el: 'Ανδρική τσάντα χιαστί.', en: 'A men’s cross-body bag.' }, pick: ['CROSS BODY'] }
         ]
       } },
-    // The editions of Germany, Austria, the Netherlands, Belgium, the US and Poland (owner, 25 Nov 2026, lessons L232):
+    // The editions of Germany, Austria, the Netherlands, Belgium, the US, Poland and Ireland (owner, 25 Nov 2026, L232):
     // the stores of the Gear World sites listed for those countries, as each site's /api/stats gave them on 25 Nov 2026
     // (`name` its `retailer` value, `sites` by number of products, `deliversTo` only the countries of these editions).
     // Their products are read for the country of the page (storeIn). Left out: stores with under 1,500 products. The 6
@@ -307,7 +307,7 @@ export default {
     { slug: 'reidl', name: 'Reidl', sites: ['CGW'], deliversTo: ['DE', 'AT'], line: 'Power tools, hand tools, workshop and garden equipment.' },
     { slug: 'uhrcenter', name: 'Uhrcenter', sites: ['WGW', 'MGW'], deliversTo: ['DE', 'AT'], line: 'Watches and jewellery.' },
     { slug: 'home-tex', name: 'HOME-TEX', sites: ['HGW'], deliversTo: ['DE', 'AT', 'NL', 'BE', 'PL'], line: 'Bed linen, towels and home textiles.' },
-    { slug: 'invicta-stores', name: 'Invicta Stores', sites: ['MGW', 'WGW'], deliversTo: ['DE', 'AT', 'NL', 'BE', 'PL'], line: 'Watches for women and men.' },
+    { slug: 'invicta-stores', name: 'Invicta Stores', sites: ['MGW', 'WGW'], deliversTo: ['DE', 'AT', 'NL', 'BE', 'PL', 'IE'], line: 'Watches for women and men.' },
     { slug: 'refurbed-nl', name: 'refurbed NL', sites: ['TGW'], deliversTo: ['NL', 'BE'], line: 'Refurbished phones, laptops and tablets.' },
     { slug: 'westwing-nl', name: 'Westwing NL', sites: ['HGW'], deliversTo: ['NL'], line: 'Furniture and home textiles.' },
     { slug: 'la-redoute-nl', name: 'La Redoute NL', sites: ['HGW'], deliversTo: ['NL'], line: 'Clothing, furniture and home decor.' },
@@ -330,7 +330,12 @@ export default {
     { slug: 'pneus-be', name: 'Pneus.be', sites: ['AGW'], deliversTo: ['BE'], line: 'Car tyres.' },
     { slug: '123pneus-be', name: '123pneus.be', sites: ['AGW'], deliversTo: ['BE'], line: 'Car tyres.' },
     { slug: 'oponytanio-pl', name: 'Oponytanio PL', sites: ['AGW'], deliversTo: ['PL'], line: 'Car tyres.' },
-    { slug: 'tanie-opony-pl', name: 'Tanie-Opony.pl', sites: ['AGW'], deliversTo: ['PL'], line: 'Car tyres.' }
+    { slug: 'tanie-opony-pl', name: 'Tanie-Opony.pl', sites: ['AGW'], deliversTo: ['PL'], line: 'Car tyres.' },
+    // Ireland (25 Nov 2026 evening): the Irish stores of the sites (their rows refreshed on 24 Nov) and Invicta Stores.
+    { slug: 'plusshop-ie', name: 'Plusshop IE', sites: ['WGW', 'KGW', 'HGW', 'MGW', 'GGW'], deliversTo: ['IE'], line: 'Clothing, toys and home products.' },
+    { slug: 'bazta-ie', name: 'Bazta IE', sites: ['WGW', 'KGW', 'HGW', 'MGW', 'GGW'], deliversTo: ['IE'], line: 'Clothing, toys and home products.' },
+    { slug: 'miscota-ie', name: 'Miscota IE', sites: ['ZGW'], deliversTo: ['IE'], line: 'Pet food and pet supplies.' },
+    { slug: 'back-to-the-office-ie', name: 'Back to the Office IE', sites: ['TGW', 'PGW'], deliversTo: ['IE'], line: 'Office supplies, office furniture and desk accessories.' }
   ],
   // Black Friday 2026 (Friday 27 Nov), Cyber Monday (Monday 30 Nov) and Christmas: the countdown line and the Black Friday
   // block of the home page (until the end of Cyber Monday). Never a promise of discounts.
