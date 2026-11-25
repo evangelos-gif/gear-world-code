@@ -842,7 +842,7 @@ if ($Step -eq 'catalog-db') {
     if (-not (Confirm-Approval $PhraseDb)) { Say 'Δεν δόθηκε η έγκριση για τη βάση: σταμάτησα χωρίς αλλαγές.' $Warn; Finish 1 }
     if ($needImage) {
         if (-not (Add-CatalogColumns $ogw $cols)) { Finish 9 }
-        Say ('ΕΤΟΙΜΟ: η βάση "{0}" έχει τη στήλη των φωτογραφιών.' -f $CatalogDb) $Ok
+        Say ('ΕΤΟΙΜΟ: η βάση "{0}" έχει τις νέες στήλες (image, run).' -f $CatalogDb) $Ok
         Finish 0
     }
     if (-not $f.found) {
