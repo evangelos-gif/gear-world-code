@@ -1,8 +1,9 @@
 import { createContext, useContext } from 'react';
 
 // Gear World colours (same family as gearworldhub.com). Version 1.0.3 adds a light theme (Idea 17 Γ, owner
-// 25/11/2026): the person chooses Dark, Light or "Same as the phone" in Settings. The brand bars (the top bar with the
-// logo and the tab bar) stay dark navy in both themes, so the logo and the phone's status bar always read well.
+// 25/11/2026): the app starts light, and the person can choose Dark or "Same as the phone" in Settings. The brand
+// bars (the top bar with the logo and the tab bar) stay dark navy in both themes, so the logo and the phone's status
+// bar always read well.
 // Meaning is never carried by colour alone (owner is colour-blind, lessons L35), and every text colour reads at
 // least 4.5:1 on the backgrounds it sits on, in both themes (checked by the tests).
 export type Mode = 'dark' | 'light';
@@ -67,17 +68,17 @@ export const PALETTES: Record<Mode, Palette> = { dark: DARK, light: LIGHT };
 
 /** The person's choice in Settings. "system" follows the phone's own light or dark setting. */
 export type ThemeChoice = 'dark' | 'light' | 'system';
-export const THEME_CHOICES: readonly ThemeChoice[] = ['dark', 'light', 'system'];
-/** Until the person chooses, the app looks as it did before 1.0.3. */
-export const DEFAULT_THEME: ThemeChoice = 'dark';
+export const THEME_CHOICES: readonly ThemeChoice[] = ['light', 'dark', 'system'];
+/** The app starts light; the person can choose dark in Settings (owner's decision, 25/11/2026). */
+export const DEFAULT_THEME: ThemeChoice = 'light';
 
 export function isThemeChoice(v: unknown): v is ThemeChoice {
   return typeof v === 'string' && (THEME_CHOICES as readonly string[]).includes(v);
 }
 
-/** The theme to show: the choice, or for "system" the phone's setting (dark when the phone does not say). */
+/** The theme to show: the choice, or for "system" the phone's setting (light when the phone does not say). */
 export function resolveMode(choice: ThemeChoice, phone: string | null | undefined): Mode {
-  if (choice === 'system') return phone === 'light' ? 'light' : 'dark';
+  if (choice === 'system') return phone === 'dark' ? 'dark' : 'light';
   return choice;
 }
 

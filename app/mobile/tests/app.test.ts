@@ -757,15 +757,15 @@ test('theme: both themes have the same colours, and every text colour reads at l
     assert.ok(contrast(P.onGold, P.goldFill) >= 4.5, `${P.mode}: button words on gold`);
   }
   assert.ok(contrast(LIGHT.text, LIGHT.bg) > 10 && contrast(DARK.text, DARK.bg) > 10, 'body text is very clear in both');
-  // Choosing: dark until the person chooses (the look of 1.0.2), "system" follows the phone, dark when it does not say.
-  assert.equal(DEFAULT_THEME, 'dark');
-  assert.deepEqual([...THEME_CHOICES], ['dark', 'light', 'system']);
+  // Choosing: light until the person chooses dark (owner, 25/11/2026), "system" follows the phone, light when it does not say.
+  assert.equal(DEFAULT_THEME, 'light');
+  assert.deepEqual([...THEME_CHOICES], ['light', 'dark', 'system'], 'Light is first in Settings');
   assert.equal(resolveMode('light', 'dark'), 'light');
   assert.equal(resolveMode('dark', 'light'), 'dark');
   assert.equal(resolveMode('system', 'light'), 'light');
   assert.equal(resolveMode('system', 'dark'), 'dark');
-  assert.equal(resolveMode('system', null), 'dark');
-  assert.equal(resolveMode('system', 'unspecified'), 'dark');
+  assert.equal(resolveMode('system', null), 'light');
+  assert.equal(resolveMode('system', 'unspecified'), 'light');
   assert.ok(isThemeChoice('system') && !isThemeChoice('blue') && !isThemeChoice(null));
 });
 
