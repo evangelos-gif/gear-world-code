@@ -4,10 +4,13 @@
 import { promosFor, AWIN_PUBLISHER_ID } from '../../promos/promos.js';
 import { networkFor } from '../../promos/network.js';
 import { bolDelivery } from '../_shared/bol.js';
+import { waveDelivery } from '../_shared/wave-a.js';
 import { LINKWISE_GR } from './linkwise-gr.js';
 
 // bol.com is not listed here; its NL/BE-only line keeps a stray bol.com row out of the UK view (sites/_shared/bol.js).
 const BOL = bolDelivery();
+// Priority A of «Λείπουν 25-11» (lessons L234): ../_shared/wave-a.js.
+const WAVE_A = waveDelivery('tgw');
 
 export default {
   code: 'TGW',
@@ -56,7 +59,7 @@ export default {
   // 15 Nov 2026, lessons L157, round 2); its prices get "≈ £…" (foreignCurrencies PLN).
   // refurbed NL (Daisycon 20160, 18 Nov 2026, lessons L194): refurbished, Dutch names, the Netherlands and Belgium only.
   // Linkwise (Greece and Cyprus, lessons L209): ./linkwise-gr.js.
-  deliversTo: { default: ['GB'], retailers: { ...LINKWISE_GR.retailers, 'AliExpress PL': ['PL'], 'Back to the Office IE': ['IE'], MonsGeek: ['GB', 'US', 'CH', 'IS', 'NO', 'AT', 'BE', 'BG', 'HR', 'CY', 'CZ', 'DK', 'EE', 'FI', 'FR', 'DE', 'GR', 'HU', 'IE', 'IT', 'LV', 'LT', 'LU', 'NL', 'PL', 'PT', 'RO', 'SK', 'SI', 'ES', 'SE'], Nothingprojector: ['US'], Mintion: ['US'], Oukitel: ['US'], Mosnovo: ['US'], 'Bond Touch': ['US'], Procolored: ['US'], '3DMakerpro': ['US'], Gshopper: ['US'], 'refurbed NL': ['NL', 'BE'], ...BOL.retailers }, languages: { ...LINKWISE_GR.languages, 'refurbed NL': 'nl', ...BOL.languages } },
+  deliversTo: { default: ['GB'], retailers: { ...LINKWISE_GR.retailers, 'AliExpress PL': ['PL'], 'Back to the Office IE': ['IE'], MonsGeek: ['GB', 'US', 'CH', 'IS', 'NO', 'AT', 'BE', 'BG', 'HR', 'CY', 'CZ', 'DK', 'EE', 'FI', 'FR', 'DE', 'GR', 'HU', 'IE', 'IT', 'LV', 'LT', 'LU', 'NL', 'PL', 'PT', 'RO', 'SK', 'SI', 'ES', 'SE'], Nothingprojector: ['US'], Mintion: ['US'], Oukitel: ['US'], Mosnovo: ['US'], 'Bond Touch': ['US'], Procolored: ['US'], '3DMakerpro': ['US'], Gshopper: ['US'], 'refurbed NL': ['NL', 'BE'], ...BOL.retailers, ...WAVE_A.retailers }, languages: { ...LINKWISE_GR.languages, 'refurbed NL': 'nl', ...BOL.languages, ...WAVE_A.languages } },
   // A retailer that sells in euros (the two above) keeps its euro prices, with "≈ £…" next to them.
   convertForeignPrices: true,
 

@@ -5,9 +5,12 @@ import { promosFor, AWIN_PUBLISHER_ID } from '../../promos/promos.js';
 import { networkFor } from '../../promos/network.js';
 // bol.com (NL and BE only, Dutch names, lessons L204): sites/_shared/bol.js.
 import { bolDelivery, BOL_SITES } from '../_shared/bol.js';
+import { waveDelivery } from '../_shared/wave-a.js';
 import { LINKWISE_GR } from './linkwise-gr.js';
 
 const BOL = bolDelivery(BOL_SITES.mgw);
+// Priority A of «Λείπουν 25-11» (lessons L234): ../_shared/wave-a.js.
+const WAVE_A = waveDelivery('mgw');
 
 export default {
   code: 'MGW',
@@ -87,7 +90,7 @@ export default {
     Buycoolshirts: ['US'], eFootwear: ['US'], Menseventwear: ['US'], 'NORTIV 8': ['US'], Incerunmen: ['US'],
     'TSAR BOMBA': ['US'], Chamaripa: ['US'], COOFANDY: ['US'],
     // Linkwise (Greece and Cyprus, lessons L199): ./linkwise-gr.js.
-    ...LINKWISE_GR.retailers, ...BOL.retailers }, languages: { Uhrcenter: 'de', ...LINKWISE_GR.languages, ...BOL.languages } },
+    ...LINKWISE_GR.retailers, ...BOL.retailers, ...WAVE_A.retailers }, languages: { Uhrcenter: 'de', ...LINKWISE_GR.languages, ...BOL.languages, ...WAVE_A.languages } },
   foreignCurrencies: ['USD', 'PLN'],
   displayCurrencies: ['GBP', 'EUR', 'PLN', 'ALL', 'RON', 'RUB'],
   cart: { name: 'Saved list', maxItems: 30 },
