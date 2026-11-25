@@ -51,7 +51,8 @@ test('L231: a refresh sends only what changed and ends exactly like a full load 
   const db = fakeD1(day1.sql).sqlite;
   assert.equal(day1.left.length, 0, 'no temporary file left');
   const state1 = day1.states['138'].trim().split('\n');
-  assert.equal(state1[0], `#loaded ${new Date(NOW - 3600000).toISOString()}`, 'the time of the feed of that load first');
+  assert.equal(state1[0], `#loaded ${fakeD1(day1.sql).sqlite.prepare('SELECT run FROM stores').get().run}`, 'the id of that load first, the same as in the database');
+  assert.match(state1[0], /^#loaded [0-9a-f]{16}$/);
   assert.equal(state1.length, 63, 'then one line per product');
   assert.ok(state1.slice(1).every(l => /^[^\t]+\t[0-9a-f]{16}\t[0-9a-f]{8}$/.test(l)), 'id, the hash of the row, the hash of its place and categories');
   // The same feed again: nothing to send but the store's row.
@@ -211,10 +212,11 @@ test('L231: the PC tool from the command line: --full 0 (no store in full) and -
     writeFileSync(join(dir, '138.tsv'), readFileSync(join(dir, 'out', '138.state'), 'utf8'));
     rmSync(join(dir, 'out'), { recursive: true, force: true });
     assert.match(run('--full', '0', '--state', dir).stdout, / OK 5 \d+ 0 \S+ 1 refresh 0 0\r?\n/, 'with the state file: nothing to send');
-    const iso = new Date(NOW - 3600000).toISOString();
-    assert.match(run('--full', '0', '--state', dir, '--have', `138=${iso}`).stdout, / refresh 0 0\r?\n/, '--have with the time of that load: a refresh');
+    const id = readFileSync(join(dir, '138.tsv'), 'utf8').split('\n')[0].slice('#loaded '.length);
+    assert.match(id, /^[0-9a-f]{16}$/);
+    assert.match(run('--full', '0', '--state', dir, '--have', `138=${id}`).stdout, / refresh 0 0\r?\n/, '--have with the id of that load: a refresh');
     assert.match(run('--full', '0', '--state', dir, '--have', '0').stdout, / check 5 -1\r?\n/, '--have without the store: every product checked');
-    assert.match(run('--full', '0', '--state', dir, '--have', `138=2026-01-01T00:00:00.000Z`).stdout, / check 5 -1\r?\n/, '--have with another time: every product checked');
+    assert.match(run('--full', '0', '--state', dir, '--have', '138=0123456789abcdef').stdout, / check 5 -1\r?\n/, '--have with another load: every product checked');
     assert.ok(readdirSync(join(dir, 'out')).includes('138.state'));
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
@@ -222,27 +224,38 @@ test('L231: the PC tool from the command line: --full 0 (no store in full) and -
 test('L231 review: the state file counts only when it is the load the database has (a restore, another PC)', async () => {
   const DAY1 = NOW - 24 * 3600000;
   const day1 = await catalogSql({ 138: kotsovolosRows(60) }, DAY1);
-  const iso1 = new Date(DAY1 - 3600000).toISOString();
   const db = fakeD1(day1.sql).sqlite;
   const before = fakeD1(day1.sql).sqlite; // the database as it was before day 2 (a Time Travel restore brings it back)
-  assert.equal(db.prepare('SELECT checked_at FROM stores').get().checked_at, iso1);
+  const run = d => d.prepare('SELECT run FROM stores').get().run;
+  assert.equal(run(db), run(before), 'the same files, the same load id');
   const dir = stateDir(day1.states);
   try {
-    // Day 2 with the database's own time: a refresh.
-    const day2 = await catalogSql({ 138: nextDay() }, NOW, 3600000, { full: [], stateDir: dir, loaded: { 138: iso1 } });
+    // Day 2 with the database's own load id: a refresh.
+    const day2 = await catalogSql({ 138: nextDay() }, NOW, 3600000, { full: [], stateDir: dir, loaded: { 138: run(db) } });
     assert.match(day2.lines[0], / refresh 4 1$/);
     changes(db, day2.sql);
     writeFileSync(join(dir, '138.tsv'), day2.states['138']);
     // The database restored to the day before: its time is day 1's, the file says day 2: every product is checked,
     // and the store ends exactly as the feed says (without the review fix, the dearer price and the new product were lost).
-    const again = await catalogSql({ 138: nextDay() }, NOW, 3600000, { full: [], stateDir: dir, loaded: { 138: before.prepare('SELECT checked_at FROM stores').get().checked_at } });
+    assert.notEqual(run(db), run(before), 'each load its own id');
+    const again = await catalogSql({ 138: nextDay() }, NOW, 3600000, { full: [], stateDir: dir, loaded: { 138: run(before) } });
     assert.match(again.lines[0], / check 62 -1$/);
     changes(before, again.sql);
     assert.equal(dump(before), dump(fakeD1((await catalogSql({ 138: nextDay() }, NOW)).sql).sqlite));
-    // No time for the store in the database, or a file without its first line: checked too.
+    // The same feed loaded twice (the second with other rows), then the database restored to the first: the feed
+    // time is the same, the load id is not, so every product is checked (second review 25/11/2026).
+    const t1 = fakeD1(day1.sql).sqlite;
+    const sameFeed = await catalogSql({ 138: nextDay() }, DAY1, 3600000, { full: [], stateDir: dir, loaded: { 138: run(t1) } });
+    assert.match(sameFeed.lines[0], / check /, 'the file is of day 2, the database of day 1');
+    // No id for the store in the database, or a file without its first line: checked too.
     assert.match((await catalogSql({ 138: nextDay() }, NOW, 3600000, { full: [], stateDir: dir, loaded: {} })).lines[0], / check /);
+    const hdr = day2.states['138'].split('\n')[0].slice('#loaded '.length);
     writeFileSync(join(dir, '138.tsv'), day2.states['138'].split('\n').slice(1).join('\n'));
-    assert.match((await catalogSql({ 138: nextDay() }, NOW, 3600000, { full: [], stateDir: dir, loaded: { 138: new Date(NOW - 3600000).toISOString() } })).lines[0], / check /);
+    assert.match((await catalogSql({ 138: nextDay() }, NOW, 3600000, { full: [], stateDir: dir, loaded: { 138: hdr } })).lines[0], / check /);
+    // A product whose id starts with "#" is still in the state (only the first line is the header).
+    writeFileSync(join(dir, '138.tsv'), `#loaded ${hdr}\n#weird\tabcdabcdabcdabcd\tabcdabcd\n`);
+    const { readState } = await import('../../tools/ogw-catalog.mjs');
+    assert.deepEqual([...readState(dir, 138, hdr).keys()], ['#weird']);
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 

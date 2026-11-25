@@ -3492,7 +3492,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         'if exist "%GW_FAKE_STATE%\catalogbusy.txt" goto d1busy',
         'echo %* | findstr /C:"--file" >nul && goto d1file',
         'echo %* | findstr /C:"ALTER TABLE" >nul && goto d1alter',
-        'echo %* | findstr /C:"sqlite_master WHERE name" >nul && goto d1schema',
+        'echo %* | findstr /C:"SELECT name, sql" >nul && goto d1schema',
         'echo %* | findstr /C:"COUNT" >nul && goto d1count',
         'if exist "%GW_FAKE_STATE%\catalogloaded.txt" goto d1loaded',
         'echo [{"results":[],"success":true}]',
@@ -3510,10 +3510,10 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         'exit /b 0',
         ':d1schema',
         'if exist "%GW_FAKE_STATE%\image.txt" goto d1img',
-        'echo [{"results":[{"sql":"CREATE TABLE categories (program INTEGER, id INTEGER)"}],"success":true}]',
+        'echo [{"results":[{"name":"categories","sql":"CREATE TABLE categories (program INTEGER, id INTEGER)"},{"name":"stores","sql":"CREATE TABLE stores (program INTEGER)"}],"success":true}]',
         'exit /b 0',
         ':d1img',
-        'echo [{"results":[{"sql":"CREATE TABLE categories (program INTEGER, id INTEGER, image TEXT)"}],"success":true}]',
+        'echo [{"results":[{"name":"categories","sql":"CREATE TABLE categories (program INTEGER, id INTEGER, image TEXT)"},{"name":"stores","sql":"CREATE TABLE stores (program INTEGER, run TEXT)"}],"success":true}]',
         'exit /b 0',
         ':d1count',
         'echo [{"results":[{"n":3}],"success":true}]',
@@ -3521,7 +3521,7 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         ':d1loaded',
         'set CA=none',
         'if exist "%GW_FAKE_STATE%\checkedat.txt" set /p CA=<"%GW_FAKE_STATE%\checkedat.txt"',
-        'echo [{"results":[{"program":"138","products":5,"loading":0,"checked_at":"%CA%"},{"program":"469","products":7,"loading":1,"checked_at":"x"}],"success":true}]',
+        'echo [{"results":[{"program":"138","products":5,"loading":0,"run":"%CA%"},{"program":"469","products":7,"loading":1,"run":"x"}],"success":true}]',
         'exit /b 0',
         ':d1busy',
         'echo [WARNING] D1 is busy importing',
@@ -3668,8 +3668,8 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check ((Run-Og @('-Step', 'catalog', '-Program', '138')) -eq 14) 'ogw catalog without its database: exit 14 (L228)'
         Check ((Run-Og @('-Step', 'catalog', '-Program', '999')) -eq 2) 'ogw catalog for another programme: exit 2 (L228)'
         [System.IO.File]::WriteAllText((Join-Path $ogState 'catalogdb.txt'), 'yes')
-        Check ((Run-Og @('-Step', 'catalog-db')) -eq 0 -and (OgLastReport 'CATALOG-DB').Contains('μπαίνει μόνο η νέα στήλη «image»') -and -not ((OgCalls) -match 'ALTER TABLE')) 'ogw catalog-db on a database made before the photos: says it adds their column, adds nothing without -Apply (L231)'
-        Check ((Run-Og @('-Step', 'catalog', '-Program', '138,469')) -eq 0 -and (OgLastReport 'CATALOG').Contains('kotsovolos-gr: ΠΛΗΡΗΣ φόρτωση (νέο κατάστημα στον κατάλογο): μπαίνουν 2 προϊόντα') -and (OgLastReport 'CATALOG').Contains('Πρώτα: νέα στήλη «image»') -and (OgLastReport 'CATALOG').Contains('public-gr: ΠΡΟΣΟΧΗ - δεν βρήκα το feed LINKWISE_469.csv.gz') -and -not ((OgCalls) -match 'd1 execute mega-stores-gear-world-catalog --remote --file')) 'ogw catalog without -Apply: the plan per store from its feed (a new store in full), the photo column first, nothing loaded (L228, L231)'
+        Check ((Run-Og @('-Step', 'catalog-db')) -eq 0 -and (OgLastReport 'CATALOG-DB').Contains('μπαίνουν μόνο οι νέες στήλες «image»') -and -not ((OgCalls) -match 'ALTER TABLE')) 'ogw catalog-db on a database made before the photos: says it adds their column, adds nothing without -Apply (L231)'
+        Check ((Run-Og @('-Step', 'catalog', '-Program', '138,469')) -eq 0 -and (OgLastReport 'CATALOG').Contains('kotsovolos-gr: ΠΛΗΡΗΣ φόρτωση (νέο κατάστημα στον κατάλογο): μπαίνουν 2 προϊόντα') -and (OgLastReport 'CATALOG').Contains('Πρώτα: νέες στήλες «image»') -and (OgLastReport 'CATALOG').Contains('public-gr: ΠΡΟΣΟΧΗ - δεν βρήκα το feed LINKWISE_469.csv.gz') -and -not ((OgCalls) -match 'd1 execute mega-stores-gear-world-catalog --remote --file')) 'ogw catalog without -Apply: the plan per store from its feed (a new store in full), the photo column first, nothing loaded (L228, L231)'
         Check ((Run-Og @('-Step', 'catalog', '-Program', '138', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ OGW ΒΑΣΗ')) -eq 1 -and -not ((OgCalls) -match 'time-travel')) 'ogw catalog with the wrong phrase: no restore point, nothing loaded (L228)'
         # Review 24/11/2026: a store already in the database is not loaded again (D1 bills every row written) unless -Reload;
         # one whose last load stopped half-way is; no answer from the database stops.
@@ -3678,12 +3678,12 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check ((Run-Og @('-Step', 'catalog', '-Program', '138', '-Reload')) -eq 0 -and (OgLastReport 'CATALOG').Contains('kotsovolos-gr: ΠΛΗΡΗΣ φόρτωση (με -Reload): μπαίνουν 2 προϊόντα')) 'ogw catalog -Reload: the store is loaded again in full (L228)'
         # L231: with the phrase: restore point, the photo column, the store's files, then its state file for the next run.
         $ogStateFile = Join-Path (Join-Path $ogWork 'catalog-state') '138.tsv'
-        Check ((Run-Og @('-Step', 'catalog', '-Program', '138', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ OGW ΚΑΤΑΛΟΓΟΣ')) -eq 0 -and ((OgCalls) -match 'd1 time-travel info mega-stores-gear-world-catalog') -and ((OgCalls) -match 'ADD COLUMN image') -and ((OgCalls) -match '--file "[^"]+138-0001\.sql"') -and (Test-Path -LiteralPath $ogStateFile) -and @([System.IO.File]::ReadAllLines($ogStateFile) | Where-Object { $_ -match '\t[0-9a-f]{16}$' }).Count -eq 2 -and (OgLastReport 'CATALOG').Contains('(όπως τις μέτρησε η Cloudflare): 4')) 'ogw catalog with the phrase: restore point, photo column, the files, the rows D1 wrote, and the state file of the store (L231)'
-        Check ((Run-Og @('-Step', 'catalog', '-Program', '138')) -eq 0 -and (OgLastReport 'CATALOG').Contains('kotsovolos-gr: ανανέωση: 2 προϊόντα στο feed· ελέγχονται όλα') -and -not (OgLastReport 'CATALOG').Contains('νέα στήλη')) 'ogw catalog: a state file of another load than the database has (a restore, another PC) is not trusted (L231 review)'
-        # The database says the time of the load the state file is of: only what changed.
+        Check ((Run-Og @('-Step', 'catalog', '-Program', '138', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ OGW ΚΑΤΑΛΟΓΟΣ')) -eq 0 -and ((OgCalls) -match 'd1 time-travel info mega-stores-gear-world-catalog') -and ((OgCalls) -match 'ADD COLUMN image') -and ((OgCalls) -match '--file "[^"]+138-0001\.sql"') -and (Test-Path -LiteralPath $ogStateFile) -and @([System.IO.File]::ReadAllLines($ogStateFile) | Where-Object { $_ -match '^[^\t]+\t[0-9a-f]{16}\t[0-9a-f]{8}$' }).Count -eq 2 -and @([System.IO.File]::ReadAllLines($ogStateFile))[0] -match '^#loaded [0-9a-f]{16}$' -and (OgLastReport 'CATALOG').Contains('(όπως τις μέτρησε η Cloudflare): 4')) 'ogw catalog with the phrase: restore point, the new columns, the files, the rows D1 wrote, and the state file of the store under the id of its load (L231)'
+        Check ((Run-Og @('-Step', 'catalog', '-Program', '138')) -eq 0 -and (OgLastReport 'CATALOG').Contains('kotsovolos-gr: ανανέωση: 2 προϊόντα στο feed· ελέγχονται όλα') -and -not (OgLastReport 'CATALOG').Contains('νέες στήλες')) 'ogw catalog: a state file of another load than the database has (a restore, another PC) is not trusted (L231 review)'
+        # The database has the id of the load the state file is of (stores.run): only what changed.
         $ogHdr = @([System.IO.File]::ReadAllLines($ogStateFile))[0] -replace '^#loaded ', ''
         [System.IO.File]::WriteAllText((Join-Path $ogState 'checkedat.txt'), $ogHdr, [System.Text.Encoding]::ASCII)
-        Check ($ogHdr -match '^\d{4}-\d\d-\d\dT\S+Z$' -and (Run-Og @('-Step', 'catalog', '-Program', '138,138')) -eq 0 -and (OgLastReport 'CATALOG').Contains('kotsovolos-gr: ανανέωση μόνο με ό,τι άλλαξε: 2 προϊόντα στο feed, αλλάζουν ή μπαίνουν 0, φεύγουν 0') -and ([regex]::Matches((OgLastReport 'CATALOG'), 'kotsovolos-gr: ανανέωση')).Count -eq 1 -and -not (OgLastReport 'CATALOG').Contains('νέα στήλη')) 'ogw catalog the next day: only what changed (nothing here), each store once, the column already there (L231)'
+        Check ($ogHdr -match '^[0-9a-f]{16}$' -and (Run-Og @('-Step', 'catalog', '-Program', '138,138')) -eq 0 -and (OgLastReport 'CATALOG').Contains('kotsovolos-gr: ανανέωση μόνο με ό,τι άλλαξε: 2 προϊόντα στο feed, αλλάζουν ή μπαίνουν 0, φεύγουν 0') -and ([regex]::Matches((OgLastReport 'CATALOG'), 'kotsovolos-gr: ανανέωση')).Count -eq 1 -and -not (OgLastReport 'CATALOG').Contains('νέες στήλες')) 'ogw catalog the next day: only what changed (nothing here), each store once, the column already there (L231)'
         [System.IO.File]::WriteAllText((Join-Path $ogState 'filefail.txt'), 'yes')
         Check ((Run-Og @('-Step', 'catalog', '-Program', '138', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ OGW ΚΑΤΑΛΟΓΟΣ')) -eq 12 -and -not (Test-Path -LiteralPath $ogStateFile) -and (OgLastReport 'CATALOG').Contains('μένει στο site· ξαναγίνεται σωστά με το ίδιο βήμα catalog')) 'ogw catalog: a file that fails stops (exit 12) and the store has no state file, so the next run checks every product (L231)'
         Remove-Item -LiteralPath (Join-Path $ogState 'filefail.txt') -Force

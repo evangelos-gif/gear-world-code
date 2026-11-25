@@ -687,23 +687,36 @@ function Find-CatalogDb([string]$folder) {
     }
     return @{ ok = $true; found = $false; id = ''; text = '' }
 }
-# L231: does the table of the categories have its photo column? $true / $false, $null when the database does not answer.
-function Test-CategoryImage([string]$folder) {
-    $qc = Invoke-Wrangler $folder ('d1 execute {0} --remote --json --command "SELECT sql FROM sqlite_master WHERE name = ''categories''"' -f $CatalogDb) -NonInteractive -Retry
+# L231: the two columns a database made before them lacks: categories.image (the photo of each card) and stores.run
+# (the id of each store's last load, review 25/11/2026). @{ image; run } ($true when there), $null when the database does
+# not answer.
+function Get-CatalogColumns([string]$folder) {
+    $qc = Invoke-Wrangler $folder ('d1 execute {0} --remote --json --command "SELECT name, sql FROM sqlite_master WHERE type = ''table''"' -f $CatalogDb) -NonInteractive -Retry
     $cs = Get-JsonArray $qc.text
     if ($null -eq $cs) { return $null }
-    foreach ($block in @($cs)) { foreach ($row in @($block.results)) { if ($row -and ([string]$row.sql) -match '\bimage\b') { return $true } } }
-    return $false
+    $cols = @{ image = $false; run = $false }
+    foreach ($block in @($cs)) {
+        foreach ($row in @($block.results)) {
+            if (-not $row) { continue }
+            if ([string]$row.name -eq 'categories' -and ([string]$row.sql) -match '\bimage\b') { $cols.image = $true }
+            if ([string]$row.name -eq 'stores' -and ([string]$row.sql) -match '\brun\b') { $cols.run = $true }
+        }
+    }
+    return $cols
 }
-# L231: the photo column, added to a database made before it (ALTER TABLE: no row changes, nothing else).
-function Add-CategoryImage([string]$folder) {
-    $a = Invoke-Wrangler $folder ('d1 execute {0} --remote --command "ALTER TABLE categories ADD COLUMN image TEXT NOT NULL DEFAULT ''''"' -f $CatalogDb) -NonInteractive -Retry
+# L231: the missing columns, added (ALTER TABLE: no row changes, nothing else). $true when done.
+function Add-CatalogColumns([string]$folder, $cols) {
+    $sqls = @()
+    if (-not $cols.image) { $sqls += 'ALTER TABLE categories ADD COLUMN image TEXT NOT NULL DEFAULT ''''' }
+    if (-not $cols.run) { $sqls += 'ALTER TABLE stores ADD COLUMN run TEXT NOT NULL DEFAULT ''''' }
+    if ($sqls.Count -eq 0) { return $true }
+    $a = Invoke-Wrangler $folder ('d1 execute {0} --remote --command "{1}"' -f $CatalogDb, ($sqls -join '; ')) -NonInteractive -Retry
     if ($a.code -ne 0 -and $a.text -notmatch '(?i)duplicate column') {
-        Say 'Η νέα στήλη των φωτογραφιών δεν μπήκε: ΠΡΟΒΛΗΜΑ. Δεν φόρτωσα τίποτα. Έξοδος:' $Bad
+        Say 'Οι νέες στήλες δεν μπήκαν: ΠΡΟΒΛΗΜΑ. Δεν φόρτωσα τίποτα. Έξοδος:' $Bad
         foreach ($l2 in @($a.text -split "`n" | Select-Object -Last 15)) { Say ('  ' + $l2) }
         return $false
     }
-    Say 'Μπήκε η στήλη «image» στις κατηγορίες (για τις φωτογραφίες τους).' $Ok
+    Say 'Μπήκαν οι νέες στήλες (φωτογραφίες κατηγοριών, αριθμός φόρτωσης).' $Ok
     return $true
 }
 # L231: the rows D1 wrote for one file, from wrangler's own line ("... rows read, N rows written"); -1 when it does not say.
@@ -809,15 +822,16 @@ if ($Step -eq 'catalog-db') {
     }
     # L231: a database made before the photos of the categories gets their column (nothing else changes).
     $needImage = $false
+    $cols = $null
     if ($f.found -and $have -eq 3) {
-        $hasImage = Test-CategoryImage $ogw
-        if ($null -eq $hasImage) { Say 'Η βάση του καταλόγου δεν απάντησε (μπορεί να φορτώνει): δεν άλλαξε τίποτα. Ξανατρέξε σε λίγα λεπτά.' $Bad; Finish 11 }
-        $needImage = -not $hasImage
+        $cols = Get-CatalogColumns $ogw
+        if ($null -eq $cols) { Say 'Η βάση του καταλόγου δεν απάντησε (μπορεί να φορτώνει): δεν άλλαξε τίποτα. Ξανατρέξε σε λίγα λεπτά.' $Bad; Finish 11 }
+        $needImage = -not ($cols.image -and $cols.run)
     }
     Say ''
     Say 'Τι θα γίνει:'
     if ($f.found -and $have -eq 3 -and -not $needImage) { Say ('  - Η βάση "{0}" υπάρχει ήδη με τους πίνακές της: δεν χρειάζεται τίποτα.' -f $CatalogDb) $Ok; Finish 0 }
-    if ($needImage) { Say ('  - Η βάση "{0}" υπάρχει: μπαίνει μόνο η νέα στήλη «image» στον πίνακα των κατηγοριών, για τις φωτογραφίες τους (κανένα δεδομένο δεν αλλάζει).' -f $CatalogDb) }
+    if ($needImage) { Say ('  - Η βάση "{0}" υπάρχει: μπαίνουν μόνο οι νέες στήλες «image» (φωτογραφίες κατηγοριών) και «run» (αριθμός φόρτωσης· κανένα δεδομένο δεν αλλάζει).' -f $CatalogDb) }
     elseif ($f.found) { Say ('  - Η βάση "{0}" υπάρχει: φτιάχνονται οι πίνακες που λείπουν (κανένα δεδομένο δεν αλλάζει).' -f $CatalogDb) }
     else {
         Say ('  - Νέα βάση D1 "{0}" στην Cloudflare, μόνο για τον κατάλογο του Mega Stores (ποτέ για τα 13 sites, το Hub ή την εφαρμογή).' -f $CatalogDb)
@@ -827,7 +841,7 @@ if ($Step -eq 'catalog-db') {
     if (-not $Apply) { Say ''; Say 'Δοκιμή μόνο (χωρίς -Apply): δεν άλλαξε τίποτα.' $Ok; Finish 0 }
     if (-not (Confirm-Approval $PhraseDb)) { Say 'Δεν δόθηκε η έγκριση για τη βάση: σταμάτησα χωρίς αλλαγές.' $Warn; Finish 1 }
     if ($needImage) {
-        if (-not (Add-CategoryImage $ogw)) { Finish 9 }
+        if (-not (Add-CatalogColumns $ogw $cols)) { Finish 9 }
         Say ('ΕΤΟΙΜΟ: η βάση "{0}" έχει τη στήλη των φωτογραφιών.' -f $CatalogDb) $Ok
         Finish 0
     }
@@ -853,7 +867,11 @@ if ($Step -eq 'catalog') {
     if (-not $f.found) { Say ('Η βάση "{0}" δεν υπάρχει ακόμα: πρώτα το βήμα catalog-db. Δεν άλλαξε τίποτα.' -f $CatalogDb) $Bad; Finish 14 }
     # What the database has now, before the feeds are read (L231): a store with products whose last load ended well is
     # only refreshed (what changed); a new one, one that stopped half-way (loading = 1) or -Reload is loaded in full.
-    $q0 = Invoke-Wrangler $ogw ('d1 execute {0} --remote --json --command "SELECT program, products, loading, checked_at FROM stores"' -f $CatalogDb) -NonInteractive -Retry
+    $cols = Get-CatalogColumns $ogw
+    if ($null -eq $cols) { Say 'Η βάση του καταλόγου δεν απάντησε (μπορεί να φορτώνει ήδη): δεν άλλαξε τίποτα. Ξανατρέξε σε λίγα λεπτά.' $Bad; Finish 11 }
+    $runCol = ''
+    if ($cols.run) { $runCol = ', run' }
+    $q0 = Invoke-Wrangler $ogw ('d1 execute {0} --remote --json --command "SELECT program, products, loading{1} FROM stores"' -f $CatalogDb, $runCol) -NonInteractive -Retry
     $have = Get-JsonArray $q0.text
     if ($null -eq $have) { Say 'Η βάση του καταλόγου δεν απάντησε (μπορεί να φορτώνει ήδη): δεν άλλαξε τίποτα. Ξανατρέξε σε λίγα λεπτά.' $Bad; Finish 11 }
     $loaded = @{}
@@ -865,16 +883,15 @@ if ($Step -eq 'catalog') {
             $was[[string]$row.program] = [int]$row.products
             if ([int]$row.products -gt 0 -and [int]$row.loading -eq 0) {
                 $loaded[[string]$row.program] = [int]$row.products
-                # The time of the feed of its last load: the state file of the PC counts only for that load (review 25/11/2026).
-                $when0 = [string]$row.checked_at
-                if ($when0 -match '^\S+$') { $at += ('{0}={1}' -f $row.program, $when0) }
+                # The id of its last load: the state file of the PC counts only for that load (review 25/11/2026).
+                $run0 = [string]$row.run
+                if ($run0 -match '^[0-9a-f]{8,32}$') { $at += ('{0}={1}' -f $row.program, $run0) }
             }
         }
     }
     $haveArg = '0'
     if ($at.Count -gt 0) { $haveArg = $at -join ',' }
-    $hasImage = Test-CategoryImage $ogw
-    if ($null -eq $hasImage) { Say 'Η βάση του καταλόγου δεν απάντησε (μπορεί να φορτώνει ήδη): δεν άλλαξε τίποτα. Ξανατρέξε σε λίγα λεπτά.' $Bad; Finish 11 }
+    $hasImage = $cols.image -and $cols.run
     $full = @($progs | Where-Object { $Reload -or -not $loaded.ContainsKey($_) })
     $fullArg = '0'
     if ($full.Count -gt 0) { $fullArg = $full -join ',' }
@@ -931,7 +948,7 @@ if ($Step -eq 'catalog') {
         else { Say ('  - {0}: ΠΡΟΣΟΧΗ - το feed δεν διαβάστηκε: δεν φορτώνεται.' -f $p[1]) $Warn }
     }
     if ($ready.Count -eq 0) { Say ''; Say 'Τίποτα για φόρτωση: δεν άλλαξε τίποτα.' $Warn; if (Test-Path -LiteralPath $out) { Remove-Item -LiteralPath $out -Recurse -Force -ErrorAction SilentlyContinue }; Finish 0 }
-    if (-not $hasImage) { Say '  - Πρώτα: νέα στήλη «image» στον πίνακα των κατηγοριών, για τις φωτογραφίες τους (L231· κανένα δεδομένο δεν αλλάζει).' }
+    if (-not $hasImage) { Say '  - Πρώτα: νέες στήλες «image» (φωτογραφίες κατηγοριών) και «run» (αριθμός φόρτωσης), L231· κανένα δεδομένο δεν αλλάζει.' }
     Say ('  - Αλλάζει ΜΟΝΟ η βάση "{0}" του Mega Stores· το site δεν ξανανεβαίνει (τη διαβάζει αμέσως).' -f $CatalogDb)
     if ($anyRefresh) { Say '  - Τα καταστήματα που ανανεώνονται μένουν στο site όλη την ώρα· η νέα ώρα ελέγχου των τιμών φαίνεται μόλις τελειώσει το καθένα.' }
     if ($anyFull) { Say '  - Όσο φορτώνει από την αρχή ένα κατάστημα (λίγα λεπτά), οι σελίδες των κατηγοριών του λένε «ενημερώνεται» και η σελίδα του μένει με τα σετ και τις ιδέες.' }
@@ -949,7 +966,7 @@ if ($Step -eq 'catalog') {
     [System.IO.File]::WriteAllText($backup, $note, (New-Object System.Text.UTF8Encoding($false)))
     Say ('Σημείο επαναφοράς: {0}' -f $backup) $Ok
     if (-not $hasImage) {
-        if (-not (Add-CategoryImage $ogw)) { Remove-Item -LiteralPath $out -Recurse -Force -ErrorAction SilentlyContinue; Finish 12 }
+        if (-not (Add-CatalogColumns $ogw $cols)) { Remove-Item -LiteralPath $out -Recurse -Force -ErrorAction SilentlyContinue; Finish 12 }
     }
     # Store by store (L231): its last good state file goes before its first file and the new one comes after its last,
     # so a store that stops half-way is checked product by product next time. Only the files of the stores above

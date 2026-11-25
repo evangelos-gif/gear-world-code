@@ -1,7 +1,7 @@
 // The catalogue of the big Linkwise stores of Mega Stores Gear World (owner, 24 Nov 2026, lessons L228, L231).
 //
 //   node tools/ogw-catalog.mjs --archive <GW_AWIN_BULK_ARCHIVE> --out <folder> --program 138,13026 [--full 13026]
-//                              [--state <folder>] [--have 138=<ISO>,...] [--config <file>] [--now <ISO>]
+//                              [--state <folder>] [--have 138=<load id>,...] [--config <file>] [--now <ISO>]
 //
 // For each programme it reads the store's own Linkwise product feed (LINKWISE_<programme>.csv.gz with the Awin column
 // names, read at most 23 hours ago, as for the prices of L227) and writes SQL files for the store's own D1 database
@@ -16,11 +16,11 @@
 //        product in (INSERT OR REPLACE: a file can be sent twice), its categories, its row in stores, no longer loading.
 //   refresh (every other store, L231: D1 bills every row written, so a daily full load would cost ~$110-210 a month):
 //        only what changed since the last load that ended well (--state <folder>/<programme>.tsv: the id and two hashes
-//        of each product as it was sent, under the time of that load's feed), as INSERT ... ON CONFLICT DO UPDATE ...
+//        of each product as it was sent, under the id of that load), as INSERT ... ON CONFLICT DO UPDATE ...
 //        WHERE something differs; a product whose place and categories did not change updates only its own columns
-//        (D1 writes no index row for it: ~1 row instead of ~4). The state file counts only when its time is the one the
-//        database has for the store (--have, from its table stores): a restore, another PC or a send that did not end
-//        well make them differ. Without a state file that counts, every product goes, with the same WHERE, so a row that
+//        (D1 writes no index row for it: ~1 row instead of ~4). The state file counts only when its load id is the one
+//        the database has for the store (stores.run, written by the store's last statement; --have from the table
+//        stores): a restore, another PC or a send that did not end well make them differ. Without a state file that counts, every product goes, with the same WHERE, so a row that
 //        is already right is not written again. Then, a range of ids at a time (the primary key), the products of the
 //        store that are no longer in the feed go (DELETE ... NOT IN), the categories the same way, and its row in stores
 //        (the time of the feed). The store stays on the site the whole time: never half a store, never "loading".
@@ -34,7 +34,7 @@
 //           <full|refresh|check> <products sent> <products gone, -1 unknown>
 //   CATALOG-DONE <stores> <products> <files>
 import { createReadStream, existsSync, mkdirSync, openSync, closeSync, writeSync, writeFileSync, readFileSync, statSync, renameSync, rmSync, readdirSync } from 'node:fs';
-import { createHash } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import { createGunzip } from 'node:zlib';
 import { pipeline } from 'node:stream';
 import { dirname, join, resolve } from 'node:path';
@@ -212,10 +212,11 @@ function addTop(c, price, pos, image) {
 }
 export const categoryImage = c => (c.top && c.top.length ? c.top[Math.floor((c.top.length - 1) / 2)].image : '');
 const hashOf = v => createHash('sha1').update(v).digest('hex').slice(0, 16);
-// The ids and hashes of a store's last load that ended well (<programme>.tsv: "#loaded <time of its feed>", then
-// "<id>\t<hash of the row>\t<hash of its place and categories>"), null without one. expect: the time the database has
-// for the store (review 25/11/2026: after a restore of the database, or a load from another PC, the file no longer
-// says what the database holds, and a refresh from it would leave old prices behind); undefined = not checked.
+// The ids and hashes of a store's last load that ended well (<programme>.tsv: "#loaded <id of that load>", then
+// "<id>\t<hash of the row>\t<hash of its place and categories>"), null without one. expect: the load id the database
+// has for the store, stores.run (review 25/11/2026: after a restore of the database, or a load from another PC, the
+// file no longer says what the database holds, and a refresh from it would leave old prices behind; the time of the
+// feed is not enough, the same feed can be loaded twice); undefined = not checked.
 export function readState(dir, program, expect) {
   if (!dir) return null;
   const f = join(dir, `${program}.tsv`);
@@ -223,8 +224,8 @@ export function readState(dir, program, expect) {
   const lines = readFileSync(f, 'utf8').split('\n');
   if (expect !== undefined && (!expect || lines[0] !== `#loaded ${expect}`)) return null;
   const m = new Map();
-  for (const line of lines) {
-    if (line.startsWith('#')) continue;
+  for (const [n, line] of lines.entries()) {
+    if (n === 0 && line.startsWith('#loaded')) continue;
     const [pid, h, i] = line.split('\t');
     if (pid && h) m.set(pid, { h: h.trim(), i: (i || '').trim() });
   }
@@ -243,6 +244,8 @@ const CATEGORY_UPSERT = ` ON CONFLICT(program, id) DO UPDATE SET ${CCOLS.map(c =
 // no state file, so every product is sent with the WHERE that skips the rows already right).
 export async function buildStore(store, file, outDir, feedIso, { mode = 'full', state = null } = {}) {
   const full = mode === 'full';
+  // The id of this load (review 25/11/2026): in the store's last statement and at the top of its state file.
+  const run = randomBytes(8).toString('hex');
   const how = full ? 'full' : (state ? 'refresh' : 'check');
   // Pass 1: the price of each page (two rows of one page with different prices: left out).
   const pagePrice = new Map();
@@ -335,14 +338,14 @@ export async function buildStore(store, file, outDir, feedIso, { mode = 'full', 
   let picks = {};
   if (store.picks.length) { try { picks = (await pricesFromFeed(feedStream(file), store.picks)).prices; } catch { picks = {}; } }
   // Last: the store's row (the time of its feed), so the site shows the new time only when everything is in.
-  sql.write(`INSERT INTO stores (program, slug, checked_at, products, loading, picks) VALUES (${store.program}, ${sq(store.slug)}, ${sq(feedIso)}, ${products}, 0, ${sq(JSON.stringify(picks))}) ON CONFLICT(program) DO UPDATE SET slug = excluded.slug, checked_at = excluded.checked_at, products = excluded.products, loading = 0, picks = excluded.picks;`);
+  sql.write(`INSERT INTO stores (program, slug, checked_at, products, loading, picks, run) VALUES (${store.program}, ${sq(store.slug)}, ${sq(feedIso)}, ${products}, 0, ${sq(JSON.stringify(picks))}, ${sq(run)}) ON CONFLICT(program) DO UPDATE SET slug = excluded.slug, checked_at = excluded.checked_at, products = excluded.products, loading = 0, picks = excluded.picks, run = excluded.run;`);
   sql.close();
   const stateFile = join(outDir, `tmp-${store.program}.state`);
-  writeFileSync(stateFile, [`#loaded ${feedIso}`, ...stateLines].join('\n') + '\n', 'utf8');
-  return { products, categories: cats.size, left, files: sql.files, picks: Object.keys(picks).length, mode: how, sent, gone, state: stateFile };
+  writeFileSync(stateFile, [`#loaded ${run}`, ...stateLines].join('\n') + '\n', 'utf8');
+  return { products, categories: cats.size, left, files: sql.files, picks: Object.keys(picks).length, mode: how, sent, gone, state: stateFile, run };
 }
 
-// loaded: { <programme>: the time of the feed the database has for it } (--have); null = the state files are not checked.
+// loaded: { <programme>: the load id the database has for it, stores.run } (--have); null = the state files are not checked.
 export async function buildCatalog({ archive, out, programs, config, now = Date.now(), full = null, stateDir = '', loaded = null }) {
   const stores = directStoresFromConfig(readFileSync(config, 'utf8'));
   mkdirSync(out, { recursive: true });
@@ -391,12 +394,12 @@ if (process.argv[1] && pathToFileURL(resolve(process.argv[1])).href === import.m
     const now = a.now ? Date.parse(a.now) : Date.now();
     const programs = String(a.program || '').split(/[,\s]+/).filter(Boolean).map(Number);
     if (!a.out || !Number.isFinite(now) || !programs.length || programs.some(p => !Number.isInteger(p) || p <= 0)) {
-      console.log('CATALOG-ERROR usage: --archive <folder> --out <folder> --program <ids> [--full <ids>] [--state <folder>] [--have <id>=<ISO>,...] [--config <file>] [--now <ISO>]');
+      console.log('CATALOG-ERROR usage: --archive <folder> --out <folder> --program <ids> [--full <ids>] [--state <folder>] [--have <programme>=<load id>,...] [--config <file>] [--now <ISO>]');
       process.exit(2);
     }
     // --full 0: no store in full (Windows PowerShell 5.1 does not pass an empty argument).
     const full = a.full === undefined ? null : String(a.full).split(/[,\s]+/).map(Number).filter(n => Number.isInteger(n) && n > 0);
-    // --have 138=<ISO>,469=<ISO> (0: no store): the time of the feed the database has for each store.
+    // --have 138=<load id>,469=<load id> (0: no store): stores.run of each store in the database.
     let loaded = null;
     if (a.have !== undefined) {
       loaded = {};

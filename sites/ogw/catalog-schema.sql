@@ -8,7 +8,9 @@
 -- sets it, its last file clears it): the pages say "is being updated" instead of showing half a store.
 -- categories.image (L231): the photo of its card, one of its own products; a database made before it gets the column
 -- from tools/ogw-site.ps1 (ALTER TABLE, nothing else changes) and the Worker reads it only when it is there.
-CREATE TABLE IF NOT EXISTS stores (program INTEGER PRIMARY KEY, slug TEXT NOT NULL, checked_at TEXT NOT NULL, products INTEGER NOT NULL DEFAULT 0, loading INTEGER NOT NULL DEFAULT 0, picks TEXT NOT NULL DEFAULT '{}');
+-- stores.run (L231 review): the id of the store's last load that ended (its last statement writes it); the PC's
+-- state file of that load counts for a refresh only while the database has the same id. Added the same way.
+CREATE TABLE IF NOT EXISTS stores (program INTEGER PRIMARY KEY, slug TEXT NOT NULL, checked_at TEXT NOT NULL, products INTEGER NOT NULL DEFAULT 0, loading INTEGER NOT NULL DEFAULT 0, picks TEXT NOT NULL DEFAULT '{}', run TEXT NOT NULL DEFAULT '');
 CREATE TABLE IF NOT EXISTS categories (program INTEGER NOT NULL, id INTEGER NOT NULL, parent INTEGER NOT NULL, level INTEGER NOT NULL, name TEXT NOT NULL, slug TEXT NOT NULL, products INTEGER NOT NULL DEFAULT 0, image TEXT NOT NULL DEFAULT '', PRIMARY KEY (program, id));
 CREATE INDEX IF NOT EXISTS categories_parent ON categories (program, parent);
 CREATE TABLE IF NOT EXISTS products (program INTEGER NOT NULL, pid TEXT NOT NULL, pos INTEGER NOT NULL, c1 INTEGER NOT NULL, c2 INTEGER NOT NULL, c3 INTEGER NOT NULL, name TEXT NOT NULL, brand TEXT NOT NULL DEFAULT '', page TEXT NOT NULL, image TEXT NOT NULL, price REAL NOT NULL, PRIMARY KEY (program, pid)) WITHOUT ROWID;
