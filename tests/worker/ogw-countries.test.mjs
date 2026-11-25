@@ -66,8 +66,8 @@ test('L210: where an entry delivers: its deliversTo, the UK when it has none, WO
   assert.equal(deliversHere({ deliversTo: ['gb', 'gr'] }, 'GR'), true, 'any letter case');
   assert.equal(deliversHere({ deliversTo: ['WORLD'] }, 'JP'), true);
   assert.equal(amazonHere(site, 'GB'), true, 'Amazon UK for the UK');
-  // The editions of L232 (25 Nov 2026): Germany 6, Poland 3 and the US 11 stores of the Gear World sites.
-  const listed = { GR: GR_NAMES.length, CY: CY_NAMES.length, DE: 6, PL: 3, US: 11 };
+  // The editions of L232 (25 Nov 2026): Germany 6, Poland 5 (with its 2 tyre stores) and the US 11 stores of the sites.
+  const listed = { GR: GR_NAMES.length, CY: CY_NAMES.length, DE: 6, PL: 5, US: 11 };
   assert.deepEqual([GR_NAMES.length, CY_NAMES.length], [7, 2], 'the 7 Greek stores, 2 of them for Cyprus too');
   for (const cc of ['GR', 'CY', 'US', 'DE', 'PL', 'IE', 'JP', 'XX', 'T1']) {
     assert.equal(amazonHere(site, cc), false, `${cc}: no Amazon UK`);

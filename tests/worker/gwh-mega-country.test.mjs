@@ -45,7 +45,7 @@ test('L211: the bar\'s stores are the stores of megastoresgearworld.com, Amazon 
   assert.deepEqual(megaStoresFor('CY', []).map(s => s.name), ['Parex GR', 'Tsakiris Mallas GR']);
   for (const cc of ['IE', 'JP', 'XX']) assert.deepEqual(megaStoresFor(cc), [], `${cc}: none`);
   // L232: the editions of Germany, Austria, the Netherlands, Belgium, the US and Poland.
-  assert.deepEqual(['DE', 'AT', 'NL', 'BE', 'US', 'PL'].map(cc => megaStoresFor(cc).length), [6, 4, 7, 4, 11, 3]);
+  assert.deepEqual(['DE', 'AT', 'NL', 'BE', 'US', 'PL'].map(cc => megaStoresFor(cc).length), [6, 5, 8, 6, 11, 5]);
   assert.ok(coversCountry(['WORLD'], 'JP') && coversCountry('GB GR', 'GR') && coversCountry('', 'GB') && !coversCountry('', 'GR'));
 });
 
@@ -96,10 +96,10 @@ test('L214: Greece opens Mega Stores /gr/, every other country with stores its h
   for (const [cc, url] of Object.entries(MEGA_EDITION_HOME)) assert.equal(url, `https://megastoresgearworld.com/${cc.toLowerCase()}/`);
   assert.equal(megaHomeFor('us'), 'https://megastoresgearworld.com/us/');
   // L232 (review 25/11/2026): an edition with fewer than 3 stores is closed there too, so the Hub opens the home page.
-  const fewer = MEGA_BAR_STORES.filter(x => x.slug !== 'invicta-stores');
+  const fewer = MEGA_BAR_STORES.filter(x => !['invicta-stores', 'oponytanio-pl', 'tanie-opony-pl'].includes(x.slug));
   assert.equal(megaHomeFor('PL', [], fewer), 'https://megastoresgearworld.com/', 'Poland with 2 stores: the home page');
   assert.equal(megaHomeFor('DE', [], fewer), 'https://megastoresgearworld.com/de/', 'Germany keeps 5');
-  assert.equal(megaHomeFor('PL'), 'https://megastoresgearworld.com/pl/', 'Poland has 3');
+  assert.equal(megaHomeFor('PL'), 'https://megastoresgearworld.com/pl/', 'Poland has 5');
   assert.equal(megaHomeFor('GR', ['linkwise']), 'https://megastoresgearworld.com/gr/', 'Greece always (L214)');
   assert.equal(megaHomeFor('GR'), 'https://megastoresgearworld.com/gr/');
   assert.equal(megaHomeFor('gr'), 'https://megastoresgearworld.com/gr/');

@@ -1715,7 +1715,13 @@ export const MEGA_BAR_STORES = [
   { slug: "aosom", name: "Aosom", deliversTo: ["US"] },
   { slug: "fragrance-outlet", name: "Fragrance Outlet", deliversTo: ["US"] },
   { slug: "perfumania", name: "Perfumania", deliversTo: ["US"] },
-  { slug: "dream-pairs", name: "Dream Pairs", deliversTo: ["US"] }
+  { slug: "dream-pairs", name: "Dream Pairs", deliversTo: ["US"] },
+  { slug: "reifendirekt-at", name: "ReifenDirekt.at", deliversTo: ["AT"] },
+  { slug: "autobandenmarkt-nl", name: "Autobandenmarkt.nl", deliversTo: ["NL"] },
+  { slug: "pneus-be", name: "Pneus.be", deliversTo: ["BE"] },
+  { slug: "123pneus-be", name: "123pneus.be", deliversTo: ["BE"] },
+  { slug: "oponytanio-pl", name: "Oponytanio PL", deliversTo: ["PL"] },
+  { slug: "tanie-opony-pl", name: "Tanie-Opony.pl", deliversTo: ["PL"] }
 ];
 export function megaCountry(request) {
   const ua = String(request.headers.get("User-Agent") || "");

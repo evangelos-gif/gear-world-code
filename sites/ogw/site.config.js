@@ -299,8 +299,8 @@ export default {
     // The editions of Germany, Austria, the Netherlands, Belgium, the US and Poland (owner, 25 Nov 2026, lessons L232):
     // the stores of the Gear World sites listed for those countries, as each site's /api/stats gave them on 25 Nov 2026
     // (`name` its `retailer` value, `sites` by number of products, `deliversTo` only the countries of these editions).
-    // Their products are read for the country of the page (storeIn). Left out for now: the tyre stores (ReifenDirekt.at,
-    // Autobandenmarkt.nl, Pneus.be, 123pneus.be, Oponytanio PL, Tanie-Opony.pl) and stores with under 1,500 products.
+    // Their products are read for the country of the page (storeIn). Left out: stores with under 1,500 products. The 6
+    // tyre stores of Car Gear World came in on 25 Nov 2026 (owner: «ναι»; they keep Poland above the minimum of 3).
     // No logo yet: a text badge with the name.
     { slug: 'westwing-de', name: 'Westwing DE', sites: ['HGW'], deliversTo: ['DE'], line: 'Furniture and home textiles.' },
     { slug: 'la-redoute-de', name: 'La Redoute DE', sites: ['HGW'], deliversTo: ['DE'], line: 'Clothing, furniture and home decor.' },
@@ -324,7 +324,13 @@ export default {
     { slug: 'aosom', name: 'Aosom', sites: ['HGW', 'GGW'], deliversTo: ['US'], line: 'Home, garden and outdoor furniture.' },
     { slug: 'fragrance-outlet', name: 'Fragrance Outlet', sites: ['WGW', 'MGW'], deliversTo: ['US'], line: 'Fragrances for women and men.' },
     { slug: 'perfumania', name: 'Perfumania', sites: ['WGW', 'MGW'], deliversTo: ['US'], line: 'Fragrances for women and men.' },
-    { slug: 'dream-pairs', name: 'Dream Pairs', sites: ['WGW', 'MGW', 'KGW'], deliversTo: ['US'], line: 'Shoes for women, men and children.' }
+    { slug: 'dream-pairs', name: 'Dream Pairs', sites: ['WGW', 'MGW', 'KGW'], deliversTo: ['US'], line: 'Shoes for women, men and children.' },
+    { slug: 'reifendirekt-at', name: 'ReifenDirekt.at', sites: ['AGW'], deliversTo: ['AT'], line: 'Car tyres.' },
+    { slug: 'autobandenmarkt-nl', name: 'Autobandenmarkt.nl', sites: ['AGW'], deliversTo: ['NL'], line: 'Car tyres.' },
+    { slug: 'pneus-be', name: 'Pneus.be', sites: ['AGW'], deliversTo: ['BE'], line: 'Car tyres.' },
+    { slug: '123pneus-be', name: '123pneus.be', sites: ['AGW'], deliversTo: ['BE'], line: 'Car tyres.' },
+    { slug: 'oponytanio-pl', name: 'Oponytanio PL', sites: ['AGW'], deliversTo: ['PL'], line: 'Car tyres.' },
+    { slug: 'tanie-opony-pl', name: 'Tanie-Opony.pl', sites: ['AGW'], deliversTo: ['PL'], line: 'Car tyres.' }
   ],
   // Black Friday 2026 (Friday 27 Nov), Cyber Monday (Monday 30 Nov) and Christmas: the countdown line and the Black Friday
   // block of the home page (until the end of Cyber Monday). Never a promise of discounts.

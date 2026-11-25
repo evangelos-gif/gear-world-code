@@ -243,7 +243,7 @@ test('addresses: www, final slash, unknown pages, methods, robots, sitemap and v
   // Every page of the UK view and the Amazon page (L210), and the Greek edition: /gr/ and its 7 store pages (L214).
   // Since L232 the six new editions too: each home page and its store pages (tests/worker/ogw-editions-l232.test.mjs).
   const newEditions = EDITIONS.filter(e => e.minStores).reduce((n, e) => n + 1 + editionStores(site, e).length, 0);
-  assert.equal(newEditions, 6 + 35);
+  assert.equal(newEditions, 6 + 41);
   assert.equal((x.text.match(/<loc>/g) || []).length, ALL_PAGES.length - NEW_STORES.length - Object.keys(GREEK).length + 1 + 1 + Object.keys(GREEK).length + newEditions, 'the UK view, Amazon, /gr/ and the editions of L232');
   for (const p of UK_STORE_PAGES) assert.ok(x.text.includes(`<loc>https://megastoresgearworld.com${p}</loc>`), `sitemap: ${p}`);
   for (const slug of Object.keys(GREEK)) {

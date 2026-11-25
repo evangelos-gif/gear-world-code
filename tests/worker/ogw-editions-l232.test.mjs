@@ -55,12 +55,12 @@ test('L232: six new editions, each in its country\'s language, its own hreflang,
   assert.equal(MIN_EDITION_STORES, 3);
   assert.deepEqual(NEW.map(e => e.minStores), [3, 3, 3, 3, 3, 3]);
   const counts = Object.fromEntries(NEW.map(e => [e.country, editionStores(site, e).length]));
-  assert.deepEqual(counts, { DE: 6, AT: 4, NL: 7, BE: 4, US: 11, PL: 3 });
+  assert.deepEqual(counts, { DE: 6, AT: 5, NL: 8, BE: 6, US: 11, PL: 5 }, 'with the 6 tyre stores (owner, 25 Nov 2026)');
   assert.deepEqual(openEditions(site).map(e => e.prefix), EDITIONS.map(e => e.prefix), 'every edition is open');
   assert.ok(!EDITIONS.some(e => e.country === 'IE'), 'Ireland waits for its stores (chat 7)');
   // The new stores: Gear World site stores (no network, no logo), listed only for these six countries.
   const fresh = awinStores(site).filter(s => (s.deliversTo || []).some(c => NEW.some(e => e.country === c)));
-  assert.equal(fresh.length, 23);
+  assert.equal(fresh.length, 29);
   for (const s of fresh) {
     assert.ok(s.deliversTo.every(c => NEW.some(e => e.country === c)), `${s.slug}: only the six countries`);
     assert.ok(!deliversHere(s, 'GB') && !deliversHere(s, 'GR') && !deliversHere(s, 'CY'), `${s.slug}: never the UK or Greece`);
@@ -152,7 +152,7 @@ test('L232: a store listed for several countries: each country its own products 
 
 test('L232: an edition with fewer than 3 stores is closed: its addresses go to the international page, no sitemap, no hreflang', async () => {
   // Poland with only AliExpress PL and HOME-TEX.
-  const s = { ...site, stores: site.stores.filter(x => x.slug !== 'invicta-stores') };
+  const s = { ...site, stores: site.stores.filter(x => !['invicta-stores', 'oponytanio-pl', 'tanie-opony-pl'].includes(x.slug)) };
   const pl = EDITIONS.find(e => e.country === 'PL');
   assert.equal(editionStores(s, pl).length, 2);
   assert.equal(editionOpen(s, pl), false);
