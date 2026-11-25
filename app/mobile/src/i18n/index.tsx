@@ -6,6 +6,7 @@ import { APP_STRINGS, type AppKey } from './app-strings';
 import { DEFAULT_LOCALE, fill, isLocale, lookup, pickLocale, type Dict, type LocaleCode } from './core';
 import { FEATURE_STRINGS, type FeatureKey } from './feature-strings';
 import HUB from './hub-strings.json';
+import { RELEASE_STRINGS, type ReleaseKey } from './release-strings';
 // Seasons, campaigns and deals: the Hub home page texts (hub-v2.js), copied so the app and the Hub say the same.
 import SEASON from './season-strings.json';
 
@@ -15,13 +16,28 @@ type HubEntry = (typeof HUB)['en-GB'];
 type HubTextKey = { [K in keyof HubEntry]: HubEntry[K] extends string ? K : never }[keyof HubEntry];
 type HubListKey = { [K in keyof HubEntry]: HubEntry[K] extends string[] ? K : never }[keyof HubEntry];
 type SeasonKey = keyof (typeof SEASON)['en-GB'];
-export type TextKey = AppKey | FeatureKey | HubTextKey | SeasonKey;
+export type TextKey = AppKey | FeatureKey | ReleaseKey | HubTextKey | SeasonKey;
 
 const DICTS: Record<string, Dict> = {};
 for (const code of Object.keys(HUB)) {
   DICTS[code] = {
-    ...(SEASON as Record<string, Dict>)[code], ...(HUB as Record<string, Dict>)[code], ...(APP_STRINGS[code] ?? {}), ...(FEATURE_STRINGS[code] ?? {})
+    ...(SEASON as Record<string, Dict>)[code], ...(HUB as Record<string, Dict>)[code], ...(APP_STRINGS[code] ?? {}), ...(FEATURE_STRINGS[code] ?? {}),
+    ...(RELEASE_STRINGS[code] ?? {})
   };
+}
+
+/** A text outside the screens (the background price check, 1.0.2). */
+export function translate(locale: LocaleCode, key: TextKey, vars?: Record<string, string | number>): string {
+  return fill(String(lookup(DICTS, locale, key)), vars);
+}
+
+/** The language the person chose in the app, else the phone's language (also in the background). */
+export async function storedLocale(): Promise<LocaleCode> {
+  try {
+    const saved = await AsyncStorage.getItem(STORAGE_KEY);
+    if (isLocale(saved)) return saved;
+  } catch { /* storage not readable: the phone's language */ }
+  return deviceLocale();
 }
 
 type I18n = {

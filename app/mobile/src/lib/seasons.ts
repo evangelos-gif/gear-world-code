@@ -3,8 +3,9 @@
 // Rules kept from the Hub: shopping seasons only (never "new site" news); every deal comes from the Hub's
 // hub-deals.json with its end date; the app never shows a code and never links to /go/ or /out/ (the button opens
 // the retailer page of a Gear World site); all days are UK days (lessons L32).
+import { isShown } from './client.ts';
 
-const DAY = /^\d{4}-\d{2}-\d{2}$/;
+const DAY =/^\d{4}-\d{2}-\d{2}$/;
 const pad = (n: number) => String(n).padStart(2, '0');
 const isoUtc = (y: number, m: number, d: number) => new Date(Date.UTC(y, m - 1, d)).toISOString().slice(0, 10);
 
@@ -174,7 +175,8 @@ export function parseDeals(data: unknown): Deal[] {
       sites: Array.isArray(d.sites) ? d.sites.map(s => text(s, 6).toUpperCase()).filter(s => /^[A-Z]{3}$/.test(s)) : [],
       start: text(d.start, 10), end: text(d.end, 10), link, off: amount(d.off), minSpend: amount(d.minSpend), upTo: amount(d.upTo)
     };
-    if (deal.id && deal.retailer && DAY.test(deal.start) && DAY.test(deal.end) && LINK.test(link)) out.push(deal);
+    // Never Amazon, and never a retailer the Hub asks the app to hide (1.0.2, src/lib/client.ts).
+    if (deal.id && deal.retailer && DAY.test(deal.start) && DAY.test(deal.end) && LINK.test(link) && isShown({ retailer: deal.retailer, productUrl: link })) out.push(deal);
   }
   return out;
 }

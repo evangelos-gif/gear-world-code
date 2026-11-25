@@ -13,6 +13,7 @@ import { useI18n } from '@/i18n';
 import { worldProducts, type Product, type SortKey } from '@/lib/api';
 import { openInBrowser } from '@/lib/open';
 import { rememberProducts } from '@/lib/product-cache';
+import { useSettings } from '@/lib/settings-context';
 import { apiSlug, categoriesFor } from '@/lib/site-categories';
 import { activeDeals, ukDay } from '@/lib/seasons';
 import { useDeals } from '@/lib/use-deals';
@@ -32,6 +33,8 @@ export default function WorldScreen() {
   const params = useLocalSearchParams<{ key: string; category?: string }>();
   const { find, loading: worldsLoading } = useWorlds();
   const { deals } = useDeals();
+  // A new delivery country (Settings, 1.0.2) loads the world again.
+  const { country } = useSettings();
   // Android draws the app behind its own buttons at the bottom: the list ends above them (owner, 4/11/2026).
   const bottom = useSafeAreaInsets().bottom;
   const world = find(String(params.key ?? ''));
@@ -66,7 +69,7 @@ export default function WorldScreen() {
     } finally {
       if (id === request.current) setLoading(false);
     }
-  }, [world, search, category, sort]);
+  }, [world, search, category, sort, country]);
 
   useEffect(() => { load(1); }, [load]);
 

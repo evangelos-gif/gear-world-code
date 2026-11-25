@@ -1,11 +1,15 @@
-import { Stack } from 'expo-router';
+import * as Notifications from 'expo-notifications';
+import { router, Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, type ReactNode } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { I18nProvider, useI18n } from '@/i18n';
+// The background price check must be defined when the app's code loads (version 1.0.2).
+import '@/lib/price-task';
 import { SavedProvider } from '@/lib/saved-context';
+import { SettingsProvider } from '@/lib/settings-context';
 import { WorldsProvider } from '@/lib/worlds-context';
 import { C } from '@/theme';
 
@@ -19,18 +23,36 @@ function HideSplashWhenReady({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
 
+/** A tapped price alert opens its saved product (also when the tap started the app). */
+function OpenFromNotification() {
+  useEffect(() => {
+    const open = (n: Notifications.Notification) => {
+      const key = n.request.content.data?.key;
+      if (typeof key === 'string' && /^[A-Z]{3}:[0-9A-Za-z_-]{1,40}$/.test(key)) router.push({ pathname: '/product', params: { key } });
+    };
+    const last = Notifications.getLastNotificationResponse();
+    if (last?.notification) open(last.notification);
+    const sub = Notifications.addNotificationResponseReceivedListener(r => open(r.notification));
+    return () => sub.remove();
+  }, []);
+  return null;
+}
+
 export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <I18nProvider>
-        <WorldsProvider>
-          <SavedProvider>
-            <HideSplashWhenReady>
-              <StatusBar style="light" />
-              <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: C.bg }, animation: 'slide_from_right' }} />
-            </HideSplashWhenReady>
-          </SavedProvider>
-        </WorldsProvider>
+        <SettingsProvider>
+          <WorldsProvider>
+            <SavedProvider>
+              <HideSplashWhenReady>
+                <StatusBar style="light" />
+                <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: C.bg }, animation: 'slide_from_right' }} />
+                <OpenFromNotification />
+              </HideSplashWhenReady>
+            </SavedProvider>
+          </WorldsProvider>
+        </SettingsProvider>
       </I18nProvider>
     </SafeAreaProvider>
   );

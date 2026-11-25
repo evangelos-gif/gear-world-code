@@ -533,6 +533,7 @@ $adJson = Join-Path $adTarget 'app.json'
 [System.IO.File]::WriteAllText($adJson, ([System.IO.File]::ReadAllText($adJson)).Replace('"slug": "gear-world",', '"slug": "gear-world", "extra": { "eas": { "projectId": "test-project-id-123" } },'))
 Check ((Run-Ad @('-Apply', '-Approve', 'ΕΓΚΡΙΝΩ GEAR WORLD APP SETUP')) -eq 0 -and @(Get-ChildItem -LiteralPath (Join-Path (Join-Path $work 'gear-world-app') 'backups') -Directory -Filter 'mobile-*' -ErrorAction SilentlyContinue).Count -eq 1) 'app dev: existing folder moved to backup first'
 Check (([System.IO.File]::ReadAllText($adJson) | ConvertFrom-Json).expo.extra.eas.projectId -eq 'test-project-id-123') 'app dev: Expo project link kept after a new copy'
+Check (([System.IO.File]::ReadAllText($adJson) | ConvertFrom-Json).expo.updates.url -eq 'https://u.expo.dev/test-project-id-123') 'app dev: updates address made from the Expo project link (1.0.2)'
 Check ((Run-Ad @('-StartOnly')) -eq 2) 'app dev start-only: refuses when packages are not installed'
 Check ((Run-Ad @('-BuildApk', '-BuildApprove', 'ΕΓΚΡΙΝΩ GEAR WORLD APP BUILD')) -eq 2) 'app dev build: refuses when packages are not installed'
 

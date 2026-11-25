@@ -58,7 +58,7 @@ export default function SavedScreen() {
 
 function SavedRow({ item }: { item: SavedItem }) {
   const { t, locale } = useI18n();
-  const { remove } = useSaved();
+  const { remove, hasAlert } = useSaved();
   const price = formatPrice(item.price, item.currency, locale);
   const site = item.base.replace('https://', '');
   const picture = item.imageFile || item.image;
@@ -85,6 +85,13 @@ function SavedRow({ item }: { item: SavedItem }) {
           <Txt v="small" style={s.faint}>
             {item.checked ? t('priceChecked', { date: formatDay(item.checked, locale, 'short') }) : t('savedOn', { date: formatDay(item.savedAt, locale, 'short') })}
           </Txt>
+          {hasAlert(item.key) ? (
+            // Icon + words, never colour alone (lessons L35).
+            <View style={s.tag}>
+              <Ionicons name="notifications" size={14} color={C.blue} />
+              <Txt v="small" style={s.tagText}>{t('alertTag')}</Txt>
+            </View>
+          ) : null}
         </View>
       </Pressable>
       <Pressable accessibilityRole="button" accessibilityLabel={`${t('removeBtn')}: ${item.name}`} hitSlop={8}
@@ -115,5 +122,7 @@ const s = StyleSheet.create({
   name: { fontWeight: '600' },
   price: { fontSize: 18, fontWeight: '800' },
   gone: { color: C.blue, fontWeight: '700' },
+  tag: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  tagText: { color: C.blue, fontWeight: '700' },
   remove: { width: 76, alignItems: 'center', justifyContent: 'center', gap: 2, borderLeftWidth: 1, borderLeftColor: C.border }
 });

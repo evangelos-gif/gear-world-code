@@ -308,6 +308,8 @@ function Get-EasProject([string]$dir) {
     $projectId = ''
     if ($app -and $app.extra -and $app.extra.eas) { $projectId = [string]$app.extra.eas.projectId }
     if (-not $projectId) { Say 'Λείπει η σύνδεση με το έργο Expo (projectId στο app.json). Στείλε αυτή την αναφορά στο Claude.' 'Red'; Finish 2 }
+    # From 1.0.2 the app gets updates from Expo: an app.json without their address would build an app that never updates.
+    if ($app.updates -and -not $app.updates.url) { Say 'Λείπει η διεύθυνση ενημερώσεων (updates.url) στο app.json. Τρέξε ξανά την εντολή με -Apply και στείλε αυτή την αναφορά στο Claude.' 'Red'; Finish 2 }
     return @{ owner = [string]$app.owner; slug = [string]$app.slug }
 }
 
@@ -686,13 +688,14 @@ New-Item -ItemType Directory -Path $Target -Force | Out-Null
 $count = Copy-App $source $Target
 Say ('Αντιγράφηκαν {0} αρχεία στο {1}' -f $count, $Target) 'Green'
 if ($exists) {
-    # Keep the link to the Expo project (extra.eas.projectId, written by 'eas init' on this PC, not kept in the public repo).
+    # Keep the link to the Expo project (extra.eas.projectId, written by 'eas init' on this PC, not kept in the public repo),
+    # and from 1.0.2 the address of the app's updates, made from it (https://u.expo.dev/<projectId>).
     $oldJson = Join-Path $backup 'app.json'
     $newJson = Join-Path $Target 'app.json'
     if ((Test-Path -LiteralPath $oldJson) -and (Get-Command node -ErrorAction SilentlyContinue)) {
-        $js = "const fs=require('fs');const [o,n]=process.argv.slice(1);const a=JSON.parse(fs.readFileSync(o,'utf8'));const b=JSON.parse(fs.readFileSync(n,'utf8'));const id=a.expo&&a.expo.extra&&a.expo.extra.eas&&a.expo.extra.eas.projectId;if(!id){console.log('none');process.exit(0)}b.expo.extra=b.expo.extra||{};b.expo.extra.eas=Object.assign({},b.expo.extra.eas,{projectId:id});fs.writeFileSync(n,JSON.stringify(b,null,2)+'\n');console.log('kept')"
+        $js = "const fs=require('fs');const [o,n]=process.argv.slice(1);const a=JSON.parse(fs.readFileSync(o,'utf8'));const b=JSON.parse(fs.readFileSync(n,'utf8'));const id=a.expo&&a.expo.extra&&a.expo.extra.eas&&a.expo.extra.eas.projectId;if(!id){console.log('none');process.exit(0)}b.expo.extra=b.expo.extra||{};b.expo.extra.eas=Object.assign({},b.expo.extra.eas,{projectId:id});if(b.expo.updates){b.expo.updates.url='https://u.expo.dev/'+id}fs.writeFileSync(n,JSON.stringify(b,null,2)+'\n');console.log('kept')"
         $r = & node -e $js $oldJson $newJson
-        if ("$r" -eq 'kept') { Say 'Η σύνδεση με το έργο Expo κρατήθηκε (projectId).' 'Green' }
+        if ("$r" -eq 'kept') { Say 'Η σύνδεση με το έργο Expo κρατήθηκε (projectId και διεύθυνση ενημερώσεων).' 'Green' }
     }
 }
 

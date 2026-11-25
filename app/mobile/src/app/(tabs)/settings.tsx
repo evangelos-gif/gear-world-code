@@ -7,7 +7,9 @@ import { Txt } from '@/components/ui';
 import { useI18n } from '@/i18n';
 import { LOCALES } from '@/i18n/core';
 import { HUB_URL, LEGAL } from '@/lib/api';
+import { COUNTRY_NAMES, DELIVERY_COUNTRIES, MEGA_STORES_URL } from '@/lib/client';
 import { openEmail, openInBrowser, openSheet } from '@/lib/open';
+import { useSettings } from '@/lib/settings-context';
 import { C, MAX_WIDTH, R, S } from '@/theme';
 
 function Row({ label, icon, onPress, selected }: { label: string; icon?: 'chevron-forward' | 'open-outline' | 'mail-outline'; onPress: () => void; selected?: boolean }) {
@@ -25,6 +27,7 @@ function Row({ label, icon, onPress, selected }: { label: string; icon?: 'chevro
 
 export default function Settings() {
   const { t, locale, setLocale } = useI18n();
+  const { country, setCountry } = useSettings();
   // A tab: the tab bar sits above the phone's own buttons, so the list needs no extra space at the bottom.
   const version = Constants.expoConfig?.version ?? '1.0.0';
 
@@ -36,6 +39,13 @@ export default function Settings() {
           <Txt v="h2">{t('languageLabel')}</Txt>
           <View style={s.card} accessibilityRole="radiogroup">
             {LOCALES.map(l => <Row key={l.code} label={l.name} selected={locale === l.code} onPress={() => setLocale(l.code)} />)}
+          </View>
+
+          <Txt v="h2">{t('deliverTitle')}</Txt>
+          <Txt v="small">{t('deliverHint')}</Txt>
+          <View style={s.card} accessibilityRole="radiogroup">
+            <Row label={t('deliverAuto')} selected={country === ''} onPress={() => setCountry('')} />
+            {DELIVERY_COUNTRIES.map(c => <Row key={c} label={COUNTRY_NAMES[c]} selected={country === c} onPress={() => setCountry(c)} />)}
           </View>
 
           <Txt v="h2">{t('legal')}</Txt>
@@ -52,6 +62,8 @@ export default function Settings() {
             <Txt v="muted">{t('aboutText', { url: 'gearworldhub.com' })}</Txt>
             <Txt v="small">{t('runBy', { name: LEGAL.operator })}</Txt>
             <Row label="gearworldhub.com" icon="open-outline" onPress={() => openInBrowser(`${HUB_URL}/`)} />
+            {/* Mega Stores opens in the phone's browser, never inside the app (owner's decision «Α», 25/11/2026). */}
+            <Row label="Mega Stores · megastoresgearworld.com" icon="open-outline" onPress={() => openInBrowser(MEGA_STORES_URL)} />
             <Txt v="small">{t('version', { version })}</Txt>
           </View>
         </View>

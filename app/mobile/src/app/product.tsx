@@ -2,10 +2,11 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
 import { router, useLocalSearchParams } from 'expo-router';
-import { ScrollView, Share, StyleSheet, View } from 'react-native';
+import { useState } from 'react';
+import { Linking, ScrollView, Share, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { Button, ErrorBox, IconButton, TopBar, Txt } from '@/components/ui';
+import { Button, ErrorBox, IconButton, Loading, TopBar, Txt } from '@/components/ui';
 import { useI18n } from '@/i18n';
 import { formatDay, formatPrice } from '@/lib/format';
 import { openInBrowser } from '@/lib/open';
@@ -24,9 +25,21 @@ export default function ProductScreen() {
   const { t, list, locale } = useI18n();
   const { find } = useWorlds();
   const saved = useSaved();
+  // Price alert (1.0.2): shown when the phone does not allow notifications for the app.
+  const [alertsBlocked, setAlertsBlocked] = useState(false);
   const params = useLocalSearchParams<{ key?: string }>();
   const key = String(params.key ?? '');
   const product = findProduct(key) ?? saved.find(key);
+
+  if (!product && !saved.ready) {
+    // Opened from a price alert while the saved list is still being read from the phone.
+    return (
+      <SafeAreaView style={s.safe} edges={['top', 'left', 'right']}>
+        <TopBar />
+        <Loading />
+      </SafeAreaView>
+    );
+  }
 
   if (!product) {
     return (
@@ -50,6 +63,12 @@ export default function ProductScreen() {
   const toggleSave = () => {
     saved.toggle(product);
     Haptics.selectionAsync().catch(() => undefined);
+  };
+  const hasAlert = saved.hasAlert(product.key);
+  const toggleAlert = async () => {
+    const r = await saved.toggleAlert(product, locale);
+    setAlertsBlocked(r === 'denied');
+    if (r !== 'denied') Haptics.selectionAsync().catch(() => undefined);
   };
   const share = () => {
     Share.share({ message: `${product.name}\n${product.productUrl}`, url: product.productUrl }).catch(() => undefined);
@@ -97,6 +116,18 @@ export default function ProductScreen() {
           <Button icon="open-outline" label={t('viewAt', { retailer })} hint={t('opensBrowser')} onPress={() => openInBrowser(product.outUrl)} />
           <Button kind="secondary" icon={isSaved ? 'bookmark' : 'bookmark-outline'} label={isSaved ? `✓ ${t('savedBtn')}` : `+ ${t('saveBtn')}`}
             hint={t('saveHint')} onPress={toggleSave} />
+          <Button kind="secondary" icon={hasAlert ? 'notifications' : 'notifications-outline'} label={hasAlert ? `✓ ${t('alertOn')}` : t('alertOff')}
+            hint={t('alertHint')} onPress={toggleAlert} />
+          <Txt v="small" style={s.faint}>{t('alertHint')}</Txt>
+          {alertsBlocked ? (
+            <View style={s.note} accessibilityLiveRegion="polite">
+              <Ionicons name="notifications-off-outline" size={20} color={C.blue} />
+              <View style={s.noteBody}>
+                <Txt v="small">{t('alertsOff')}</Txt>
+                <Button kind="secondary" icon="settings-outline" label={t('openSettings')} onPress={() => Linking.openSettings().catch(() => undefined)} />
+              </View>
+            </View>
+          ) : null}
           <Button kind="secondary" label={t('moreOnSite', { site: siteName })} hint={t('opensBrowser')} onPress={() => openInBrowser(product.productUrl)} />
 
           <View style={s.table}>

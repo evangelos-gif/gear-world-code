@@ -1,14 +1,21 @@
 // Plain Node tests (no React): language choice, texts in all 11 languages, Hub/site API parsing.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
 import { LOCALES, pickLocale, fill, lookup } from '../src/i18n/core.ts';
 import { APP_STRINGS, APP_KEYS } from '../src/i18n/app-strings.ts';
 import {
   parseRegistry, parseSearch, parseSiteProduct, parseHubResult, worldProductsUrl, safeBase, safeHttps, outUrl, isValidEmail, FALLBACK_WORLDS,
-  checkedDay, productsByIdUrl, pickAsked
+  checkedDay, productsByIdUrl, pickAsked, searchUrl
 } from '../src/lib/api.ts';
+import {
+  clientHeaders, setClientVersion, isShown, parseAppConfig, setHiddenRetailers, setDeliveryCountry, deliveryCountry, DELIVERY_COUNTRIES,
+  COUNTRY_NAMES, MEGA_STORES_URL
+} from '../src/lib/client.ts';
+import { daysBetween, isFresh, setAlert, checkAlerts, keepSaved, parseAlerts, MAX_ALERTS } from '../src/lib/alerts.ts';
+import { RELEASE_KEYS, RELEASE_STRINGS } from '../src/i18n/release-strings.ts';
 import { FEATURE_KEYS, FEATURE_STRINGS } from '../src/i18n/feature-strings.ts';
 import { toSaved, addSaved, removeSaved, mergeFresh, idsByWorld, parseSaved, imageFileName, MAX_SAVED } from '../src/lib/saved.ts';
 import { formatPrice } from '../src/lib/format.ts';
@@ -521,3 +528,160 @@ test('store screenshots: the photo and voice buttons are drawn only in the scree
     assert.ok(!readFileSync(new URL(f, import.meta.url), 'utf8').includes('STORE_SHOTS'), `${f} never sets the screenshot flag`);
   }
 });
+
+// ---------- version 1.0.2 (25/11/2026): price alerts, delivery country, the Hub's app file, Mega Stores, updates ----------
+
+test('client: the app names itself, hides Amazon and what the Hub asks, and sends the chosen delivery country', () => {
+  const world = { key: 'MGW', name: 'Mens Gear World', base: 'https://mensgearworld.com' };
+  try {
+    setClientVersion('1.0.2');
+    assert.deepEqual(clientHeaders(), { 'X-GW-Client': 'gear-world-app/1.0.2' });
+    setClientVersion('bad version!');
+    assert.deepEqual(clientHeaders(), { 'X-GW-Client': 'gear-world-app/0' });
+    // Amazon never shows inside the app (owner's decision «Α», 25/11/2026), whatever the Hub sends.
+    assert.equal(isShown({ retailer: 'Amazon UK' }), false);
+    assert.equal(isShown({ retailer: 'X', productUrl: 'https://www.amazon.co.uk/dp/B0' }), false);
+    assert.equal(isShown({ retailer: 'X', outUrl: 'https://amzn.to/abc' }), false);
+    assert.equal(isShown({ retailer: 'Tooled Up' }), true);
+    // The Hub's app file hides retailers without a new app version; a broken file hides nothing extra.
+    assert.deepEqual(parseAppConfig({ hidden_retailers: ['Parex GR', ' ', 7, 'x'.repeat(81)] }), { hiddenRetailers: ['Parex GR'] });
+    assert.deepEqual(parseAppConfig(null), { hiddenRetailers: [] });
+    assert.deepEqual(parseAppConfig({ hidden_retailers: 'Parex GR' }), { hiddenRetailers: [] });
+    setHiddenRetailers(['Parex GR']);
+    assert.equal(isShown({ retailer: 'parex gr ' }), false);
+    const r = parseSearch({ ok: true, results: [
+      { site: 'mgw', site_url: 'mensgearworld.com', id: 1, product_name: 'A', retailer: 'Parex GR' },
+      { site: 'mgw', site_url: 'mensgearworld.com', id: 2, product_name: 'B', retailer: 'Amazon' },
+      { site: 'mgw', site_url: 'mensgearworld.com', id: 3, product_name: 'C', retailer: 'Tooled Up' }
+    ] });
+    assert.deepEqual(r.products.map(p => p.id), ['3']);
+    assert.deepEqual(parseDeals({ deals: [
+      { id: 'a', retailer: 'Amazon', kind: 'code', start: '2026-11-20', end: '2026-12-01', link: 'https://mensgearworld.com/codes/' },
+      { id: 'b', retailer: 'Parex GR', kind: 'code', start: '2026-11-20', end: '2026-12-01', link: 'https://mensgearworld.com/codes/' }
+    ] }), []);
+    // Delivery country: none = automatic (where the phone is), as in 1.0.1; a chosen one is sent to the Hub and the sites.
+    setDeliveryCountry('');
+    assert.equal(searchUrl('drill'), 'https://gearworldhub.com/api/search?q=drill');
+    assert.equal(productsByIdUrl(world, ['5']), 'https://mensgearworld.com/api/products?ids=5&limit=1');
+    setDeliveryCountry('GR');
+    assert.equal(deliveryCountry(), 'GR');
+    assert.equal(searchUrl('drill'), 'https://gearworldhub.com/api/search?q=drill&country=GR');
+    assert.equal(worldProductsUrl(world, { page: 1 }), 'https://mensgearworld.com/api/products?page=1&limit=24&deliver_to=GR');
+    assert.equal(productsByIdUrl(world, ['5']), 'https://mensgearworld.com/api/products?ids=5&limit=1&deliver_to=GR');
+    setDeliveryCountry('FR');
+    assert.equal(deliveryCountry(), '', 'only the countries the app is published in');
+    assert.deepEqual([...DELIVERY_COUNTRIES], ['GB', 'GR', 'CY', 'PL', 'US', 'DE']);
+    for (const c of DELIVERY_COUNTRIES) assert.ok(COUNTRY_NAMES[c], c);
+  } finally {
+    setClientVersion(''); setDeliveryCountry(''); setHiddenRetailers([]);
+  }
+});
+
+test('alerts: only a lower, fresh, real price is told, once, and never a discount word', () => {
+  const p = (price: number | null, checked: string | null, extra: Partial<{ currency: string; inStock: boolean | null }> = {}) =>
+    ({ key: 'CGW:1047', name: 'Makita M9400', retailer: 'Tooled Up', price, currency: 'GBP', checked, inStock: true, ...extra });
+  assert.equal(daysBetween('2026-11-23', '2026-11-25'), 2);
+  assert.equal(daysBetween('x', '2026-11-25'), null);
+  assert.equal(isFresh(p(10, '2026-11-23'), '2026-11-25'), true);
+  assert.equal(isFresh(p(10, '2026-11-22'), '2026-11-25'), false, 'checked more than 2 days ago (lessons L211)');
+  assert.equal(isFresh(p(10, '2026-11-26'), '2026-11-25'), false, 'never a day in the future');
+  assert.equal(isFresh(p(null, '2026-11-25'), '2026-11-25'), false);
+  assert.equal(isFresh(p(10, '2026-11-25', { inStock: false }), '2026-11-25'), false);
+  let map = setAlert({}, p(100, null), true);
+  assert.deepEqual(map, { 'CGW:1047': { price: 100, currency: 'GBP' } });
+  let r = checkAlerts(map, [p(90, '2026-11-25')], '2026-11-25');
+  assert.deepEqual(r.alerts, [{ key: 'CGW:1047', name: 'Makita M9400', retailer: 'Tooled Up', price: 90, currency: 'GBP', checked: '2026-11-25' }]);
+  assert.deepEqual(r.map['CGW:1047'], { price: 90, currency: 'GBP' });
+  assert.deepEqual(checkAlerts(r.map, [p(90, '2026-11-25')], '2026-11-25').alerts, [], 'the same price is told once');
+  r = checkAlerts(r.map, [p(95, '2026-11-25')], '2026-11-25');
+  assert.deepEqual(r.alerts, [], 'a higher price is not told');
+  assert.equal(r.map['CGW:1047'].price, 95, 'but it becomes the last price seen');
+  assert.deepEqual(checkAlerts(r.map, [p(50, '2026-11-20')], '2026-11-25').alerts, [], 'an old check is not told');
+  assert.deepEqual(checkAlerts(r.map, [p(50, '2026-11-25', { currency: 'EUR' })], '2026-11-25').alerts, [], 'another currency is not compared');
+  assert.deepEqual(checkAlerts({}, [p(1, '2026-11-25')], '2026-11-25').alerts, [], 'no alert, no notification');
+  assert.deepEqual(setAlert(map, p(100, null), false), {});
+  assert.deepEqual(setAlert({}, { key: 'BAD', price: 1, currency: 'GBP' }, true), {});
+  assert.deepEqual(keepSaved({ 'CGW:1': { price: 1, currency: 'GBP' }, 'CGW:2': { price: 2, currency: 'GBP' } }, ['CGW:2']), { 'CGW:2': { price: 2, currency: 'GBP' } });
+  assert.deepEqual(parseAlerts(JSON.stringify({ 'CGW:1': { price: 5, currency: 'EUR' }, bad: {}, 'CGW:2': { price: -1, currency: 'xx' } })),
+    { 'CGW:1': { price: 5, currency: 'EUR' }, 'CGW:2': { price: null, currency: 'GBP' } });
+  assert.deepEqual(parseAlerts('nope'), {});
+  assert.ok(MAX_ALERTS <= MAX_SAVED);
+});
+
+test('texts: the 1.0.2 texts exist in all 11 languages, same placeholders, no shop or discount words', () => {
+  const BAD = /\bshops?\b|shopping|\bpartners?\b|sponsor|\bcart\b|basket|trusted|price drop|discount|\bsale\b|%|έκπτωσ|προσφορ|Rabatt|Angebot|réduction|promo|soldes|sconto|offerta|descuento|oferta|desconto|korting|aanbieding|zbritje|ofert|reducere|скидк|акци/i;
+  for (const l of LOCALES) {
+    for (const k of RELEASE_KEYS) {
+      const v = RELEASE_STRINGS[l.code]?.[k];
+      assert.ok(typeof v === 'string' && v.trim(), `${l.code}.${k}`);
+      assert.deepEqual((v.match(/\{\w+\}/g) ?? []).sort(), (RELEASE_STRINGS['en-GB'][k].match(/\{\w+\}/g) ?? []).sort(), `${l.code}.${k} placeholders`);
+      assert.ok(!BAD.test(v), `${l.code}.${k}: ${v}`);
+    }
+    assert.equal(Object.keys(RELEASE_STRINGS[l.code]).length, RELEASE_KEYS.length, `${l.code}: no extra keys`);
+  }
+  // A price alert says the new price and the day it was checked.
+  for (const l of LOCALES) assert.match(RELEASE_STRINGS[l.code].alertBody, /\{price\}.*\{date\}/, l.code);
+});
+
+test('Mega Stores and Amazon: Mega Stores opens in the phone browser, and no Amazon link is in the app', () => {
+  const read = (f: string) => readFileSync(new URL(f, import.meta.url), 'utf8');
+  for (const f of ['../src/app/(tabs)/settings.tsx', '../src/components/footer.tsx']) {
+    const src = read(f);
+    assert.match(src, /openInBrowser\(MEGA_STORES_URL\)/, `${f}: Mega Stores opens in the phone's browser`);
+    assert.ok(!/openSheet\(MEGA_STORES_URL\)/.test(src), `${f}: never in a sheet inside the app`);
+  }
+  assert.equal(MEGA_STORES_URL, 'https://megastoresgearworld.com/');
+  const app = JSON.parse(read('../app.json')).expo;
+  assert.equal(JSON.stringify(app).includes('megastoresgearworld'), false, 'no App Links / Universal Links for Mega Stores');
+  // No Amazon address anywhere in the app's code or settings.
+  const files: string[] = [];
+  const walk = (dir: URL) => {
+    for (const e of readdirSync(dir, { withFileTypes: true })) {
+      const u = new URL(e.name + (e.isDirectory() ? '/' : ''), dir);
+      if (e.isDirectory()) walk(u); else if (/\.(tsx?|json|js)$/.test(e.name)) files.push(fileURLToPath(u));
+    }
+  };
+  walk(new URL('../src/', import.meta.url));
+  walk(new URL('../plugins/', import.meta.url));
+  for (const f of [...files, fileURLToPath(new URL('../app.json', import.meta.url)), fileURLToPath(new URL('../eas.json', import.meta.url))]) {
+    assert.ok(!/https?:\/\/[^\s'"`]*(amazon\.|amzn\.)|amzn\.to/i.test(readFileSync(f, 'utf8')), `${f}: no Amazon link`);
+  }
+});
+
+test('updates and notifications: remote updates per version, local alerts only, nothing asked at start', () => {
+  const read = (f: string) => readFileSync(new URL(f, import.meta.url), 'utf8');
+  const app = JSON.parse(read('../app.json')).expo;
+  const eas = JSON.parse(read('../eas.json'));
+  const pkg = JSON.parse(read('../package.json'));
+  assert.equal(app.version, '1.0.2');
+  assert.equal(pkg.version, '1.0.2');
+  assert.deepEqual(app.runtimeVersion, { policy: 'appVersion' }, 'an update reaches only phones with the same app version');
+  assert.equal(app.updates.url, undefined, 'the Expo project address is added on the PC by gw-app-dev, never kept in the repo');
+  assert.equal(eas.build.production.channel, 'production');
+  assert.equal(eas.build.preview.channel, 'preview');
+  const notif = app.plugins.find((p: unknown) => Array.isArray(p) && p[0] === 'expo-notifications');
+  assert.ok(notif, 'expo-notifications plugin');
+  assert.equal(notif[1].enableRemoteNotifications, false, 'no push: no APNs entitlement, no push keys');
+  assert.ok(app.plugins.includes('expo-background-task'));
+  assert.ok(app.plugins.includes('./plugins/portrait-optional'));
+  assert.match(read('../plugins/portrait-optional.js'), /android\.hardware\.screen\.portrait[\s\S]*'android:required': 'false'/);
+  for (const k of ['expo-updates', 'expo-notifications', 'expo-background-task', 'expo-task-manager']) assert.ok(pkg.dependencies[k], k);
+  // The notification permission is asked only when someone turns on a price alert.
+  const ask = files('../src/').filter(f => /Notifications\.requestPermissionsAsync|allowNotifications\(/.test(readFileSync(f, 'utf8')));
+  assert.deepEqual(ask.map(f => f.split(/[\\/]src[\\/]/)[1]).sort(), ['lib/notify.ts', 'lib/saved-context.tsx']);
+  assert.match(read('../src/lib/saved-context.tsx'), /toggleAlert = useCallback\(async[\s\S]*allowNotifications\(locale\)/);
+  // The background check is defined when the app's code loads.
+  assert.match(read('../src/app/_layout.tsx'), /import '@\/lib\/price-task';/);
+});
+
+function files(rel: string): string[] {
+  const out: string[] = [];
+  const walk = (dir: URL) => {
+    for (const e of readdirSync(dir, { withFileTypes: true })) {
+      const u = new URL(e.name + (e.isDirectory() ? '/' : ''), dir);
+      if (e.isDirectory()) walk(u); else if (/\.tsx?$/.test(e.name)) out.push(fileURLToPath(u));
+    }
+  };
+  walk(new URL(rel, import.meta.url));
+  return out;
+}

@@ -2,7 +2,14 @@
   "expo": {
     "name": "Gear World",
     "slug": "gear-world",
-    "version": "1.0.1",
+    "version": "1.0.2",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0
+    },
     "orientation": "portrait",
     "icon": "./assets/brand/icon.png",
     "scheme": "gearworld",
@@ -68,7 +75,18 @@
         {
           "enforceContrast": false
         }
-      ]
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/brand/adaptive-monochrome.png",
+          "color": "#FFC23D",
+          "enableRemoteNotifications": false
+        }
+      ],
+      "expo-background-task",
+      "./plugins/portrait-optional",
+      "expo-status-bar"
     ],
     "experiments": {
       "typedRoutes": true,

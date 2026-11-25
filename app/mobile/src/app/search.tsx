@@ -10,6 +10,7 @@ import { useI18n } from '@/i18n';
 import { searchAll, type SearchResult } from '@/lib/api';
 import { countByWorld, decodePhotoParam, encodePhotoParam, orderByBest, photoResults, photoWords } from '@/lib/photo';
 import { rememberProducts } from '@/lib/product-cache';
+import { useSettings } from '@/lib/settings-context';
 import { worldTitle } from '@/lib/worlds-meta';
 import { useWorlds } from '@/lib/worlds-context';
 import { C, MAX_WIDTH, S } from '@/theme';
@@ -17,6 +18,8 @@ import { C, MAX_WIDTH, S } from '@/theme';
 export default function SearchScreen() {
   const { t, list } = useI18n();
   const { find } = useWorlds();
+  // A new delivery country (Settings, 1.0.2) searches again.
+  const { country } = useSettings();
   // Android draws the app behind its own buttons at the bottom: the list ends above them (owner, 4/11/2026).
   const bottom = useSafeAreaInsets().bottom;
   const params = useLocalSearchParams<{ q?: string; photo?: string }>();
@@ -64,7 +67,7 @@ export default function SearchScreen() {
     } finally {
       setLoading(false);
     }
-  }, [q, photo]);
+  }, [q, photo, country]);
 
   useEffect(() => { run(); }, [run]);
 

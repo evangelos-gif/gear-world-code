@@ -1,5 +1,6 @@
 // Everything the app reads comes from gearworldhub.com and the Gear World sites' public APIs.
 // Nothing here writes to a site, except the newsletter sign-up (the same endpoint the Hub page uses).
+import { clientHeaders, deliveryCountry, isShown, parseAppConfig, type AppConfig } from './client.ts';
 
 export const HUB_URL = 'https://gearworldhub.com';
 export const LEGAL = {
@@ -106,7 +107,7 @@ export async function fetchJson<T>(url: string, init: RequestInit = {}, timeoutM
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const res = await fetch(url, { ...init, signal: controller.signal, headers: { Accept: 'application/json', ...(init.headers ?? {}) } });
+    const res = await fetch(url, { ...init, signal: controller.signal, headers: { Accept: 'application/json', ...clientHeaders(), ...(init.headers ?? {}) } });
     const text = await res.text();
     let data: unknown = null;
     try { data = JSON.parse(text); } catch { /* not JSON */ }
@@ -195,15 +196,27 @@ export function parseHubResult(r: Record<string, unknown>): Product | null {
 
 export function parseSearch(data: HubSearchResponse): SearchResult {
   if (!data || data.ok !== true) throw new ApiError(data?.error || 'Search failed');
-  const products = (data.results ?? []).map(parseHubResult).filter((p): p is Product => p !== null);
+  const products = (data.results ?? []).map(parseHubResult).filter((p): p is Product => p !== null && isShown(p));
   const counts: Record<string, number> = {};
   for (const [k, v] of Object.entries(data.sites ?? {})) if (Number(v) > 0) counts[k.toUpperCase()] = Number(v);
   return { products, counts, partial: Boolean(data.partial) };
 }
 
-export async function searchAll(query: string): Promise<SearchResult> {
+/** The Hub search; with a chosen delivery country (1.0.2) the Hub is told it, otherwise it uses where the phone is. */
+export function searchUrl(query: string): string {
   const q = query.trim().slice(0, 80);
-  return parseSearch(await fetchJson<HubSearchResponse>(`${HUB_URL}/api/search?q=${encodeURIComponent(q)}`, {}, 20000));
+  const country = deliveryCountry();
+  return `${HUB_URL}/api/search?q=${encodeURIComponent(q)}${country ? `&country=${country}` : ''}`;
+}
+
+export async function searchAll(query: string): Promise<SearchResult> {
+  return parseSearch(await fetchJson<HubSearchResponse>(searchUrl(query), {}, 20000));
+}
+
+// ---------- The Hub's file for the app: what to hide, changed on the Hub without a new app version (1.0.2) ----------
+
+export async function getAppConfig(): Promise<AppConfig> {
+  return parseAppConfig(await fetchJson<unknown>(`${HUB_URL}/app-config.json`, { headers: { 'Cache-Control': 'no-cache' } }));
 }
 
 // ---------- Deals: the Hub's list of retailer offers (new deals appear without a new app version) ----------
@@ -226,7 +239,7 @@ export async function photoSearch(jpeg: Uint8Array): Promise<{ status: number; d
     const body = new Uint8Array(jpeg).buffer;
     const res = await fetch(`${HUB_URL}/api/photo-search`, {
       method: 'POST',
-      headers: { 'Content-Type': 'image/jpeg', Accept: 'application/json' },
+      headers: { 'Content-Type': 'image/jpeg', Accept: 'application/json', ...clientHeaders() },
       body,
       signal: controller.signal
     });
@@ -284,13 +297,16 @@ export function worldProductsUrl(world: Pick<World, 'base'>, opts: { search?: st
   if (opts.sort && opts.sort !== 'featured') parts.push(['sort', opts.sort]);
   parts.push(['page', String(Math.max(1, opts.page ?? 1))]);
   parts.push(['limit', String(Math.min(60, Math.max(1, opts.limit ?? 24)))]);
+  // A chosen delivery country (1.0.2): the site lists what is delivered there; without it the site uses where the phone is.
+  const country = deliveryCountry();
+  if (country) parts.push(['deliver_to', country]);
   return `${world.base}/api/products?${parts.map(([k, v]) => `${k}=${encodeURIComponent(v)}`).join('&')}`;
 }
 
 export async function worldProducts(world: World, opts: Parameters<typeof worldProductsUrl>[1]): Promise<WorldPage> {
   const data = await fetchJson<SiteProductsResponse>(worldProductsUrl(world, opts), {}, 15000);
   if (!data || data.ok !== true) throw new ApiError('Products failed');
-  const products = (data.products ?? []).map(p => parseSiteProduct(p, world)).filter((p): p is Product => p !== null);
+  const products = (data.products ?? []).map(p => parseSiteProduct(p, world)).filter((p): p is Product => p !== null && isShown(p));
   const pg = data.pagination;
   return { products, total: pg?.total ?? products.length, hasMore: Boolean(pg?.has_more), page: pg?.page ?? 1 };
 }
@@ -299,7 +315,8 @@ export async function worldProducts(world: World, opts: Parameters<typeof worldP
 
 export function productsByIdUrl(world: Pick<World, 'base'>, ids: string[]): string {
   const clean = ids.map(id => String(id).trim()).filter(id => /^\d{1,12}$/.test(id)).slice(0, 60);
-  return `${world.base}/api/products?ids=${encodeURIComponent(clean.join(','))}&limit=${Math.max(1, clean.length)}`;
+  const country = deliveryCountry();
+  return `${world.base}/api/products?ids=${encodeURIComponent(clean.join(','))}&limit=${Math.max(1, clean.length)}${country ? `&deliver_to=${country}` : ''}`;
 }
 
 /**
@@ -316,7 +333,9 @@ export async function productsById(world: Pick<World, 'key' | 'name' | 'base'>, 
   const data = await fetchJson<SiteProductsResponse>(productsByIdUrl(world, ids), {}, 15000);
   if (!data || data.ok !== true) throw new ApiError('Products failed');
   const products = (data.products ?? []).map(p => parseSiteProduct(p, world)).filter((p): p is Product => p !== null);
-  return pickAsked(products, ids);
+  // Hidden or Amazon products count as answered but are not given back, so a saved one shows as no longer listed.
+  const { found, listed } = pickAsked(products, ids);
+  return { found: found.filter(isShown), listed };
 }
 
 // ---------- Newsletter (same endpoint and consent as the Hub page) ----------
