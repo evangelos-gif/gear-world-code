@@ -496,11 +496,9 @@ export function createWorker(site) {
     // One person: at most YADORE_PER_VISITOR clicks a day on this site and one per offer link (a one-way hash, cache only).
     let cache = null;
     try { cache = typeof caches !== 'undefined' && caches.default && env.EDGE_CACHE !== 'off' ? caches.default : null; } catch { cache = null; }
-    const gate = await visitorGate({ origin: url.origin, site, ip: request.headers.get('cf-connecting-ip') || '', token, at, cache, secret: yadoreKey(env) });
+    const gate = await visitorGate({ origin: url.origin, site, ip: request.headers.get('cf-connecting-ip') || '', token: `${r.log.retailer}|${r.to}`, at, cache, secret: yadoreKey(env) });
     const toPage = redirect(new URL(r.log.category_slug && categories.has(r.log.category_slug) ? `/category/${r.log.category_slug}/` : '/', url.origin).toString(), 302, { 'X-Robots-Tag': 'noindex, nofollow' });
     if (!gate.ok) return toPage;
-    // The visitor's count first (a second click at once then sees it), then the click itself.
-    await gate.save();
     let pagePath = '';
     try {
       const ref = new URL(request.headers.get('referer') || '');
@@ -518,6 +516,9 @@ export function createWorker(site) {
       return toPage;
     }
     if (!written) return toPage;
+    // Counted for this visitor only once the click is recorded (a click sent back costs them nothing; clicks at the same
+    // moment are already one at a time through the 10-second gap of the statement above).
+    await gate.save();
     return redirect(r.to, 302, { 'X-Robots-Tag': 'noindex, nofollow' });
   }
 

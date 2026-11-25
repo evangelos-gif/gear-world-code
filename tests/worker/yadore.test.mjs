@@ -218,7 +218,14 @@ test('L232: links are signed with a key made from the API key and the site, carr
   assert.equal(await readLink(pgwKey, token), null, 'a TGW link does not work on PGW');
   const flip = (t, i) => t.slice(0, i) + (t[i] === 'A' ? 'B' : 'A') + t.slice(i + 1);
   assert.equal(await readLink(key, flip(token, 20)), null, 'changed in the middle');
-  assert.equal(await readLink(key, flip(token, token.length - 1)), null, 'changed at the end');
+  // Every letter of the token changed one by one (the last one has spare bits: only one spelling is accepted).
+  for (let i = 0; i < token.length; i++) assert.equal(await readLink(key, flip(token, i)), null, `letter ${i} changed`);
+  for (const c of 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_') {
+    const t2 = token.slice(0, -1) + c;
+    if (t2 !== token) assert.equal(await readLink(key, t2), null, `last letter ${c}`);
+  }
+  // A link of the earlier signed form (body.signature) is refused, and its click goes to the home page.
+  assert.equal(await readLink(key, `${'a'.repeat(40)}.${'b'.repeat(32)}`), null);
   assert.equal(await readLink(key, token.slice(0, -4)), null, 'cut short');
   // Encrypted: Yadore's address and the store cannot be read from the token (round 3 of the review).
   const bin = Buffer.from(token.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('latin1');
@@ -670,10 +677,12 @@ test('L232 review 2: an IPv6 visitor counts by its /64; the hash is keyed, so an
 
 test('L232 review 2: sale words of a Greek title, a final sigma and "Public-GR" are caught', async () => {
   const { promoTitle } = await import('../../src/lib/yadore.js');
-  for (const t of ['ΠΡΟΣΦΟΡΑ Laptop', 'Laptop Προσφορά!', 'Έκπτωση -30% κράνος', 'κράνος -25%', 'κράνος (-15%)', 'έως 50% κράνη', 'up to 40% helmets', 'ξεπούλημα', 'Black Friday laptop',
-    'BlackFriday laptop', 'black-friday κράνος', 'Black Week', 'Cyber Monday', 'Εκπτωτικό πακέτο', 'Ευκαιρία!', 'Εκκαθάριση αποθήκης', 'Χαμηλότερη τιμή κράνος']) assert.equal(promoTitle(t), true, t);
-  for (const t of ['Μπλουζάκι 100% βαμβάκι', '95% βαμβάκι 5% ελαστάνη', 'Γιαούρτι 0% λιπαρά', 'Οινόπνευμα 70% αλκοόλ', '99,9% καθαρό', 'Σοκολάτα 85% κακάο',
-    'Laptop 16GB 512GB', 'Κράνος μηχανής XL', 'Τροφή σκύλου 15kg', 'Φόρμα εργασίας 65/35']) assert.equal(promoTitle(t), false, t);
+  for (const t of ['ΠΡΟΣΦΟΡΑ Laptop', 'Laptop Προσφορά!', 'Έκπτωση -30% κράνος', 'κράνος -25%', 'κράνος (-15%)', 'Κράνος [-30%]', 'Κράνος /-30%', 'Κράνος *-30%*', 'Κράνος \u201130%', 'Κράνος —30%',
+    'Κράνος -30％', 'Κράνος -20€', '30% discount helmet', 'Special offer helmet', 'Clearance helmet', 'Promo helmet', 'Μειωμένη τιμή κράνος', 'Τιμή σοκ!', 'ΕΚΠΤ. 30% κράνος',
+    'ξεπούλημα', 'Black Friday laptop', 'BlackFriday laptop', 'black-friday κράνος', 'Black Week', 'Cyber Monday', 'Εκπτωτικό πακέτο', 'Ευκαιρία!', 'Εκκαθάριση αποθήκης', 'Χαμηλότερη τιμή κράνος']) assert.equal(promoTitle(t), true, t);
+  for (const t of ['Μπλουζάκι 100% βαμβάκι', '95% βαμβάκι 5% ελαστάνη', 'Γιαούρτι 0% λιπαρά', 'Οινόπνευμα 70% αλκοόλ', '99,9% καθαρό', 'Σοκολάτα 85% κακάο', '100% original',
+    'Li-ion 18V -20°C', 'SPF 50', '-10 dB', '−5 °C', 'Black Weekender Bag', 'Υγρασιόμετρο 10 - 99%', 'iPhone – 90% μπαταρία', 'Τροφή σκύλου - 26% πρωτεΐνη', 'Καθαριστής αέρα up to 99.97%',
+    'Θερμοστάτης εξοικονόμηση έως 30%', 'Laptop 16GB 512GB', 'Κράνος μηχανής XL', 'Τροφή σκύλου 15kg', 'Φόρμα εργασίας 65/35']) assert.equal(promoTitle(t), false, t);
   N = 0;
   assert.equal(readOffers({ offers: [offer('alpha.gr', { title: 'Laptop ΠΡΟΣΦΟΡΑ' }), offer('alpha.gr', { title: 'Laptop -20%' }), offer('alpha.gr')] }, {}, 'gr').length, 1);
   assert.equal(storeKey('ΚΑΤΑΣΤΗΜΑ ΚΟΣΜΟΣ'), storeKey('κατάστημα κόσμος'.normalize('NFD').replace(/[\u0300-\u036f]/g, '')), 'a final sigma folds to σ');
@@ -681,4 +690,33 @@ test('L232 review 2: sale words of a Greek title, a final sigma and "Public-GR" 
   for (const n of ['Public-GR', 'public-gr.example', 'AB-Vasilopoulos', 'e-shop', 'E-Shop Greece', 'e-shop.cy', 'e-shop.gr']) assert.equal(neverStore(n), true, n);
   const { visitorAddress } = await import('../../src/lib/yadore.js');
   assert.equal(visitorAddress('::ffff:192.0.2.9'), '192.0.2.9', 'an IPv4-mapped address counts as its IPv4');
+});
+
+test('L232 review 4: one offer link per visitor even across new page copies, and a click sent back costs the visitor nothing', async () => {
+  const { visitorAddress } = await import('../../src/lib/yadore.js');
+  for (const a of ['::ffff:192.0.2.9', '0:0:0:0:0:ffff:192.0.2.9', '::ffff:c000:209', '::FFFF:C000:0209']) assert.equal(visitorAddress(a), '192.0.2.9', a);
+  assert.equal(visitorAddress('fe80::1%eth0'), 'fe80:0:0:0::/64');
+  N = 0;
+  const store = new Map();
+  const before = globalThis.caches;
+  const put = (key, res) => { if (!/\/category\//.test(key.url)) store.set(key.url, res); };
+  globalThis.caches = { default: { match: async key => (store.has(key.url) ? store.get(key.url).clone() : undefined), put: async (k, r) => put(k, r) } };
+  try {
+    const env = { DB: tgwDb(), YADORE_API_KEY: KEY, YADORE_FETCH: yadoreApi(fullAnswer), FX_FETCH: async () => { throw new Error('offline'); } };
+    const where = r => (/^https:\/\/api\.yadore\.com\//.test(r.headers.get('Location')) ? 'yadore' : new URL(r.headers.get('Location')).pathname);
+    const ip = { headers: { 'CF-Connecting-IP': '192.0.2.50' } };
+    const first = [...new Set(await pageTokens(tgw, env, '/category/laptops-computing/'))];
+    const again = [...new Set(await pageTokens(tgw, env, '/category/laptops-computing/'))];
+    assert.notEqual(first[0], again[0], 'a new page copy writes new links for the same offers');
+    assert.equal(where(await click(tgw, env, first[0], ip)), 'yadore');
+    assert.equal(where(await click(tgw, env, again[0], ip)), '/category/laptops-computing/', 'the same offer through a new link: once');
+    // A click sent back by the 10-second gap does not use up the visitor's click or that offer.
+    await click(tgw, env, first[1], { headers: { 'CF-Connecting-IP': '192.0.2.51' } });
+    const r = await clickNow(tgw, env, first[2], ip);
+    assert.equal(where(r), '/category/laptops-computing/', 'within 10 seconds of another click');
+    NOW += 30000;
+    assert.equal(where(await clickNow(tgw, env, first[2], ip)), 'yadore', 'the same offer later: still allowed');
+  } finally {
+    globalThis.caches = before;
+  }
 });

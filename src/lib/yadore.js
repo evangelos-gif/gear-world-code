@@ -58,7 +58,9 @@ export const L107_WORDS = /\bshop|\bcart\b|\bsale\b|\bdeals?\b|\bofficial\b|\bpa
 // Sale words of a title in Greek too (L107 is about our texts; a store's title with them is left out, never rewritten):
 // προσφορά, έκπτωση/εκπτωτικό, ευκαιρία, εκκαθάριση, ξεπούλημα, χαμηλότερη τιμή, Black Friday/Week, Cyber Monday/Week,
 // and a percentage only as a discount ("-30%", "έως 50%", "up to 40%"), never a material ("95% βαμβάκι", "0% λιπαρά").
-export const PROMO_TITLE = /προσφορ|εκπτω|ευκαιρι|εκκαθαρισ|ξεπουλ|χαμηλοτερη τιμη|black[\s-]?(?:friday|week)|cyber[\s-]?(?:monday|week)|(?:^|[\s(])[-−–]\s?\d{1,2}(?:[.,]\d+)?\s?%|(?:εως|μεχρι|up to)\s?[-−–]?\s?\d{1,2}(?:[.,]\d+)?\s?%/i;
+// A minus straight before the number (any dash) makes it a discount: "-30%", "[-30%]", "-20€"; a spaced dash is a range
+// or a list ("10 - 99%", "– 90% μπαταρία") and "up to 99.97%" a performance, never a discount (round 4 of the review).
+export const PROMO_TITLE = /προσφορ|εκπτ|ευκαιρι|εκκαθαρισ|ξεπουλ|χαμηλοτερη τιμη|μειωμενη τιμη|τιμη σοκ|\boffers?\b|\bdiscount|\bclearance\b|\bpromo\b|black[\s-]?(?:friday|week(?!e))|cyber[\s-]?(?:monday|week(?!e))|(?<![\p{L}\p{N}])[-−–‑—]\d{1,3}(?:[.,]\d+)?\s?(?:[%％]|€|eur\b)|\d{1,2}\s?[%％]\s?(?:discount|off\b)/iu;
 export function promoTitle(t) {
   return PROMO_TITLE.test(String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase());
 }
@@ -127,7 +129,8 @@ export function readOffers(json, env, market, { anyStore = false } = {}) {
   for (const o of list) {
     if (!o || typeof o !== 'object') continue;
     const click = httpsUrl(o.clickUrl);
-    if (!click || !/(^|\.)yadore\.com$/i.test(click.hostname)) continue;
+    // A very long click address would make a link the click path refuses (TOKEN_RE): left out.
+    if (!click || !/(^|\.)yadore\.com$/i.test(click.hostname) || click.toString().length > 1800) continue;
     const store = String((o.merchant && o.merchant.name) || '').trim();
     if (anyStore ? (neverStore(store) || L107_WORDS.test(storeKey(store))) : !storeAllowed(env, market, store)) continue;
     const title = String(o.title || '').replace(/\s+/g, ' ').trim();
@@ -296,16 +299,27 @@ export async function yadoreBox(env, ctx, { site, cat, market, own, at, origin }
 // here (the caps of the day still hold).
 // An IPv6 address counts by its /64 (one home or phone gets a whole /64 and can change the rest at will).
 export function visitorAddress(ip) {
-  const a = String(ip || '').trim().toLowerCase();
-  const mapped = /^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/.exec(a);
-  if (mapped) return mapped[1];
+  let a = String(ip || '').trim().toLowerCase().replace(/%.*$/, '');
   if (!a.includes(':')) return a;
+  // An IPv4 address at the end ("::ffff:192.0.2.1") as two groups of 16 bits.
+  const v4 = /(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(a);
+  if (v4) {
+    const n = v4.slice(1).map(Number);
+    a = a.slice(0, -v4[0].length) + ((n[0] << 8) | n[1]).toString(16) + ':' + ((n[2] << 8) | n[3]).toString(16);
+  }
   const [head, tail = ''] = a.split('::');
   const h = head ? head.split(':') : [];
   const t = a.includes('::') ? (tail ? tail.split(':') : []) : [];
-  const full = a.includes('::') ? [...h, ...Array(Math.max(0, 8 - h.length - t.length)).fill('0'), ...t] : h;
-  return full.slice(0, 4).map(x => x.replace(/^0+(?=.)/, '')).join(':') + '::/64';
+  const full = (a.includes('::') ? [...h, ...Array(Math.max(0, 8 - h.length - t.length)).fill('0'), ...t] : h).map(x => x.replace(/^0+(?=.)/, '') || '0');
+  // IPv4-mapped (::ffff:a.b.c.d in any spelling): the IPv4 address itself.
+  if (full.length === 8 && full.slice(0, 5).every(x => x === '0') && full[5] === 'ffff') {
+    const w = [parseInt(full[6], 16), parseInt(full[7], 16)];
+    return [w[0] >> 8, w[0] & 255, w[1] >> 8, w[1] & 255].join('.');
+  }
+  return full.slice(0, 4).join(':') + '::/64';
 }
+// token: what makes one offer link the same for this visitor: the store and Yadore's address it leads to (a new page
+// copy makes new tokens for the same offers, round 4 of the review).
 export async function visitorGate({ origin, site, ip, token, at, cache, secret = '' }) {
   const ok = { ok: true, reason: '', save: async () => {} };
   if (!cache || !ip) return ok;
@@ -380,7 +394,8 @@ export async function readLink(key, token) {
   if (!key || !TOKEN_RE.test(String(token || ''))) return null;
   try {
     const bytes = unb64url(token);
-    if (bytes.length < 12 + 16 + 2) return null;
+    // Only the one spelling this site writes (the last letter has spare bits: another letter there decodes the same).
+    if (bytes.length < 12 + 16 + 2 || b64url(bytes) !== token) return null;
     const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: bytes.slice(0, 12) }, key, bytes.slice(12));
     const p = JSON.parse(new TextDecoder().decode(plain));
     if (!p || typeof p !== 'object' || typeof p.u !== 'string' || typeof p.m !== 'string' || typeof p.k !== 'string' || !Number.isFinite(p.t)) return null;
