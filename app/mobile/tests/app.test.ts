@@ -682,7 +682,7 @@ test('Mega Stores and Amazon: Mega Stores opens in the phone browser, and no Ama
   assert.equal(megaStoresUrl('US', 'GB'), 'https://megastoresgearworld.com/us/');
   assert.equal(megaStoresUrl('PL'), 'https://megastoresgearworld.com/pl/');
   assert.equal(megaStoresUrl('GB', 'DE'), MEGA_STORES_URL, 'a chosen country without a page opens the main page');
-  assert.equal(megaStoresUrl('GR'), MEGA_STORES_URL);
+  assert.equal(megaStoresUrl('GR'), 'https://megastoresgearworld.com/gr/', 'Greece has its own page (checked 25/11/2026)');
   assert.equal(megaStoresUrl('CY'), MEGA_STORES_URL);
   assert.equal(megaStoresUrl('', 'de'), 'https://megastoresgearworld.com/de/', 'Automatic: the phone\'s country');
   assert.equal(megaStoresUrl('', ''), MEGA_STORES_URL);

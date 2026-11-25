@@ -6,9 +6,10 @@ export const MEGA_STORES_URL = 'https://megastoresgearworld.com/';
 
 /**
  * Mega Stores has a page per country (Manager 25/11/2026: /de/ /at/ /nl/ /be/ /us/ /pl/). Of the app's countries,
- * Germany, the United States and Poland have one (checked 25/11/2026); the others open the main page.
+ * Germany, the United States, Poland and Greece have one (all four opened 25/11/2026: /gr/ exists too); the United
+ * Kingdom and Cyprus have none (/uk/, /gb/ and /cy/ do not exist), so they open the main page.
  */
-const MEGA_STORES_PAGES: Record<string, string> = { DE: 'de/', US: 'us/', PL: 'pl/' };
+const MEGA_STORES_PAGES: Record<string, string> = { DE: 'de/', US: 'us/', PL: 'pl/', GR: 'gr/' };
 
 /** The chosen delivery country decides; on "Automatic", the country set on the phone. Always opens in the browser. */
 export function megaStoresUrl(country: string, phoneRegion?: string | null): string {
