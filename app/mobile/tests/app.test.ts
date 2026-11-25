@@ -543,6 +543,13 @@ test('client: the app names itself, hides Amazon and what the Hub asks, and send
     assert.equal(isShown({ retailer: 'X', productUrl: 'https://www.amazon.co.uk/dp/B0' }), false);
     assert.equal(isShown({ retailer: 'X', outUrl: 'https://amzn.to/abc' }), false);
     assert.equal(isShown({ retailer: 'Tooled Up' }), true);
+    // The 5 big Linkwise retailers never show (L226, 25/11/2026); the other Linkwise retailers may (approved 25/11).
+    for (const r of ['Kotsovolos GR', 'Κωτσόβολος', 'Public', 'Public GR', 'Sephora GR', 'e-shop.gr', 'AB Vassilopoulos', 'ΑΒ Βασιλόπουλος']) {
+      assert.equal(isShown({ retailer: r }), false, r);
+    }
+    assert.equal(isShown({ retailer: 'X', productUrl: 'https://www.kotsovolos.gr/item' }), false);
+    assert.equal(isShown({ retailer: 'Public Desire' }), true, 'another retailer whose name starts the same');
+    assert.equal(isShown({ retailer: 'Parex GR' }), true, 'Linkwise retailers of the 13 sites may show');
     // The Hub's app file hides retailers without a new app version; a broken file hides nothing extra.
     assert.deepEqual(parseAppConfig({ hidden_retailers: ['Parex GR', ' ', 7, 'x'.repeat(81)] }), { hiddenRetailers: ['Parex GR'] });
     assert.deepEqual(parseAppConfig(null), { hiddenRetailers: [] });

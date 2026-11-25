@@ -13,7 +13,7 @@
 | Καμπάνιες εποχής και προσφορές (αρχική) | ίδιες εποχές και ημερομηνίες με την αρχική του Hub (`src/lib/seasons.ts`, κείμενα `src/i18n/season-strings.json` από το `hub-v2.js`)· εικόνες `gearworldhub.com/seasonal/*.jpg`· προσφορές από το `gearworldhub.com/hub-deals.json`, ζωντανά. Το κουμπί ανοίγει τη σελίδα κωδικών του site στον browser· ποτέ κωδικός ή `/go/`, `/out/` μέσα στην εφαρμογή |
 | Νομικές σελίδες | `gearworldhub.com/privacy/`, `/terms/`, `/affiliate-disclosure/`, `/contact/` |
 | Κείμενα 11 γλωσσών | `src/i18n/hub-strings.json` (από το Hub) και `src/i18n/app-strings.ts` |
-| Τι κρύβει η εφαρμογή (από 1.0.2) | `gearworldhub.com/app-config.json` → `{"hidden_retailers": ["Όνομα καταστήματος", ...]}`· αλλάζει στο Hub χωρίς νέα έκδοση. Amazon δεν εμφανίζεται ποτέ (απόφαση «Α», 25/11/2026) |
+| Τι κρύβει η εφαρμογή (από 1.0.2) | `gearworldhub.com/app-config.json` → `{"hidden_retailers": ["Όνομα καταστήματος", ...]}`· αλλάζει στο Hub χωρίς νέα έκδοση. Amazon δεν εμφανίζεται ποτέ (απόφαση «Α», 25/11/2026), ούτε τα 5 μεγάλα της Linkwise (Κωτσόβολος, Public, Sephora, e-shop, ΑΒ, L226)· τα υπόλοιπα καταστήματα Linkwise των 13 sites φαίνονται σε Ελλάδα/Κύπρο (έγκριση Linkwise 25/11/2026) |
 | Χώρα παράδοσης (από 1.0.2) | Ρυθμίσεις → «Χώρα παράδοσης»: `country=` στο `/api/search` του Hub και `deliver_to=` στο `/api/products` των sites· «Αυτόματα» = όπως πριν (η χώρα του κινητού) |
 | Header της εφαρμογής (από 1.0.2) | `X-GW-Client: gear-world-app/<έκδοση>` σε κάθε αίτημα, για να ξεχωρίζουν Hub και sites την εφαρμογή |
 

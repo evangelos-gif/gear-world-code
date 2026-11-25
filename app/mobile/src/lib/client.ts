@@ -23,6 +23,17 @@ export function isCountry(v: unknown): v is Country {
  */
 const AMAZON = /amazon|amzn\./i;
 
+/**
+ * The 5 big Linkwise retailers stay out of the app, never shown and never compared (lessons L226, 25/11/2026). The
+ * other Linkwise retailers of the 13 sites may show in Greece and Cyprus (Linkwise approved the app, 25/11/2026).
+ * Names are compared whole (after a " GR" ending), so "Public Desire" is not "Public".
+ */
+const NEVER_RETAILERS = new Set([
+  'kotsovolos', 'κωτσόβολος', 'κωτσοβολος', 'public', 'sephora', 'e-shop', 'e-shop.gr', 'eshop',
+  'ab', 'αβ', 'ab vassilopoulos', 'ab vasilopoulos', 'ab βασιλόπουλος', 'αβ βασιλόπουλος'
+]);
+const NEVER_HOSTS = /\/\/(?:www\.)?(?:kotsovolos|public|sephora|e-shop|ab)\.gr(?:[/:?#]|$)/i;
+
 type State = { version: string; country: Country | ''; hidden: Set<string> };
 const state: State = { version: '', country: '', hidden: new Set() };
 
@@ -45,14 +56,17 @@ export function clientHeaders(): Record<string, string> {
 }
 
 const norm = (s: string) => s.trim().toLowerCase();
+const baseName = (s: string) => norm(s).replace(/\s+gr$/, '');
 
 export function setHiddenRetailers(names: string[]): void {
   state.hidden = new Set(names.map(norm).filter(Boolean));
 }
 
-/** false for Amazon and for any retailer the Hub asks the app to hide (app-config.json "hidden_retailers"). */
+/** false for Amazon, the 5 big Linkwise retailers and any retailer the Hub asks the app to hide (app-config.json). */
 export function isShown(p: { retailer: string; productUrl?: string; outUrl?: string }): boolean {
-  if (AMAZON.test(p.retailer) || AMAZON.test(p.productUrl ?? '') || AMAZON.test(p.outUrl ?? '')) return false;
+  const urls = [p.productUrl ?? '', p.outUrl ?? ''];
+  if (AMAZON.test(p.retailer) || urls.some(u => AMAZON.test(u))) return false;
+  if (NEVER_RETAILERS.has(baseName(p.retailer)) || urls.some(u => NEVER_HOSTS.test(u))) return false;
   return !state.hidden.has(norm(p.retailer));
 }
 
