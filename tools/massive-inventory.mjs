@@ -38,15 +38,19 @@ export function parseAwinReport(text) {
   const regions = new Map();
   const notInList = new Set();
   for (const l of lines(text)) {
-    let m = l.match(/^(\d{2,9}) (.*), feed (\d+): μέλος: (.*?) \| προϊόντα στο Awin: (.*?) \| ανανέωση Awin: (.*?) \| αντίγραφο εδώ: (.*)$/);
+    // Since L231 the line may end with the feed's country and language from the Awin list.
+    let m = l.match(/^(\d{2,9}) (.*), feed (\d+): μέλος: (.*?) \| προϊόντα στο Awin: (.*?) \| ανανέωση Awin: (.*?) \| αντίγραφο εδώ: (.*?)(?: \| περιοχή: (.*?))?(?: \| γλώσσα: (.*?))?$/);
     if (m) {
       const e = listing.get(m[1]) || { id: m[1], name: m[2], feeds: [] };
-      if (!e.feeds.some(f => f.feedId === m[3])) e.feeds.push({ feedId: m[3], member: m[4].trim(), products: m[5].trim(), updated: m[6].trim(), local: m[7].trim() });
+      const region = (m[8] || '').trim();
+      const language = (m[9] || '').trim();
+      if (!e.feeds.some(f => f.feedId === m[3])) e.feeds.push({ feedId: m[3], member: m[4].trim(), products: m[5].trim(), updated: m[6].trim(), local: m[7].trim(), region, language });
       listing.set(m[1], e);
+      if (region || language) regions.set(m[1], [...new Set(e.feeds.map(f => [f.region, f.language].filter(Boolean).join('/')).filter(Boolean))].join(', '));
       continue;
     }
     m = l.match(/^\s*- (\d{2,9}) (.*) \(feed (\d+), (.*?), προϊόντα (.*)\)$/);
-    if (m) { regions.set(m[1], m[4].trim()); continue; }
+    if (m) { if (!regions.has(m[1])) regions.set(m[1], m[4].trim()); continue; }
     m = l.match(/^(\d{2,9}): δεν υπάρχει στη λίστα σου/);
     if (m) notInList.add(m[1]);
   }
@@ -194,7 +198,7 @@ export async function inventory({ candidates, archive, reports = [], maxRows = 1
       else if (c.net === 'adtraction') why = 'Adtraction: δεν κατέβηκε ακόμα (adtraction-feed-download -Step download)';
       else if (!c.id) why = 'δεν βρέθηκε αριθμός (ούτε στο φύλλο ούτε στη λίστα του δικτύου)';
       else if (c.net === 'awin' && aw.notInList.has(c.id)) why = 'Awin: δεν είναι στη λίστα σου (όχι μέλος ή χωρίς feed)';
-      else if (c.net === 'awin' && aw.listing.has(c.id)) why = `Awin: ${aw.listing.get(c.id).feeds.map(f => `${f.member}, ${f.products} προϊόντα`).join('; ')}, δεν κατέβηκε`;
+      else if (c.net === 'awin' && aw.listing.has(c.id)) why = `Awin: ${aw.listing.get(c.id).feeds.map(f => `${f.member}, ${f.products} προϊόντα${f.region ? `, ${f.region}` : ''}${f.language ? `/${f.language}` : ''}`).join('; ')}, δεν κατέβηκε`;
       else if (c.net === 'daisycon' && dc.get(c.id) && dc.get(c.id).noFeed) why = `Daisycon: ${dc.get(c.id).noFeed}`;
       else why = 'δεν υπάρχει αρχείο feed στον υπολογιστή';
       none.push(`#${c.row} ${c.wave.toUpperCase()} ${c.net} ${c.id || '-'} ${cut(c.name, 44)} [${c.site || '-'}] : ${why}`);
