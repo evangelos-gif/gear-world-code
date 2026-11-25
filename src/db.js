@@ -1285,11 +1285,9 @@ export async function logClick(db, row) {
     // The older sites' click table (same columns their dashboards and the Hub reports read).
     await db
       .prepare(`INSERT INTO affiliate_clicks (product_id, awin_product_id, retailer, brand, site_category, product_name,
-        page_path, language, display_currency, country_code, source) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+        page_path, language, display_currency, country_code, source) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'retailer_click')`)
       .bind(row.product_id, row.awin_product_id || '', row.retailer || '', row.brand || '', row.site_category || '',
-        row.product_name || '', row.page_path || '', row.language || '', row.display_currency || 'GBP', row.country_code || '',
-        // A Yadore click (L232) keeps its own source, so the retailer click reports of these sites stay as they were.
-        row.source === 'yadore_click' ? 'yadore_click' : 'retailer_click')
+        row.product_name || '', row.page_path || '', row.language || '', row.display_currency || 'GBP', row.country_code || '')
       .run();
     return;
   }
@@ -1298,6 +1296,33 @@ export async function logClick(db, row) {
       VALUES (?, ?, ?, ?, ?, ?, ?)`)
     .bind(row.product_id, row.awin_advertiser_id, row.retailer, row.category_slug, row.page_path, row.country_code, row.click_ref)
     .run();
+}
+
+// A Yadore click (lessons L232) in ONE statement that also checks the clicks of the day: it is written only while the
+// site has fewer than `site` and the store fewer than `store` clicks since `day` (UTC). D1 runs one write at a time, so
+// clicks at the same moment can never pass the caps together (independent review, 25 Nov 2026). Returns the rows written
+// (0 = a cap was reached). clicked_at is the engine's clock (the real time on the live site; the fixed day in the tests),
+// in the same text form as datetime('now').
+export async function logYadoreClick(db, row, { day, site, store, prefix, at }) {
+  const when = new Date(at).toISOString().replace('T', ' ').slice(0, 19);
+  const caps = 'WHERE (SELECT COUNT(*) FROM affiliate_clicks WHERE clicked_at >= ? AND retailer LIKE ?) < ? AND (SELECT COUNT(*) FROM affiliate_clicks WHERE clicked_at >= ? AND retailer = ?) < ?';
+  const capArgs = [day, `${prefix}%`, site, day, row.retailer, store];
+  let r;
+  if (LAYOUT.legacy) {
+    r = await db
+      .prepare(`INSERT INTO affiliate_clicks (product_id, awin_product_id, retailer, brand, site_category, product_name,
+        page_path, language, display_currency, country_code, source, clicked_at) SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'yadore_click', ? ${caps}`)
+      .bind(row.product_id, row.awin_product_id || '', row.retailer || '', row.brand || '', row.site_category || '',
+        row.product_name || '', row.page_path || '', row.language || '', row.display_currency || 'GBP', row.country_code || '', when, ...capArgs)
+      .run();
+  } else {
+    r = await db
+      .prepare(`INSERT INTO affiliate_clicks (product_id, awin_advertiser_id, retailer, category_slug, page_path, country_code, click_ref, clicked_at)
+        SELECT ?, ?, ?, ?, ?, ?, ?, ? ${caps}`)
+      .bind(row.product_id, row.awin_advertiser_id, row.retailer, row.category_slug, row.page_path, row.country_code, row.click_ref, when, ...capArgs)
+      .run();
+  }
+  return Number((r && r.meta && r.meta.changes) || 0);
 }
 
 export async function addNewsletter(db, { email, consentText, sourcePath }) {

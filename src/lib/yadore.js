@@ -54,17 +54,24 @@ const NEVER_LABELS = ['public', 'sephora', 'e-shop', 'eshop', 'ab', 'abvasilopou
 const NEVER_WORDS = /amazon|aliexpress|sephora|kotsovolos|κωτσόβολος|κωτσοβολος|βασιλόπουλος|βασιλοπουλος|vasilopoulos|\bpanora\b|e-?shop\.gr|\bpublic\.gr\b/i;
 // The words the sites never use (lessons L107). A title or a store name with one of them is left out (never rewritten).
 export const L107_WORDS = /\bshop|\bcart\b|\bsale\b|\bdeals?\b|\bofficial\b|\bpartner|lowest price|% ?off\b|\bsave\b|buy now|\bwas\s*£|uk retailers/i;
+// Sale words of a title in Greek too (L107 is about our texts; a store's title with them is left out, never rewritten):
+// προσφορά, έκπτωση, ξεπούλημα, and a percentage like "-30%" (not "100%").
+export const PROMO_TITLE = /προσφορ|εκπτωσ|ξεπουλ|black friday|cyber monday|(?:^|[^\d])-?\d{1,2}\s?%/i;
+export function promoTitle(t) {
+  return PROMO_TITLE.test(String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase());
+}
 const BAD_STOCK = new Set(['UNAVAILABLE', 'SOON', 'PREORDER', 'BACKORDER']);
 
 // The store's name as compared everywhere: lower case, no "www.", single spaces.
+// A final sigma is folded to σ, as Windows PowerShell's ToLowerInvariant does (tools/yadore.ps1 -Step pause).
 export function storeKey(name) {
-  return String(name || '').normalize('NFKC').trim().toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/.*$/, '').replace(/\s+/g, ' ');
+  return String(name || '').normalize('NFKC').trim().toLowerCase().replace(/ς/g, 'σ').replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/.*$/, '').replace(/\s+/g, ' ');
 }
 export function neverStore(name) {
   const k = storeKey(name);
   if (!k) return true;
   // The first word or label: "public.gr", "Public GR", "Public Greece", "AB Vasilopoulos" (independent review).
-  const label = k.split(/[.\s]/)[0];
+  const label = k.split(/[.\s-]/)[0];
   return NEVER_LABELS.includes(label) || NEVER_WORDS.test(k);
 }
 
@@ -122,7 +129,7 @@ export function readOffers(json, env, market, { anyStore = false } = {}) {
     const store = String((o.merchant && o.merchant.name) || '').trim();
     if (anyStore ? (neverStore(store) || L107_WORDS.test(storeKey(store))) : !storeAllowed(env, market, store)) continue;
     const title = String(o.title || '').replace(/\s+/g, ' ').trim();
-    if (!title || title.length > 200 || L107_WORDS.test(title)) continue;
+    if (!title || title.length > 200 || L107_WORDS.test(title) || promoTitle(title)) continue;
     const price = Number.parseFloat(String((o.price && o.price.amount) || '').replace(',', '.'));
     const currency = String((o.price && o.price.currency) || '').toUpperCase();
     if (!(price > 0 && price < 100000) || !/^[A-Z]{3}$/.test(currency)) continue;
@@ -285,12 +292,23 @@ export async function yadoreBox(env, ctx, { site, cat, market, own, at, origin }
 // cache until the end of that day (the privacy page says so): at most YADORE_PER_VISITOR clicks, and one per offer link.
 // Returns { ok, reason, save }: save() writes the new count after the click is recorded. Without a cache: no limit
 // here (the caps of the day still hold).
-export async function visitorGate({ origin, site, ip, token, at, cache }) {
+// An IPv6 address counts by its /64 (one home or phone gets a whole /64 and can change the rest at will).
+export function visitorAddress(ip) {
+  const a = String(ip || '').trim().toLowerCase();
+  if (!a.includes(':')) return a;
+  const [head, tail = ''] = a.split('::');
+  const h = head ? head.split(':') : [];
+  const t = a.includes('::') ? (tail ? tail.split(':') : []) : [];
+  const full = a.includes('::') ? [...h, ...Array(Math.max(0, 8 - h.length - t.length)).fill('0'), ...t] : h;
+  return full.slice(0, 4).map(x => x.replace(/^0+(?=.)/, '')).join(':') + '::/64';
+}
+export async function visitorGate({ origin, site, ip, token, at, cache, secret = '' }) {
   const ok = { ok: true, reason: '', save: async () => {} };
   if (!cache || !ip) return ok;
   const day = new Date(at).toISOString().slice(0, 10);
-  const hex = async text => [...new Uint8Array(await crypto.subtle.digest('SHA-256', enc.encode(text)))].slice(0, 16).map(b => b.toString(16).padStart(2, '0')).join('');
-  const who = await hex(`gw-yadore-visitor|${day}|${String(site.code).toLowerCase()}|${ip}`);
+  // Keyed with the API key, so the hash cannot be turned back into an address by trying all IPv4 addresses.
+  const hex = async text => [...new Uint8Array(await crypto.subtle.digest('SHA-256', enc.encode(`${secret}|${text}`)))].slice(0, 16).map(b => b.toString(16).padStart(2, '0')).join('');
+  const who = await hex(`gw-yadore-visitor|${day}|${String(site.code).toLowerCase()}|${visitorAddress(ip)}`);
   const link = (await hex(`gw-yadore-token|${token}`)).slice(0, 16);
   const key = new Request(`${origin}/api/yadore-seen?v=${who}`);
   let seen = { n: 0, links: [] };

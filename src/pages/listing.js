@@ -199,9 +199,10 @@ export function categoryPage(site, cat, p, result, facets, subCounts = null, yd 
     <aside class="listing-side">${filterForm(base, p, facets, sub ? { sub: sub.slug } : {})}</aside>
     <div class="listing-main">
       ${subcategoryNav(base, cat, p, subCounts)}
+      ${result.products.length ? yadoreSection(site, yd) : ''}
       ${resultsHeader(result)}
       ${result.products.length
-        ? html`${yadoreSection(site, yd)}<h2 class="visually-hidden">${tr('Products')}</h2>${productGrid(site, result.products)}`
+        ? html`<h2 class="visually-hidden">${tr('Products')}</h2>${productGrid(site, result.products)}`
         : filtered
           ? html`<div class="empty"><h2>No products match these filters</h2><p>Remove a filter or <a href="${base}">see all products in this category</a>.</p></div>`
           : html`${yadoreSection(site, yd)}<div class="empty" data-empty-category><h2>${tr('Coming soon')}</h2><p>${tr('We are adding products to this category. Until then, browse the other categories.')}</p>

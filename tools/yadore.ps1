@@ -27,7 +27,7 @@
                  before and the undo is that list.
   -Step check    READ-ONLY. The live category pages from Greece (the network's QA header, L158) and one page per site from
                  the UK: box or not, offers, stores, marks (Sponsored, the note, the date, sponsored nofollow, no L107
-                 word, noindex). Never a /out/ or /out/y/ link.
+                 word, no store that is never allowed). Never a /out/ or /out/y/ link.
   -Step report   READ-ONLY. Clicks and sales per store (Conversion API) and per day (Report API) from -From to -To
                  (default 2 Dec 2026 to two days ago): the 300-click rule and the 1% conversion target.
   Report: <home>\gear-world-reports\YADORE_<STEP>_<time>.txt (also copied to the clipboard).
@@ -389,8 +389,9 @@ $pauseBefore = ''
 if ($Step -eq 'pause') {
     # Names as src/lib/yadore.js storeKey() writes them: lower case, no https:// or www., no path, single spaces. Only
     # commas and new lines separate two names ("Tsakiris Mallas GR" is one name).
-    $list = @($Stores.ToLowerInvariant() -split '[,\r\n]+' | ForEach-Object { (($_.Trim() -replace '^https?://', '') -replace '^www\.', '') -replace '/.*$', '' } | ForEach-Object { ($_ -replace '\s+', ' ').Trim() } | Where-Object { $_ })
-    $bad = @($list | Where-Object { $_ -notmatch '^[\p{L}\p{N}][\p{L}\p{N}.\- ]{0,80}$' })
+    # A final sigma becomes σ, as in storeKey() (JavaScript writes ς, .NET σ).
+    $list = @($Stores.ToLowerInvariant() -split '[,\r\n]+' | ForEach-Object { (($_.Trim() -replace '^https?://', '') -replace '^www\.', '') -replace '/.*$', '' } | ForEach-Object { (($_ -replace '\s+', ' ').Trim()).Replace([string][char]0x03C2, [string][char]0x03C3) } | Where-Object { $_ })
+    $bad = @($list | Where-Object { $_ -notmatch "^[\p{L}\p{N}][\p{L}\p{N}.\-&'+() ]{0,80}$" })
     if ($bad.Count -gt 0) { Say ('Δεν κατάλαβα αυτά τα καταστήματα: {0}' -f ($bad -join ' | ')) 'Red'; Finish 2 }
     $pauseList = (@($list | Select-Object -Unique) -join ',')
     if (-not $pauseList -and -not $Clear) { Say 'Δώσε τα καταστήματα με -Stores ''a.gr, b.gr'' ή -Clear για να σβηστεί η παύση. Δεν άλλαξε τίποτα.' 'Red'; Finish 2 }
@@ -455,11 +456,12 @@ foreach ($w in $targets) {
     Say ('  {0}: 🟢 ΕΝΤΑΞΕΙ' -f $label) 'Green'
 }
 $key = ''
-if ($Step -eq 'pause') {
+# The list kept on this PC is the one of all 13 sites: a run with -Sites (some sites only) does not change it.
+if ($Step -eq 'pause' -and $siteList.Count -eq 0) {
     $dir = Split-Path -Parent $PauseFile
     if (-not (Test-Path -LiteralPath $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
     [System.IO.File]::WriteAllText($PauseFile, $pauseList, (New-Object System.Text.UTF8Encoding($false)))
-}
+} elseif ($Step -eq 'pause') { Say ('Με -Sites: η λίστα του υπολογιστή ({0}) ΔΕΝ άλλαξε (κρατά τη λίστα και των 13).' -f $PauseFile) 'Yellow' }
 
 Say ''
 Say 'Έλεγχος μετά (ονόματα secrets και έκδοση που τρέχει):'
@@ -480,7 +482,8 @@ Say ''
 Say 'Αναίρεση:'
 if ($Step -eq 'keys') { Say '  tools/yadore.ps1 -Step off -Apply   (φράση ΕΓΚΡΙΝΩ YADORE OFF)' }
 elseif ($Step -eq 'off') { Say '  tools/yadore.ps1 -Step keys -Apply  (φράση ΕΓΚΡΙΝΩ YADORE ΚΛΕΙΔΙ)' }
-else { Say ('  tools/yadore.ps1 -Step pause -Apply -Stores ''{0}''   (φράση ΕΓΚΡΙΝΩ YADORE ΠΑΥΣΗ)' -f ($pauseBefore -replace "'", "''")) }
+elseif ($pauseBefore) { Say ('  tools/yadore.ps1 -Step pause -Apply -Stores ''{0}''   (φράση ΕΓΚΡΙΝΩ YADORE ΠΑΥΣΗ)' -f ($pauseBefore -replace "'", "''")) }
+else { Say '  tools/yadore.ps1 -Step pause -Clear -Apply   (φράση ΕΓΚΡΙΝΩ YADORE ΠΑΥΣΗ: πριν δεν υπήρχε παύση)' }
 if ($bad -gt 0) { Say ''; Say ('Αποτέλεσμα: 🔴 ΠΡΟΒΛΗΜΑ σε {0} site(s). Στείλε την αναφορά στο Claude.' -f $bad) 'Red'; Finish 8 }
 Say ''
 Say ('Αποτέλεσμα: 🟢 ΕΤΟΙΜΟ: {0} ({1} sites).' -f $(if ($Step -eq 'keys') { 'το κλειδί μπήκε' } elseif ($Step -eq 'off') { 'το Yadore σταμάτησε' } else { 'η παύση ισχύει' }), $done.Count) 'Green'

@@ -294,8 +294,12 @@ test('L232: with our own products on the page the box goes above our list, apart
   assert.ok(own > 0 && gr.indexOf('yd-box') < own, 'above our list');
   const ownIds = t => [...t.matchAll(/href="\/out\/(\d+)"/g)].map(m => m[1]);
   assert.ok(ownIds(gr).length > 0);
-  // Our own list is the same as without the box (the UK copy of the same products, same order).
-  assert.deepEqual(ownIds(gr.replace(b, '')), ownIds(gr));
+  // Our own list is exactly the list of the same Greek page without the box (no key): same products, same order.
+  const plain = (await get(tgw, { ...env, YADORE_API_KEY: '' }, path)).text;
+  assert.equal(box(plain), '');
+  assert.deepEqual(ownIds(gr), ownIds(plain));
+  // Above the results bar ("N products", sort), so it never reads as part of our list.
+  assert.ok(gr.includes('<p class="result-count">') && gr.indexOf('yd-box') < gr.indexOf('<p class="result-count">'), 'above "N products"');
   assert.ok(!/href="\/out\/\d/.test(b), 'no card of ours inside the box');
   assert.equal(box(uk), '');
 });
@@ -452,7 +456,8 @@ test('L232: the box\'s texts and the new texts of the about, money, privacy and 
   const NEW = [
     'In some categories, a box marked "Sponsored" shows offers from other stores through Yadore, with the date their prices were checked.',
     'In some categories, a box marked "Sponsored" shows offers from other stores through Yadore (Yadore GmbH, Germany). Those stores pay Yadore for each click, and Yadore pays us a share. You pay the same price as you would if you went to the store directly.',
-    'The box marked "Sponsored" is apart from our own list and does not change it. Its offers come in Yadore\'s order for the words of the category, at most two per store.',
+    'On page 1 of some categories, a box marked "Sponsored" is shown above our own list and does not change it. Its offers come in Yadore\'s order for the words of the category, at most two per store, and when a store\'s offer comes twice we keep the copy that pays more per click.',
+    'We do not rank products by commission. The default order mixes products in stock first, and you can sort by price, newest or furthest below RRP at any time. A retailer cannot pay to change a price or a product\'s position in our own list.',
     'Sponsored offers.',
     'When you select a button in the box marked "Sponsored", we record the store, the page you were on, the date and your country in the same way, and you go to the store through Yadore (Yadore GmbH, Germany), which records the click so that the store pays for it. To keep these clicks real, a one-way scrambled (hashed) form of your IP address is kept in our hosting provider\'s cache until the end of that day, only to count your clicks in the box (legitimate interests).',
     'Links in the box marked "Sponsored" go through Yadore (Yadore GmbH, Germany). Yadore and the store may set their own cookies to record the click. Their privacy policies apply on their websites.',
@@ -576,8 +581,13 @@ test('L232 review: prefetch, another site\'s page, a failing click log, the same
     const back = '/category/laptops-computing/';
     const where = r => { const l = r.headers.get('Location'); return /^https:\/\/api\.yadore\.com\//.test(l) ? 'yadore' : new URL(l).pathname; };
     const ip = a => ({ 'CF-Connecting-IP': a });
-    for (const [name, h] of [['prefetch', { 'Sec-Purpose': 'prefetch' }], ['prerender', { 'Sec-Purpose': 'prefetch;prerender' }], ['old prefetch', { Purpose: 'prefetch' }],
-      ['another site', { 'Sec-Fetch-Site': 'cross-site' }], ['typed or bookmarked', { 'Sec-Fetch-Site': 'none' }]]) {
+    for (const [name, h] of [['prefetch', { 'Sec-Purpose': 'prefetch' }], ['prerender', { 'Sec-Purpose': 'prefetch;prerender' }], ['old prefetch', { Purpose: 'prefetch' }]]) {
+      const r = await click(tgw, env, toks[0], { headers: { ...ip('192.0.2.1'), ...h } });
+      assert.equal(r.status, 503, `${name}: no answer a browser could keep for the real click`);
+      assert.equal(r.headers.get('Cache-Control'), 'no-store');
+      assert.equal(r.headers.get('Location'), null);
+    }
+    for (const [name, h] of [['another site', { 'Sec-Fetch-Site': 'cross-site' }], ['typed or bookmarked', { 'Sec-Fetch-Site': 'none' }]]) {
       assert.equal(where(await click(tgw, env, toks[0], { headers: { ...ip('192.0.2.1'), ...h } })), back, name);
     }
     assert.equal(env.DB.sql.prepare('SELECT COUNT(*) AS n FROM affiliate_clicks').get().n, 0);
@@ -594,8 +604,61 @@ test('L232 review: prefetch, another site\'s page, a failing click log, the same
     // The click log fails: the click is not counted, so it does not go to Yadore either.
     const broken = { ...env, DB: { prepare: t => (/^INSERT/i.test(t.trim()) ? { bind: () => ({ run: async () => { throw new Error('D1_ERROR: overloaded'); } }) } : env.DB.prepare(t)) } };
     assert.equal(where(await click(tgw, broken, toks[4], { headers: ip('192.0.2.3') })), back, 'no record, no click');
-    assert.equal(where(await click(tgw, env, toks[4], { headers: ip('192.0.2.3') })), 'yadore', 'the same person later, when the log works');
+    assert.equal(where(await click(tgw, env, toks[5], { headers: ip('192.0.2.3') })), 'yadore', 'the same person later, when the log works');
   } finally {
     globalThis.caches = before;
   }
+});
+
+// ---- Independent review, round 2 (25 Nov 2026)
+
+test('L232 review 2: clicks at the same moment never pass the caps (one statement with the counts), on both database layouts', async () => {
+  for (const [site, mk, path] of [[tgw, tgwDb, '/category/laptops-computing/'], [ggw, ggwDb, '/category/garden-furniture-outdoor-living/']]) {
+    N = 0;
+    const env = { DB: mk(), YADORE_API_KEY: KEY, YADORE_FETCH: yadoreApi(fullAnswer), FX_FETCH: async () => { throw new Error('offline'); } };
+    const toks = [...new Set(await pageTokens(site, env, path))];
+    // The database writes the real time; on the test day every earlier click must count as today.
+    const day = () => env.DB.sql.exec("UPDATE affiliate_clicks SET clicked_at = '2026-12-03 10:00:00' WHERE clicked_at < '2026-12-01'");
+    const burst = await Promise.all(Array.from({ length: 24 }, (_, i) => click(site, env, toks[i % toks.length], { headers: { 'CF-Connecting-IP': `198.51.100.${i + 1}` } })));
+    day();
+    const sent = burst.filter(r => /^https:\/\/api\.yadore\.com\//.test(r.headers.get('Location'))).length;
+    const rows = env.DB.sql.prepare("SELECT retailer, COUNT(*) AS n FROM affiliate_clicks WHERE retailer LIKE 'Yadore%' GROUP BY retailer").all();
+    assert.ok(rows.every(r => r.n <= 5), `${site.code}: at most 5 per store (${JSON.stringify(rows)})`);
+    assert.equal(sent, rows.reduce((a, r) => a + r.n, 0), `${site.code}: every click sent to Yadore is recorded, none more`);
+    assert.ok(sent <= 15, `${site.code}: at most 15 for the site`);
+  }
+});
+
+test('L232 review 2: an IPv6 visitor counts by its /64; the hash is keyed, so an address cannot be found from it', async () => {
+  const { visitorAddress, visitorGate } = await import('../../src/lib/yadore.js');
+  assert.equal(visitorAddress('2001:db8:1:2:aaaa::1'), '2001:db8:1:2::/64');
+  assert.equal(visitorAddress('2001:0db8:0001:0002:ffff:1:2:3'), '2001:db8:1:2::/64');
+  assert.equal(visitorAddress('2001:db8::5'), '2001:db8:0:0::/64');
+  assert.equal(visitorAddress('192.0.2.7'), '192.0.2.7');
+  const store = new Map();
+  const cache = { match: async k => (store.has(k.url) ? store.get(k.url).clone() : undefined), put: async (k, r) => { store.set(k.url, r); } };
+  const base = { origin: 'https://technologygearworld.com', site: tgw, at: DAY, cache, secret: KEY };
+  for (let i = 1; i <= 3; i++) {
+    const g = await visitorGate({ ...base, ip: `2001:db8:1:2::${i}`, token: `t${i}` });
+    assert.equal(g.ok, true, `click ${i}`);
+    await g.save();
+  }
+  assert.equal((await visitorGate({ ...base, ip: '2001:db8:1:2:ffff::9', token: 't9' })).reason, 'visitor', 'another address of the same /64');
+  assert.equal((await visitorGate({ ...base, ip: '2001:db8:1:3::1', token: 't9' })).ok, true, 'another /64');
+  const other = new Map();
+  const c2 = { match: async k => (other.has(k.url) ? other.get(k.url).clone() : undefined), put: async (k, r) => { other.set(k.url, r); } };
+  await (await visitorGate({ ...base, cache: c2, secret: 'another-key-0123456789', ip: '2001:db8:1:2::1', token: 't1' })).save();
+  assert.notDeepEqual([...other.keys()], [...store.keys()].slice(0, 1), 'the key changes the hash');
+});
+
+test('L232 review 2: sale words of a Greek title, a final sigma and "Public-GR" are caught', async () => {
+  const { promoTitle } = await import('../../src/lib/yadore.js');
+  for (const t of ['ΠΡΟΣΦΟΡΑ Laptop', 'Laptop Προσφορά!', 'Έκπτωση -30% κράνος', 'κράνος -25%', 'κράνος 40 %', 'ξεπούλημα', 'Black Friday laptop']) assert.equal(promoTitle(t), true, t);
+  for (const t of ['Μπλουζάκι 100% βαμβάκι', 'Laptop 16GB 512GB', 'Κράνος μηχανής XL', 'Τροφή σκύλου 15kg']) assert.equal(promoTitle(t), false, t);
+  N = 0;
+  assert.equal(readOffers({ offers: [offer('alpha.gr', { title: 'Laptop ΠΡΟΣΦΟΡΑ' }), offer('alpha.gr', { title: 'Laptop -20%' }), offer('alpha.gr')] }, {}, 'gr').length, 1);
+  assert.equal(storeKey('ΚΑΤΑΣΤΗΜΑ ΚΟΣΜΟΣ'), storeKey('κατάστημα κόσμος'.normalize('NFD').replace(/[\u0300-\u036f]/g, '')), 'a final sigma folds to σ');
+  assert.equal(storeKey('Κόσμος'), 'κόσμοσ');
+  for (const n of ['Public-GR', 'public-gr.example', 'AB-Vasilopoulos']) assert.equal(neverStore(n), true, n);
+  assert.equal(neverStore('e-shop.gr'), true);
 });

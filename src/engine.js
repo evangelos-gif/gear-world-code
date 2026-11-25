@@ -26,7 +26,7 @@ import { deliveryCountries } from './lib/delivery.js';
 import { remindProbe, REMIND_UNTIL, REMIND_URL, REMIND_PATH } from './lib/remind.js';
 import { noAlerts } from './lib/retailer-terms.js';
 import { COUNTRY_LANGUAGES, MULTI_LANGUAGE_COUNTRIES } from './lib/country-language.js';
-import { yadoreMarket, yadoreBox, yadoreClick, visitorGate, notAClick } from './lib/yadore.js';
+import { yadoreMarket, yadoreBox, yadoreClick, visitorGate, notAClick, capsFor, yadoreKey, CLICK_PREFIX } from './lib/yadore.js';
 
 // Gear World Hub keeps the one list of members; sites reach it only through a service binding (lessons L92).
 // The address is not public: requests from the internet never carry this host name.
@@ -484,6 +484,8 @@ export function createWorker(site) {
   // anything else goes back to the category page, with nothing recorded. The click is recorded before the redirect, so
   // the count of the day is right for the next one.
   async function yadoreOut(request, env, url, token, at) {
+    // A prefetch or prerender is no click: an answer the browser must not keep or reuse for the real click.
+    if (notAClick(request.headers) === 'prefetch') return new Response(null, { status: 503, headers: secureHeaders({ 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex, nofollow' }) });
     const r = await yadoreClick({
       env, site, token, at, categories,
       country: String((request.cf && request.cf.country) || ''),
@@ -494,22 +496,28 @@ export function createWorker(site) {
     // One person: at most YADORE_PER_VISITOR clicks a day on this site and one per offer link (a one-way hash, cache only).
     let cache = null;
     try { cache = typeof caches !== 'undefined' && caches.default && env.EDGE_CACHE !== 'off' ? caches.default : null; } catch { cache = null; }
-    const gate = await visitorGate({ origin: url.origin, site, ip: request.headers.get('cf-connecting-ip') || '', token, at, cache });
+    const gate = await visitorGate({ origin: url.origin, site, ip: request.headers.get('cf-connecting-ip') || '', token, at, cache, secret: yadoreKey(env) });
     const toPage = redirect(new URL(r.log.category_slug && categories.has(r.log.category_slug) ? `/category/${r.log.category_slug}/` : '/', url.origin).toString(), 302, { 'X-Robots-Tag': 'noindex, nofollow' });
     if (!gate.ok) return toPage;
+    // The visitor's count first (a second click at once then sees it), then the click itself.
+    await gate.save();
     let pagePath = '';
     try {
       const ref = new URL(request.headers.get('referer') || '');
       if (ref.hostname === url.hostname) pagePath = ref.pathname.slice(0, 300);
     } catch { /* no referer */ }
-    // A click that cannot be recorded is not counted, so it does not go to Yadore either (the caps of the day must hold).
+    // Recorded in one statement with the caps of the day (src/db.js logYadoreClick). Not recorded (a cap reached at the
+    // same moment, or the database failing) = not counted, so it does not go to Yadore either.
+    const cap = capsFor(at);
+    let written = 0;
     try {
-      await db.logClick(env.DB, { ...r.log, page_path: pagePath, country_code: String((request.cf && request.cf.country) || '').slice(0, 2).toUpperCase() });
+      written = await db.logYadoreClick(env.DB, { ...r.log, page_path: pagePath, country_code: String((request.cf && request.cf.country) || '').slice(0, 2).toUpperCase() },
+        { day: new Date(at).toISOString().slice(0, 10), site: cap ? cap.site : 0, store: cap ? cap.store : 0, prefix: CLICK_PREFIX, at });
     } catch (err) {
       console.error('yadore click log failed', err && err.message);
       return toPage;
     }
-    await gate.save();
+    if (!written) return toPage;
     return redirect(r.to, 302, { 'X-Robots-Tag': 'noindex, nofollow' });
   }
 

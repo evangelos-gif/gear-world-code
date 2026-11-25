@@ -66,8 +66,8 @@ const PAGES = {
 <p>When you select a "View at" button, you go to the retailer through an affiliate network, Awin or CJ. If you then buy something, the retailer may pay us a commission. You pay the same price as you would if you went to the retailer directly.</p>
 <p>In some categories, a box marked "Sponsored" shows offers from other stores through Yadore (Yadore GmbH, Germany). Those stores pay Yadore for each click, and Yadore pays us a share. You pay the same price as you would if you went to the store directly.</p>
 <h2>How this affects what you see</h2>
-<p>We do not rank products by commission. The default order mixes products in stock first, and you can sort by price, newest or furthest below RRP at any time. A retailer cannot pay to change a price or a product's position on this site.</p>
-<p>The box marked "Sponsored" is apart from our own list and does not change it. Its offers come in Yadore's order for the words of the category, at most two per store.</p>
+<p>We do not rank products by commission. The default order mixes products in stock first, and you can sort by price, newest or furthest below RRP at any time. A retailer cannot pay to change a price or a product's position in our own list.</p>
+<p>On page 1 of some categories, a box marked "Sponsored" is shown above our own list and does not change it. Its offers come in Yadore's order for the words of the category, at most two per store, and when a store's offer comes twice we keep the copy that pays more per click.</p>
 <h2>RRP</h2>
 <p>When a retailer's feed lists a recommended retail price (RRP), we show it as "RRP" next to the price. An RRP is the price the brand or the retailer recommends, not a price the product was sold at before, so we do not present it as a saving.</p>`
   }),
