@@ -4,6 +4,7 @@ import { useRef, useState } from 'react';
 import { Alert, Linking, Platform } from 'react-native';
 
 import { useI18n } from '@/i18n';
+import { useColors } from '@/theme';
 import { photoSearch } from './api';
 import {
   base64ToBytes, isJpeg, parsePhotoAnswer, photoErrorMessage, shrinkSize,
@@ -32,6 +33,7 @@ async function shrink(photo: Picked): Promise<Uint8Array | null> {
 
 export function usePhotoSearch({ onFound }: { onFound: (answer: PhotoAnswer) => void }) {
   const { t } = useI18n();
+  const C = useColors();
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<PhotoMessage | null>(null);
   const running = useRef(false);
@@ -81,7 +83,7 @@ export function usePhotoSearch({ onFound }: { onFound: (answer: PhotoAnswer) => 
       { text: t('photoTake'), onPress: () => later('camera') },
       { text: t('photoPick'), onPress: () => later('library') },
       { text: t('photoCancel'), style: 'cancel' }
-    ]);
+    ], { userInterfaceStyle: C.mode });
   };
 
   return {

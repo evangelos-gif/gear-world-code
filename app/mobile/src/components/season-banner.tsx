@@ -8,9 +8,13 @@ import { useI18n, type TextKey } from '@/i18n';
 import { formatDay } from '@/lib/format';
 import { countdownParts, heroSlides, type SeasonsOn, type Slide, type Target } from '@/lib/seasons';
 import { HUB_URL } from '@/lib/api';
-import { C, R, S } from '@/theme';
+import { DarkScope } from '@/lib/theme-context';
+import { DARK, R, S } from '@/theme';
 import { TEXT_ON_PICTURE } from './image-shade';
 import { Txt } from './ui';
+
+// Words on a picture: the dark colours in both themes (1.0.3).
+const C = DARK;
 
 // The Hub's seasonal pictures (same files and version as gearworldhub.com).
 const SEASON_MEDIA_VERSION = '29bd24c';
@@ -83,46 +87,48 @@ export function SeasonBanner({ hasDeals, dealsLoaded, seasonsOn, onTarget }: {
   const panel = slide.kind === 'campaign' ? (PANEL[slide.campaign.art] ?? DEFAULT_PANEL) : DEFAULT_PANEL;
 
   return (
-    <View style={s.card} accessibilityRole="summary" accessibilityLabel={t('seasonAria')}>
-      {slide.kind === 'season' ? (
-        <Image source={{ uri: `${HUB_URL}/seasonal/${slide.season.file}.jpg?v=${SEASON_MEDIA_VERSION}` }}
-          style={[StyleSheet.absoluteFill, slide.season.mirror && s.mirror]} contentFit="cover" transition={200}
-          accessibilityIgnoresInvertColors />
-      ) : (
-        <LinearGradient colors={panel} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
-      )}
-      {slide.kind === 'season' ? (
-        <LinearGradient pointerEvents="none" colors={['rgba(3,10,31,0.1)', 'rgba(3,10,31,0.55)', 'rgba(3,10,31,0.9)']}
-          locations={[0, 0.45, 1]} style={StyleSheet.absoluteFill} />
-      ) : null}
-      <View style={s.body}>
-        <Txt style={s.eyebrow}>{eyebrow}</Txt>
-        <Txt style={s.title} numberOfLines={3}>{title}</Txt>
-        {body ? <Txt style={s.text} numberOfLines={3}>{body}</Txt> : null}
-        <View style={s.foot}>
-          <Pressable accessibilityRole="button" accessibilityLabel={cta} onPress={() => onTarget(target)}
-            style={({ pressed }) => [s.cta, pressed && s.pressed]}>
-            <Txt style={s.ctaText} numberOfLines={1}>{cta}</Txt>
-            <Ionicons name="arrow-forward" size={16} color={C.onGold} />
-          </Pressable>
-          {many ? (
-            <View style={s.nav}>
-              <Pressable accessibilityRole="button" accessibilityLabel={t('prev')} onPress={() => go(-1)} hitSlop={8}
-                style={({ pressed }) => [s.round, pressed && s.pressed]}>
-                <Ionicons name="chevron-back" size={18} color={C.text} />
-              </Pressable>
-              <Txt style={s.count} accessibilityLabel={t('slideAria', { n: i + 1, total: slides.length })}>
-                {`${i + 1} / ${slides.length}`}
-              </Txt>
-              <Pressable accessibilityRole="button" accessibilityLabel={t('next')} onPress={() => go(1)} hitSlop={8}
-                style={({ pressed }) => [s.round, pressed && s.pressed]}>
-                <Ionicons name="chevron-forward" size={18} color={C.text} />
-              </Pressable>
-            </View>
-          ) : null}
+    <DarkScope>
+      <View style={s.card} accessibilityRole="summary" accessibilityLabel={t('seasonAria')}>
+        {slide.kind === 'season' ? (
+          <Image source={{ uri: `${HUB_URL}/seasonal/${slide.season.file}.jpg?v=${SEASON_MEDIA_VERSION}` }}
+            style={[StyleSheet.absoluteFill, slide.season.mirror && s.mirror]} contentFit="cover" transition={200}
+            accessibilityIgnoresInvertColors />
+        ) : (
+          <LinearGradient colors={panel} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+        )}
+        {slide.kind === 'season' ? (
+          <LinearGradient pointerEvents="none" colors={['rgba(3,10,31,0.1)', 'rgba(3,10,31,0.55)', 'rgba(3,10,31,0.9)']}
+            locations={[0, 0.45, 1]} style={StyleSheet.absoluteFill} />
+        ) : null}
+        <View style={s.body}>
+          <Txt style={s.eyebrow}>{eyebrow}</Txt>
+          <Txt style={s.title} numberOfLines={3}>{title}</Txt>
+          {body ? <Txt style={s.text} numberOfLines={3}>{body}</Txt> : null}
+          <View style={s.foot}>
+            <Pressable accessibilityRole="button" accessibilityLabel={cta} onPress={() => onTarget(target)}
+              style={({ pressed }) => [s.cta, pressed && s.pressed]}>
+              <Txt style={s.ctaText} numberOfLines={1}>{cta}</Txt>
+              <Ionicons name="arrow-forward" size={16} color={C.onGold} />
+            </Pressable>
+            {many ? (
+              <View style={s.nav}>
+                <Pressable accessibilityRole="button" accessibilityLabel={t('prev')} onPress={() => go(-1)} hitSlop={8}
+                  style={({ pressed }) => [s.round, pressed && s.pressed]}>
+                  <Ionicons name="chevron-back" size={18} color={C.text} />
+                </Pressable>
+                <Txt style={s.count} accessibilityLabel={t('slideAria', { n: i + 1, total: slides.length })}>
+                  {`${i + 1} / ${slides.length}`}
+                </Txt>
+                <Pressable accessibilityRole="button" accessibilityLabel={t('next')} onPress={() => go(1)} hitSlop={8}
+                  style={({ pressed }) => [s.round, pressed && s.pressed]}>
+                  <Ionicons name="chevron-forward" size={18} color={C.text} />
+                </Pressable>
+              </View>
+            ) : null}
+          </View>
         </View>
       </View>
-    </View>
+    </DarkScope>
   );
 }
 
@@ -134,7 +140,7 @@ const s = StyleSheet.create({
   title: { color: C.text, fontSize: 22, lineHeight: 27, fontWeight: '800', ...TEXT_ON_PICTURE },
   text: { color: C.text, fontSize: 14, lineHeight: 19, ...TEXT_ON_PICTURE },
   foot: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: S.sm, marginTop: S.sm },
-  cta: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: C.gold, borderRadius: R.pill, paddingVertical: 10, paddingHorizontal: S.lg, flexShrink: 1 },
+  cta: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: C.goldFill, borderRadius: R.pill, paddingVertical: 10, paddingHorizontal: S.lg, flexShrink: 1 },
   ctaText: { color: C.onGold, fontWeight: '800', flexShrink: 1 },
   pressed: { opacity: 0.8 },
   nav: { flexDirection: 'row', alignItems: 'center', gap: S.sm },

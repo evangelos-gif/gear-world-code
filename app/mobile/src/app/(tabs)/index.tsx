@@ -3,7 +3,6 @@ import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { AppState, RefreshControl, ScrollView, StyleSheet, View, type ScrollViewInstance } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Deals } from '@/components/deals';
 import { Footer } from '@/components/footer';
@@ -11,7 +10,7 @@ import { Newsletter } from '@/components/newsletter';
 import { SearchBox } from '@/components/search-box';
 import { SeasonBanner } from '@/components/season-banner';
 import { LanguageButton } from '@/components/language-button';
-import { Chip, Txt } from '@/components/ui';
+import { BrandBar, Chip, Screen, Txt } from '@/components/ui';
 import { WorldCard } from '@/components/world-card';
 import { useI18n } from '@/i18n';
 import { activeDeals, DEALS_SHOWN, ukDay, type Target } from '@/lib/seasons';
@@ -19,9 +18,11 @@ import { useDeals } from '@/lib/use-deals';
 import { dayPart } from '@/lib/warm';
 import { INTERESTS } from '@/lib/worlds-meta';
 import { useWorlds } from '@/lib/worlds-context';
-import { C, MAX_WIDTH, R, S } from '@/theme';
+import { MAX_WIDTH, R, S, themed, useColors } from '@/theme';
 
 export default function Home() {
+  const s = useS();
+  const C = useColors();
   const { t, list } = useI18n();
   const { worlds, loading, refresh, find } = useWorlds();
   // The tab bar sits above the phone's own buttons (Android and iPhone), so the list needs no extra space at the bottom.
@@ -49,12 +50,13 @@ export default function Home() {
   for (let i = 0; i < worlds.length; i += 2) pairs.push(worlds.slice(i, i + 2));
 
   return (
-    <SafeAreaView style={s.safe} edges={['top', 'left', 'right']}>
-      <View style={s.topbar}>
+    <Screen>
+      {/* The logo's "Gear" is white: the bar stays dark navy in both themes (1.0.3). */}
+      <BrandBar style={s.topbar}>
         <Image source={require('@/assets/brand/logo-horizontal.png')} style={s.logo} contentFit="contain"
           accessibilityLabel="Gear World" />
         <LanguageButton />
-      </View>
+      </BrandBar>
       <ScrollView
         ref={scroll}
         contentContainerStyle={s.scroll}
@@ -128,13 +130,12 @@ export default function Home() {
           <Footer />
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </Screen>
   );
 }
 
-const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: C.bg },
-  topbar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: S.lg, paddingVertical: S.sm, backgroundColor: C.bgDeep, borderBottomWidth: 1, borderBottomColor: C.border },
+const useS = themed(C => StyleSheet.create({
+  topbar: { justifyContent: 'space-between' },
   logo: { width: 150, height: 46 },
   scroll: { paddingBottom: S.xxl },
   inner: { width: '100%', maxWidth: MAX_WIDTH, alignSelf: 'center', paddingHorizontal: S.lg, gap: S.xl, paddingTop: S.lg },
@@ -148,10 +149,10 @@ const s = StyleSheet.create({
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: S.sm },
   how: { backgroundColor: C.card, borderRadius: R.lg, padding: S.lg, borderWidth: 1, borderColor: C.border },
   step: { flexDirection: 'row', alignItems: 'center', gap: S.md },
-  stepNo: { width: 32, height: 32, borderRadius: 16, backgroundColor: C.gold, alignItems: 'center', justifyContent: 'center' },
+  stepNo: { width: 32, height: 32, borderRadius: 16, backgroundColor: C.goldFill, alignItems: 'center', justifyContent: 'center' },
   stepNoText: { color: C.onGold, fontWeight: '800' },
   stepText: { flex: 1, fontWeight: '600' },
   disclosure: { flexDirection: 'row', gap: S.sm, marginTop: S.sm },
   plain: { flexDirection: 'row', gap: S.sm, alignItems: 'flex-start' },
   flex: { flex: 1 }
-});
+}));

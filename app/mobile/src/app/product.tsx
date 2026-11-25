@@ -4,9 +4,8 @@ import * as Haptics from 'expo-haptics';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { Linking, ScrollView, Share, StyleSheet, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { Button, ErrorBox, IconButton, Loading, TopBar, Txt } from '@/components/ui';
+import { Button, ErrorBox, IconButton, Loading, Screen, TopBar, Txt } from '@/components/ui';
 import { useI18n } from '@/i18n';
 import { formatDay, formatPrice } from '@/lib/format';
 import { openInBrowser } from '@/lib/open';
@@ -14,7 +13,7 @@ import { findProduct } from '@/lib/product-cache';
 import { useSaved } from '@/lib/saved-context';
 import { worldTitle } from '@/lib/worlds-meta';
 import { useWorlds } from '@/lib/worlds-context';
-import { C, MAX_WIDTH, R, S } from '@/theme';
+import { MAX_WIDTH, R, S, themed, useColors } from '@/theme';
 
 /**
  * One product. What the site knows, said the way the sites say it (lessons L101-L107): who sells it ("not by Gear World"),
@@ -22,6 +21,8 @@ import { C, MAX_WIDTH, R, S } from '@/theme';
  * A saved product opens from the phone, also without internet.
  */
 export default function ProductScreen() {
+  const s = useS();
+  const C = useColors();
   const { t, list, locale } = useI18n();
   const { find } = useWorlds();
   const saved = useSaved();
@@ -34,19 +35,19 @@ export default function ProductScreen() {
   if (!product && !saved.ready) {
     // Opened from a price alert while the saved list is still being read from the phone.
     return (
-      <SafeAreaView style={s.safe} edges={['top', 'left', 'right']}>
+      <Screen>
         <TopBar />
         <Loading />
-      </SafeAreaView>
+      </Screen>
     );
   }
 
   if (!product) {
     return (
-      <SafeAreaView style={s.safe} edges={['top', 'left', 'right']}>
+      <Screen>
         <TopBar />
         <ErrorBox message={t('productMissing')} onRetry={() => router.replace('/')} />
-      </SafeAreaView>
+      </Screen>
     );
   }
 
@@ -81,7 +82,7 @@ export default function ProductScreen() {
   ].filter((r): r is [string, string] => Boolean(r[1]));
 
   return (
-    <SafeAreaView style={s.safe} edges={['top', 'left', 'right', 'bottom']}>
+    <Screen bottom>
       <TopBar title={worldName} right={<IconButton icon="share-outline" label={t('share')} onPress={share} />} />
       <ScrollView contentContainerStyle={s.scroll}>
         <View style={s.inner}>
@@ -148,12 +149,11 @@ export default function ProductScreen() {
           </View>
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </Screen>
   );
 }
 
-const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: C.bg },
+const useS = themed(C => StyleSheet.create({
   scroll: { paddingBottom: S.xxl },
   inner: { width: '100%', maxWidth: MAX_WIDTH, alignSelf: 'center', padding: S.lg, gap: S.md },
   imageBox: { height: 300, borderRadius: R.lg, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
@@ -170,4 +170,4 @@ const s = StyleSheet.create({
   td: { flex: 1 },
   note: { flexDirection: 'row', gap: S.sm, backgroundColor: C.card, borderRadius: R.lg, padding: S.md },
   noteBody: { flex: 1, gap: S.sm }
-});
+}));

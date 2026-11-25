@@ -1,18 +1,22 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import Constants from 'expo-constants';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { Txt } from '@/components/ui';
+import { Screen, Txt } from '@/components/ui';
 import { useI18n } from '@/i18n';
 import { LOCALES } from '@/i18n/core';
 import { HUB_URL, LEGAL } from '@/lib/api';
 import { COUNTRY_NAMES, DELIVERY_COUNTRIES, MEGA_STORES_URL } from '@/lib/client';
 import { openEmail, openInBrowser, openSheet } from '@/lib/open';
 import { useSettings } from '@/lib/settings-context';
-import { C, MAX_WIDTH, R, S } from '@/theme';
+import { useTheme } from '@/lib/theme-context';
+import { MAX_WIDTH, R, S, themed, THEME_CHOICES, useColors, type ThemeChoice } from '@/theme';
+
+const THEME_LABEL: Record<ThemeChoice, 'themeDark' | 'themeLight' | 'themeSystem'> = { dark: 'themeDark', light: 'themeLight', system: 'themeSystem' };
 
 function Row({ label, icon, onPress, selected }: { label: string; icon?: 'chevron-forward' | 'open-outline' | 'mail-outline'; onPress: () => void; selected?: boolean }) {
+  const s = useS();
+  const C = useColors();
   return (
     <Pressable accessibilityRole={selected === undefined ? 'link' : 'radio'} accessibilityState={selected === undefined ? undefined : { checked: selected }}
       onPress={onPress} style={({ pressed }) => [s.row, pressed && s.pressed]}>
@@ -26,19 +30,27 @@ function Row({ label, icon, onPress, selected }: { label: string; icon?: 'chevro
 }
 
 export default function Settings() {
+  const s = useS();
   const { t, locale, setLocale } = useI18n();
   const { country, setCountry } = useSettings();
+  const theme = useTheme();
   // A tab: the tab bar sits above the phone's own buttons, so the list needs no extra space at the bottom.
   const version = Constants.expoConfig?.version ?? '1.0.0';
 
   return (
-    <SafeAreaView style={s.safe} edges={['top', 'left', 'right']}>
+    <Screen>
       <ScrollView contentContainerStyle={s.scroll}>
         <View style={s.inner}>
           <Txt v="title">{t('settings')}</Txt>
           <Txt v="h2">{t('languageLabel')}</Txt>
           <View style={s.card} accessibilityRole="radiogroup">
             {LOCALES.map(l => <Row key={l.code} label={l.name} selected={locale === l.code} onPress={() => setLocale(l.code)} />)}
+          </View>
+
+          {/* Version 1.0.3 (Idea 17 Γ): the light theme. The bars with the logo stay dark navy in both. */}
+          <Txt v="h2">{t('appearanceTitle')}</Txt>
+          <View style={s.card} accessibilityRole="radiogroup">
+            {THEME_CHOICES.map(c => <Row key={c} label={t(THEME_LABEL[c])} selected={theme.choice === c} onPress={() => theme.setChoice(c)} />)}
           </View>
 
           <Txt v="h2">{t('deliverTitle')}</Txt>
@@ -68,12 +80,11 @@ export default function Settings() {
           </View>
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </Screen>
   );
 }
 
-const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: C.bg },
+const useS = themed(C => StyleSheet.create({
   scroll: { paddingBottom: S.xxl },
   inner: { width: '100%', maxWidth: MAX_WIDTH, alignSelf: 'center', padding: S.lg, gap: S.md },
   card: { backgroundColor: C.card, borderRadius: R.lg, borderWidth: 1, borderColor: C.border, overflow: 'hidden' },
@@ -82,4 +93,4 @@ const s = StyleSheet.create({
   pressed: { backgroundColor: C.cardHigh },
   rowText: { flex: 1 },
   bold: { fontWeight: '800' }
-});
+}));

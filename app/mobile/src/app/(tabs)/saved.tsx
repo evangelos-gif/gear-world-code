@@ -3,21 +3,22 @@ import { Image } from 'expo-image';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useRef } from 'react';
 import { FlatList, Pressable, RefreshControl, StyleSheet, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { Txt } from '@/components/ui';
+import { Screen, Txt } from '@/components/ui';
 import { WorldTag } from '@/components/world-tag';
 import { useI18n } from '@/i18n';
 import { formatDay, formatPrice } from '@/lib/format';
 import type { SavedItem } from '@/lib/saved';
 import { useSaved } from '@/lib/saved-context';
-import { C, MAX_WIDTH, R, S } from '@/theme';
+import { MAX_WIDTH, R, S, themed, useColors } from '@/theme';
 
 /**
  * Saved products (version 1.0.1). The list and the pictures are kept on the phone, so this tab opens without internet,
  * with the price and the day the site last checked it. Online, it asks each site for the newest price once per visit.
  */
 export default function SavedScreen() {
+  const s = useS();
+  const C = useColors();
   const { t } = useI18n();
   const { items, ready, refreshing, offline, refresh } = useSaved();
   const checkedOnce = useRef(false);
@@ -27,7 +28,7 @@ export default function SavedScreen() {
   }, [items.length, refresh]));
 
   return (
-    <SafeAreaView style={s.safe} edges={['top', 'left', 'right']}>
+    <Screen>
       <FlatList
         data={items}
         keyExtractor={x => x.key}
@@ -53,11 +54,13 @@ export default function SavedScreen() {
         ) : undefined}
         renderItem={({ item }) => <SavedRow item={item} />}
       />
-    </SafeAreaView>
+    </Screen>
   );
 }
 
 function SavedRow({ item }: { item: SavedItem }) {
+  const s = useS();
+  const C = useColors();
   const { t, locale } = useI18n();
   const { remove, hasAlert } = useSaved();
   const price = formatPrice(item.price, item.currency, locale);
@@ -104,8 +107,7 @@ function SavedRow({ item }: { item: SavedItem }) {
   );
 }
 
-const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: C.bg },
+const useS = themed(C => StyleSheet.create({
   list: { padding: S.lg, gap: S.md, width: '100%', maxWidth: MAX_WIDTH, alignSelf: 'center' },
   header: { gap: S.sm, paddingBottom: S.sm },
   note: { flexDirection: 'row', gap: S.sm, alignItems: 'center', backgroundColor: C.card, borderRadius: R.md, padding: S.md, borderLeftWidth: 4, borderLeftColor: C.blue },
@@ -125,4 +127,4 @@ const s = StyleSheet.create({
   tag: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   tagText: { color: C.blue, fontWeight: '700' },
   remove: { width: 76, alignItems: 'center', justifyContent: 'center', gap: 2, borderLeftWidth: 1, borderLeftColor: C.border }
-});
+}));

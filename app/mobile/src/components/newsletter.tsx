@@ -3,11 +3,13 @@ import { StyleSheet, TextInput, View } from 'react-native';
 
 import { isValidEmail, subscribe } from '@/lib/api';
 import { useI18n } from '@/i18n';
-import { C, R, S } from '@/theme';
+import { R, S, themed, useColors } from '@/theme';
 import { Button, Checkbox, Txt } from './ui';
 
 /** Same form, texts and consent as the newsletter on gearworldhub.com. */
 export function Newsletter() {
+  const s = useS();
+  const C = useColors();
   const { t, locale } = useI18n();
   const [email, setEmail] = useState('');
   const [consent, setConsent] = useState(false);
@@ -43,6 +45,7 @@ export function Newsletter() {
             onChangeText={setEmail}
             placeholder={t('nl_emailPlaceholder')}
             placeholderTextColor={C.faint}
+            keyboardAppearance={C.mode}
             keyboardType="email-address"
             autoCapitalize="none"
             autoCorrect={false}
@@ -61,9 +64,9 @@ export function Newsletter() {
   );
 }
 
-const s = StyleSheet.create({
+const useS = themed(C => StyleSheet.create({
   box: { backgroundColor: C.card, borderRadius: R.lg, borderWidth: 1, borderColor: C.border, padding: S.lg, gap: S.md },
   input: { minHeight: 50, borderRadius: R.md, borderWidth: 1, borderColor: C.border, backgroundColor: C.bg, color: C.text, fontSize: 16, paddingHorizontal: S.md },
   msg: { color: C.blue },
   done: { color: C.text, fontWeight: '700' }
-});
+}));

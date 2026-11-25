@@ -3,10 +3,12 @@
 // a price alert says only the new price and the day it was checked: never "discount", "%", "sale" or "price drop"
 // (lessons L107, Manager 24/11/2026). Idea 17 Α of chat 8 (owner 25/11/2026): a greeting for the time of day, a
 // friendlier "nothing found" and one plain sentence on how Gear World works.
+// Version 1.0.3, Idea 17 Γ (owner 25/11/2026): the Appearance choice (Dark, Light, Same as the phone).
 export const RELEASE_KEYS = [
   'alertOn', 'alertOff', 'alertHint', 'alertTitle', 'alertBody', 'alertsOff', 'openSettings', 'alertChannel', 'alertTag',
   'deliverTitle', 'deliverAuto', 'deliverHint',
-  'greetMorning', 'greetAfternoon', 'greetEvening', 'noResultsHelp', 'noResultsCountry', 'howWeSell'
+  'greetMorning', 'greetAfternoon', 'greetEvening', 'noResultsHelp', 'noResultsCountry', 'howWeSell',
+  'appearanceTitle', 'themeDark', 'themeLight', 'themeSystem'
 ] as const;
 
 export type ReleaseKey = (typeof RELEASE_KEYS)[number];
@@ -30,7 +32,11 @@ export const RELEASE_STRINGS: Record<string, Record<ReleaseKey, string>> = {
     greetEvening: "Good evening!",
     noResultsHelp: "Try fewer or different words, or check the spelling. You can also search by voice or with a photo.",
     noResultsCountry: "Delivery country: {country}. You can change it in Settings.",
-    howWeSell: "We don't sell anything. We find the retailer, and you buy directly on the retailer's own website."
+    howWeSell: "We don't sell anything. We find the retailer, and you buy directly on the retailer's own website.",
+    appearanceTitle: "Appearance",
+    themeDark: "Dark",
+    themeLight: "Light",
+    themeSystem: "Same as the phone"
   },
   'el-GR': {
     alertOn: 'Ειδοποίηση τιμής: ενεργή',
@@ -50,7 +56,11 @@ export const RELEASE_STRINGS: Record<string, Record<ReleaseKey, string>> = {
     greetEvening: "Καλησπέρα!",
     noResultsHelp: "Δοκιμάστε λιγότερες ή άλλες λέξεις ή ελέγξτε την ορθογραφία. Μπορείτε επίσης να ψάξετε με τη φωνή ή με φωτογραφία.",
     noResultsCountry: "Χώρα παράδοσης: {country}. Μπορείτε να την αλλάξετε στις Ρυθμίσεις.",
-    howWeSell: "Δεν πουλάμε τίποτα. Βρίσκουμε το κατάστημα και αγοράζετε απευθείας από τη δική του ιστοσελίδα."
+    howWeSell: "Δεν πουλάμε τίποτα. Βρίσκουμε το κατάστημα και αγοράζετε απευθείας από τη δική του ιστοσελίδα.",
+    appearanceTitle: "Εμφάνιση",
+    themeDark: "Σκούρο",
+    themeLight: "Ανοιχτό",
+    themeSystem: "Όπως το κινητό"
   },
   'de-DE': {
     alertOn: 'Preisalarm an',
@@ -70,7 +80,11 @@ export const RELEASE_STRINGS: Record<string, Record<ReleaseKey, string>> = {
     greetEvening: "Guten Abend!",
     noResultsHelp: "Versuchen Sie weniger oder andere Wörter oder prüfen Sie die Schreibweise. Sie können auch per Sprache oder mit einem Foto suchen.",
     noResultsCountry: "Lieferland: {country}. Sie können es in den Einstellungen ändern.",
-    howWeSell: "Wir verkaufen nichts. Wir finden den Händler, und Sie kaufen direkt auf seiner eigenen Website."
+    howWeSell: "Wir verkaufen nichts. Wir finden den Händler, und Sie kaufen direkt auf seiner eigenen Website.",
+    appearanceTitle: "Darstellung",
+    themeDark: "Dunkel",
+    themeLight: "Hell",
+    themeSystem: "Wie das Handy"
   },
   'fr-FR': {
     alertOn: 'Alerte prix activée',
@@ -90,7 +104,11 @@ export const RELEASE_STRINGS: Record<string, Record<ReleaseKey, string>> = {
     greetEvening: "Bonsoir !",
     noResultsHelp: "Essayez moins de mots ou d’autres mots, ou vérifiez l’orthographe. Vous pouvez aussi chercher à la voix ou avec une photo.",
     noResultsCountry: "Pays de livraison : {country}. Vous pouvez le changer dans les Paramètres.",
-    howWeSell: "Nous ne vendons rien. Nous trouvons le marchand, et vous achetez directement sur son propre site."
+    howWeSell: "Nous ne vendons rien. Nous trouvons le marchand, et vous achetez directement sur son propre site.",
+    appearanceTitle: "Apparence",
+    themeDark: "Sombre",
+    themeLight: "Clair",
+    themeSystem: "Comme le téléphone"
   },
   'it-IT': {
     alertOn: 'Avviso prezzo attivo',
@@ -110,7 +128,11 @@ export const RELEASE_STRINGS: Record<string, Record<ReleaseKey, string>> = {
     greetEvening: "Buonasera!",
     noResultsHelp: "Prova con meno parole o con parole diverse, oppure controlla come sono scritte. Puoi anche cercare con la voce o con una foto.",
     noResultsCountry: "Paese di consegna: {country}. Puoi cambiarlo in Impostazioni.",
-    howWeSell: "Non vendiamo nulla. Troviamo il rivenditore e tu acquisti direttamente sul suo sito."
+    howWeSell: "Non vendiamo nulla. Troviamo il rivenditore e tu acquisti direttamente sul suo sito.",
+    appearanceTitle: "Aspetto",
+    themeDark: "Scuro",
+    themeLight: "Chiaro",
+    themeSystem: "Come il telefono"
   },
   'es-ES': {
     alertOn: 'Aviso de precio activado',
@@ -130,7 +152,11 @@ export const RELEASE_STRINGS: Record<string, Record<ReleaseKey, string>> = {
     greetEvening: "¡Buenas noches!",
     noResultsHelp: "Prueba con menos palabras o con otras, o revisa cómo están escritas. También puedes buscar por voz o con una foto.",
     noResultsCountry: "País de entrega: {country}. Puedes cambiarlo en Ajustes.",
-    howWeSell: "No vendemos nada. Encontramos al vendedor y compras directamente en su propia web."
+    howWeSell: "No vendemos nada. Encontramos al vendedor y compras directamente en su propia web.",
+    appearanceTitle: "Apariencia",
+    themeDark: "Oscuro",
+    themeLight: "Claro",
+    themeSystem: "Como el móvil"
   },
   'pt-PT': {
     alertOn: 'Alerta de preço ativo',
@@ -150,7 +176,11 @@ export const RELEASE_STRINGS: Record<string, Record<ReleaseKey, string>> = {
     greetEvening: "Boa noite!",
     noResultsHelp: "Experimente menos palavras ou outras palavras, ou verifique a ortografia. Também pode pesquisar por voz ou com uma fotografia.",
     noResultsCountry: "País de entrega: {country}. Pode alterá-lo em Definições.",
-    howWeSell: "Não vendemos nada. Encontramos o vendedor e compra diretamente no site dele."
+    howWeSell: "Não vendemos nada. Encontramos o vendedor e compra diretamente no site dele.",
+    appearanceTitle: "Aspeto",
+    themeDark: "Escuro",
+    themeLight: "Claro",
+    themeSystem: "Como o telemóvel"
   },
   'nl-NL': {
     alertOn: 'Prijsmelding aan',
@@ -170,7 +200,11 @@ export const RELEASE_STRINGS: Record<string, Record<ReleaseKey, string>> = {
     greetEvening: "Goedenavond!",
     noResultsHelp: "Probeer minder of andere woorden, of controleer de spelling. U kunt ook zoeken met uw stem of met een foto.",
     noResultsCountry: "Leverland: {country}. U kunt dit wijzigen in Instellingen.",
-    howWeSell: "Wij verkopen niets. Wij vinden de verkoper, en u koopt rechtstreeks op de website van de verkoper."
+    howWeSell: "Wij verkopen niets. Wij vinden de verkoper, en u koopt rechtstreeks op de website van de verkoper.",
+    appearanceTitle: "Weergave",
+    themeDark: "Donker",
+    themeLight: "Licht",
+    themeSystem: "Zoals de telefoon"
   },
   'sq-AL': {
     alertOn: 'Njoftimi i çmimit aktiv',
@@ -190,7 +224,11 @@ export const RELEASE_STRINGS: Record<string, Record<ReleaseKey, string>> = {
     greetEvening: "Mirëmbrëma!",
     noResultsHelp: "Provoni më pak fjalë ose fjalë të tjera, ose kontrolloni drejtshkrimin. Mund të kërkoni edhe me zë ose me një foto.",
     noResultsCountry: "Vendi i dorëzimit: {country}. Mund ta ndryshoni te Cilësimet.",
-    howWeSell: "Ne nuk shesim asgjë. Gjejmë shitësin dhe ju blini drejtpërdrejt në faqen e tij."
+    howWeSell: "Ne nuk shesim asgjë. Gjejmë shitësin dhe ju blini drejtpërdrejt në faqen e tij.",
+    appearanceTitle: "Pamja",
+    themeDark: "E errët",
+    themeLight: "E çelët",
+    themeSystem: "Si telefoni"
   },
   'ro-RO': {
     alertOn: 'Alertă de preț activă',
@@ -210,7 +248,11 @@ export const RELEASE_STRINGS: Record<string, Record<ReleaseKey, string>> = {
     greetEvening: "Bună seara!",
     noResultsHelp: "Încearcă mai puține cuvinte sau altele ori verifică ortografia. Poți căuta și vocal sau cu o fotografie.",
     noResultsCountry: "Țara de livrare: {country}. O poți schimba în Setări.",
-    howWeSell: "Nu vindem nimic. Găsim comerciantul, iar tu cumperi direct de pe site-ul lui."
+    howWeSell: "Nu vindem nimic. Găsim comerciantul, iar tu cumperi direct de pe site-ul lui.",
+    appearanceTitle: "Aspect",
+    themeDark: "Întunecat",
+    themeLight: "Luminos",
+    themeSystem: "Ca telefonul"
   },
   'ru-RU': {
     alertOn: 'Уведомление о цене включено',
@@ -230,6 +272,10 @@ export const RELEASE_STRINGS: Record<string, Record<ReleaseKey, string>> = {
     greetEvening: "Добрый вечер!",
     noResultsHelp: "Попробуйте меньше слов или другие слова либо проверьте написание. Можно также искать голосом или по фото.",
     noResultsCountry: "Страна доставки: {country}. Её можно изменить в разделе «Настройки».",
-    howWeSell: "Мы ничего не продаём. Мы находим продавца, а вы покупаете прямо на его сайте."
+    howWeSell: "Мы ничего не продаём. Мы находим продавца, а вы покупаете прямо на его сайте.",
+    appearanceTitle: "Тема",
+    themeDark: "Тёмная",
+    themeLight: "Светлая",
+    themeSystem: "Как на телефоне"
   }
 };

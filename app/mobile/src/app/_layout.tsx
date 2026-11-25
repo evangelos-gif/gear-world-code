@@ -10,17 +10,31 @@ import { I18nProvider, useI18n } from '@/i18n';
 import '@/lib/price-task';
 import { SavedProvider } from '@/lib/saved-context';
 import { SettingsProvider } from '@/lib/settings-context';
+import { ThemeProvider, useTheme } from '@/lib/theme-context';
 import { WorldsProvider } from '@/lib/worlds-context';
-import { C } from '@/theme';
+import { useColors } from '@/theme';
 
 SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
 function HideSplashWhenReady({ children }: { children: ReactNode }) {
   const { ready } = useI18n();
+  // The chosen theme is read first, so a light-theme phone never sees the dark screens flash (1.0.3).
+  const theme = useTheme();
   useEffect(() => {
-    if (ready) SplashScreen.hideAsync().catch(() => undefined);
-  }, [ready]);
+    if (ready && theme.ready) SplashScreen.hideAsync().catch(() => undefined);
+  }, [ready, theme.ready]);
   return <>{children}</>;
+}
+
+/** The screens, on the chosen theme's background. The status bar sits on the dark strip in both themes. */
+function Screens() {
+  const C = useColors();
+  return (
+    <>
+      <StatusBar style="light" />
+      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: C.bg }, animation: 'slide_from_right' }} />
+    </>
+  );
 }
 
 /** A tapped price alert opens its saved product (also when the tap started the app). */
@@ -45,19 +59,20 @@ function OpenFromNotification() {
 export default function RootLayout() {
   return (
     <SafeAreaProvider>
-      <I18nProvider>
-        <SettingsProvider>
-          <WorldsProvider>
-            <SavedProvider>
-              <HideSplashWhenReady>
-                <StatusBar style="light" />
-                <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: C.bg }, animation: 'slide_from_right' }} />
-                <OpenFromNotification />
-              </HideSplashWhenReady>
-            </SavedProvider>
-          </WorldsProvider>
-        </SettingsProvider>
-      </I18nProvider>
+      <ThemeProvider>
+        <I18nProvider>
+          <SettingsProvider>
+            <WorldsProvider>
+              <SavedProvider>
+                <HideSplashWhenReady>
+                  <Screens />
+                  <OpenFromNotification />
+                </HideSplashWhenReady>
+              </SavedProvider>
+            </WorldsProvider>
+          </SettingsProvider>
+        </I18nProvider>
+      </ThemeProvider>
     </SafeAreaProvider>
   );
 }

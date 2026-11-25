@@ -7,7 +7,7 @@ import { useI18n } from '@/i18n';
 import { encodePhotoParam, type PhotoAnswer } from '@/lib/photo';
 import { usePhotoSearch } from '@/lib/use-photo-search';
 import { useVoiceSearch } from '@/lib/use-voice-search';
-import { C, R, S } from '@/theme';
+import { R, S, themed, useColors } from '@/theme';
 import { Txt } from './ui';
 
 // Only for the store screenshots (app/brand-src/store_shots.py renders the web build): the web has no camera or voice
@@ -27,6 +27,8 @@ export function SearchBox({ initial = '', placeholder, onSearch, onPhoto = openP
   initial?: string; placeholder?: string; onSearch: (q: string) => void; onPhoto?: (answer: PhotoAnswer) => void;
   tiles?: boolean; autoFocus?: boolean;
 }) {
+  const s = useS();
+  const C = useColors();
   const { t, locale } = useI18n();
   const [q, setQ] = useState(initial);
   const [warn, setWarn] = useState(false);
@@ -55,6 +57,7 @@ export function SearchBox({ initial = '', placeholder, onSearch, onPhoto = openP
           onSubmitEditing={() => run(q)}
           placeholder={placeholder ?? t('searchPlaceholder')}
           placeholderTextColor={C.faint}
+          keyboardAppearance={C.mode}
           returnKeyType="search"
           autoCorrect={false}
           autoCapitalize="none"
@@ -160,7 +163,7 @@ export function SearchBox({ initial = '', placeholder, onSearch, onPhoto = openP
   );
 }
 
-const s = StyleSheet.create({
+const useS = themed(C => StyleSheet.create({
   wrap: { gap: S.sm },
   row: { flexDirection: 'row', alignItems: 'center', backgroundColor: C.card, borderRadius: R.md, borderWidth: 1, borderColor: C.border, paddingLeft: S.lg, minHeight: 54 },
   rowListening: { borderColor: C.gold, borderWidth: 2 },
@@ -170,10 +173,10 @@ const s = StyleSheet.create({
   tile: { flex: 1, minHeight: 92, borderRadius: R.md, borderWidth: 1, borderColor: C.gold, backgroundColor: C.card, alignItems: 'center', justifyContent: 'center', gap: S.xs, padding: S.sm },
   tileText: { color: C.text, fontWeight: '800', fontSize: 14, textAlign: 'center' },
   tool: { flex: 1, minHeight: 46, borderRadius: R.pill, borderWidth: 1, borderColor: C.gold, backgroundColor: C.card, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.sm, paddingHorizontal: S.md },
-  toolOn: { backgroundColor: C.gold },
+  toolOn: { backgroundColor: C.goldFill, borderColor: C.goldFill },
   toolText: { color: C.text, fontWeight: '700', fontSize: 15, flexShrink: 1 },
   toolTextOn: { color: C.onGold },
-  button: { backgroundColor: C.gold, alignSelf: 'stretch', justifyContent: 'center', alignItems: 'center', paddingHorizontal: S.lg, borderTopRightRadius: R.md - 1, borderBottomRightRadius: R.md - 1 },
+  button: { backgroundColor: C.goldFill, alignSelf: 'stretch', justifyContent: 'center', alignItems: 'center', paddingHorizontal: S.lg, borderTopRightRadius: R.md - 1, borderBottomRightRadius: R.md - 1 },
   buttonText: { color: C.onGold, fontWeight: '800' },
   pressed: { opacity: 0.8 },
   line: { flexDirection: 'row', alignItems: 'flex-start', gap: 6 },
@@ -182,4 +185,4 @@ const s = StyleSheet.create({
   info: { color: C.blue },
   link: { color: C.gold, fontWeight: '800', textDecorationLine: 'underline' },
   tipText: { color: C.faint, flex: 1 }
-});
+}));

@@ -5,7 +5,7 @@ import { useI18n } from '@/i18n';
 import { formatDay, formatMoney } from '@/lib/format';
 import { openInBrowser } from '@/lib/open';
 import { campaignLabel, type Deal } from '@/lib/seasons';
-import { C, R, S } from '@/theme';
+import { R, S, themed, useColors } from '@/theme';
 import { Txt } from './ui';
 
 /**
@@ -13,6 +13,8 @@ import { Txt } from './ui';
  * site in the phone's browser, where the code is shown: the app never shows a code and never opens /go/ or /out/.
  */
 export function Deals({ deals, day, compact }: { deals: Deal[]; day: string; compact?: boolean }) {
+  const s = useS();
+  const C = useColors();
   const { t, locale } = useI18n();
   if (!deals.length) return null;
   if (compact) return <CompactDeals deals={deals} day={day} />;
@@ -52,6 +54,8 @@ export function Deals({ deals, day, compact }: { deals: Deal[]; day: string; com
 
 /** The deals of one Gear World, one short line each, on that world's page. */
 function CompactDeals({ deals, day }: { deals: Deal[]; day: string }) {
+  const s = useS();
+  const C = useColors();
   const { t, locale } = useI18n();
   return (
     <View style={s.compact}>
@@ -86,7 +90,7 @@ function offerText(d: Deal, day: string, t: ReturnType<typeof useI18n>['t'], loc
     : t('dealCodeNoMin', { off: formatMoney(d.off, d.currency, locale) });
 }
 
-const s = StyleSheet.create({
+const useS = themed(C => StyleSheet.create({
   compact: { backgroundColor: C.card, borderRadius: R.lg, borderWidth: 1, borderColor: C.border, borderLeftWidth: 4, borderLeftColor: C.gold, paddingHorizontal: S.lg, paddingVertical: S.sm },
   compactHead: { flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingVertical: S.xs },
   compactTitle: { color: C.text, fontWeight: '800' },
@@ -106,4 +110,4 @@ const s = StyleSheet.create({
   worlds: { color: C.faint, letterSpacing: 0.5 },
   ctaRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: S.xs },
   cta: { color: C.gold, fontWeight: '800' }
-});
+}));

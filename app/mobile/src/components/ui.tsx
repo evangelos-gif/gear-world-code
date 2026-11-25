@@ -2,14 +2,17 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import { useState, type ComponentProps, type ReactNode } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View, type StyleProp, type TextProps, type ViewStyle } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useI18n } from '@/i18n';
-import { C, R, S } from '@/theme';
+import { DarkScope } from '@/lib/theme-context';
+import { DARK, R, S, themed, useColors } from '@/theme';
 
 export type IconName = ComponentProps<typeof Ionicons>['name'];
 
 type Variant = 'body' | 'muted' | 'small' | 'title' | 'h2' | 'eyebrow' | 'label';
 export function Txt({ v = 'body', style, ...rest }: TextProps & { v?: Variant }) {
+  const t = useT();
   return <Text {...rest} style={[t.base, t[v], style]} />;
 }
 
@@ -17,6 +20,8 @@ export function Button({ label, onPress, icon, kind = 'primary', disabled, busy,
   label: string; onPress: () => void; icon?: IconName; kind?: 'primary' | 'secondary'; disabled?: boolean; busy?: boolean;
   style?: StyleProp<ViewStyle>; hint?: string;
 }) {
+  const b = useB();
+  const C = useColors();
   const primary = kind === 'primary';
   return (
     <Pressable
@@ -35,6 +40,9 @@ export function Button({ label, onPress, icon, kind = 'primary', disabled, busy,
 }
 
 export function Chip({ label, selected, onPress }: { label: string; selected?: boolean; onPress: () => void }) {
+  const b = useB();
+  const ch = useCh();
+  const C = useColors();
   return (
     <Pressable
       accessibilityRole="button"
@@ -48,6 +56,9 @@ export function Chip({ label, selected, onPress }: { label: string; selected?: b
 }
 
 export function IconButton({ icon, label, onPress }: { icon: IconName; label: string; onPress: () => void }) {
+  const b = useB();
+  const ib = useIb();
+  const C = useColors();
   return (
     <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} hitSlop={8}
       style={({ pressed }) => [ib.base, pressed && b.pressed]}>
@@ -56,19 +67,45 @@ export function IconButton({ icon, label, onPress }: { icon: IconName; label: st
   );
 }
 
-/** Top bar with a back button. The Stack header is hidden, so every screen draws its own bar (same on iOS and Android). */
-export function TopBar({ title, right }: { title?: string; right?: ReactNode }) {
-  const { t } = useI18n();
+/**
+ * Every screen (1.0.3): the strip under the phone's clock and battery stays dark navy in both themes, so the phone
+ * shows its light status icons on it; below it the screen has the chosen theme's background.
+ */
+export function Screen({ children, bottom }: { children: ReactNode; bottom?: boolean }) {
+  const C = useColors();
+  const inset = useSafeAreaInsets();
   return (
-    <View style={tb.bar}>
-      <IconButton icon="chevron-back" label={t('back')} onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))} />
-      <Txt v="label" style={tb.title} numberOfLines={1}>{title ?? ''}</Txt>
-      <View style={tb.right}>{right}</View>
+    <View style={[sb.screen, { backgroundColor: C.bg, paddingLeft: inset.left, paddingRight: inset.right, paddingBottom: bottom ? inset.bottom : 0 }]}>
+      <View style={{ height: inset.top, backgroundColor: DARK.bgDeep }} />
+      {children}
     </View>
   );
 }
 
+/** A bar in the dark brand colours (both themes): the top bar with the logo, and the top bar of the inner screens. */
+export function BrandBar({ children, style }: { children: ReactNode; style?: StyleProp<ViewStyle> }) {
+  return (
+    <DarkScope>
+      <View style={[sb.brandBar, style]}>{children}</View>
+    </DarkScope>
+  );
+}
+
+/** Top bar with a back button. The Stack header is hidden, so every screen draws its own bar (same on iOS and Android). */
+export function TopBar({ title, right }: { title?: string; right?: ReactNode }) {
+  const { t } = useI18n();
+  return (
+    <BrandBar>
+      <IconButton icon="chevron-back" label={t('back')} onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))} />
+      <Txt v="label" style={tb.title} numberOfLines={1}>{title ?? ''}</Txt>
+      <View style={tb.right}>{right}</View>
+    </BrandBar>
+  );
+}
+
 export function Loading({ label }: { label?: string }) {
+  const st = useSt();
+  const C = useColors();
   return (
     <View style={st.center} accessibilityLiveRegion="polite">
       <ActivityIndicator size="large" color={C.gold} />
@@ -78,6 +115,8 @@ export function Loading({ label }: { label?: string }) {
 }
 
 export function ErrorBox({ message, onRetry }: { message: string; onRetry?: () => void }) {
+  const st = useSt();
+  const C = useColors();
   const { t } = useI18n();
   return (
     <View style={st.box} accessibilityLiveRegion="polite">
@@ -95,6 +134,9 @@ export function ErrorBox({ message, onRetry }: { message: string; onRetry?: () =
 export function Dropdown<T extends string>({ label, value, options, onChange }: {
   label: string; value: T; options: { value: T; label: string }[]; onChange: (value: T) => void;
 }) {
+  const b = useB();
+  const dd = useDd();
+  const C = useColors();
   const [open, setOpen] = useState(false);
   const current = options.find(o => o.value === value)?.label ?? options[0]?.label ?? '';
   return (
@@ -125,6 +167,7 @@ export function Dropdown<T extends string>({ label, value, options, onChange }: 
 }
 
 export function Checkbox({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
+  const C = useColors();
   return (
     <Pressable accessibilityRole="checkbox" accessibilityState={{ checked }} onPress={() => onChange(!checked)} style={cb.row}>
       <Ionicons name={checked ? 'checkbox' : 'square-outline'} size={26} color={checked ? C.gold : C.muted} />
@@ -133,7 +176,7 @@ export function Checkbox({ checked, onChange, label }: { checked: boolean; onCha
   );
 }
 
-const t = StyleSheet.create({
+const useT = themed(C => StyleSheet.create({
   base: { color: C.text, fontSize: 16, lineHeight: 23 },
   body: {},
   muted: { color: C.muted },
@@ -142,27 +185,27 @@ const t = StyleSheet.create({
   h2: { fontSize: 22, lineHeight: 28, fontWeight: '800' },
   eyebrow: { color: C.gold, fontSize: 13, lineHeight: 18, fontWeight: '800', letterSpacing: 1.2 },
   label: { fontSize: 17, lineHeight: 22, fontWeight: '700' }
-});
+}));
 
-const b = StyleSheet.create({
+const useB = themed(C => StyleSheet.create({
   base: { minHeight: 50, borderRadius: R.md, paddingHorizontal: S.lg, paddingVertical: S.sm, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.sm },
-  primary: { backgroundColor: C.gold },
+  primary: { backgroundColor: C.goldFill },
   secondary: { backgroundColor: 'transparent', borderWidth: 2, borderColor: C.gold },
   disabled: { opacity: 0.55 },
   pressed: { opacity: 0.8 },
   label: { fontSize: 16, fontWeight: '800', textAlign: 'center', flexShrink: 1 },
   labelPrimary: { color: C.onGold },
   labelSecondary: { color: C.text }
-});
+}));
 
-const ch = StyleSheet.create({
+const useCh = themed(C => StyleSheet.create({
   base: { minHeight: 40, paddingHorizontal: 14, borderRadius: R.pill, borderWidth: 1, borderColor: C.border, backgroundColor: C.card, flexDirection: 'row', alignItems: 'center', gap: 6 },
-  selected: { backgroundColor: C.gold, borderColor: C.gold },
+  selected: { backgroundColor: C.goldFill, borderColor: C.goldFill },
   label: { color: C.text, fontSize: 15, fontWeight: '600' },
   labelSelected: { color: C.onGold, fontWeight: '800' }
-});
+}));
 
-const dd = StyleSheet.create({
+const useDd = themed(C => StyleSheet.create({
   wrap: { gap: S.xs },
   button: { minHeight: 50, borderRadius: R.md, borderWidth: 1, borderColor: C.border, backgroundColor: C.card, paddingHorizontal: S.lg, flexDirection: 'row', alignItems: 'center', gap: S.sm },
   buttonOpen: { borderColor: C.gold },
@@ -175,23 +218,27 @@ const dd = StyleSheet.create({
   tick: { width: 22, alignItems: 'center' },
   itemText: { color: C.text, fontSize: 16, flex: 1 },
   itemSelected: { fontWeight: '800' }
-});
+}));
 
-const ib = StyleSheet.create({
+const useIb = themed(C => StyleSheet.create({
   base: { width: 44, height: 44, borderRadius: R.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: C.card }
-});
+}));
 
 const tb = StyleSheet.create({
-  bar: { flexDirection: 'row', alignItems: 'center', gap: S.md, paddingHorizontal: S.lg, paddingVertical: S.sm, borderBottomWidth: 1, borderBottomColor: C.border, backgroundColor: C.bgDeep },
   title: { flex: 1 },
   right: { minWidth: 44, alignItems: 'flex-end' }
 });
 
-const st = StyleSheet.create({
+const sb = StyleSheet.create({
+  screen: { flex: 1 },
+  brandBar: { flexDirection: 'row', alignItems: 'center', gap: S.md, paddingHorizontal: S.lg, paddingVertical: S.sm, borderBottomWidth: 1, borderBottomColor: DARK.border, backgroundColor: DARK.bgDeep }
+});
+
+const useSt = themed(C => StyleSheet.create({
   center: { padding: S.xxl, alignItems: 'center', justifyContent: 'center', gap: S.md },
   centerText: { textAlign: 'center' },
   box: { margin: S.lg, padding: S.xl, borderRadius: R.lg, backgroundColor: C.card, borderWidth: 1, borderColor: C.border, alignItems: 'center', gap: S.md }
-});
+}));
 
 const cb = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'flex-start', gap: S.md, paddingVertical: S.sm, minHeight: 44 },

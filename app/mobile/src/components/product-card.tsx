@@ -6,11 +6,13 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import type { Product } from '@/lib/api';
 import { formatPrice } from '@/lib/format';
 import { useI18n } from '@/i18n';
-import { C, R, S } from '@/theme';
+import { R, S, themed, useColors } from '@/theme';
 import { Txt } from './ui';
 import { WorldTag } from './world-tag';
 
 export function StockLine({ inStock, checkRetailer, size = 'small' }: { inStock: boolean | null; checkRetailer?: boolean; size?: 'small' | 'body' }) {
+  const s = useS();
+  const C = useColors();
   const { t } = useI18n();
   // A price checked 14-30 days ago makes no stock claim (lessons L107).
   if (checkRetailer) {
@@ -32,6 +34,8 @@ export function StockLine({ inStock, checkRetailer, size = 'small' }: { inStock:
 }
 
 export function ProductCard({ product, showWorld }: { product: Product; showWorld?: boolean }) {
+  const s = useS();
+  const C = useColors();
   const { locale } = useI18n();
   const price = formatPrice(product.price, product.currency, locale);
   return (
@@ -56,7 +60,7 @@ export function ProductCard({ product, showWorld }: { product: Product; showWorl
   );
 }
 
-const s = StyleSheet.create({
+const useS = themed(C => StyleSheet.create({
   card: { flex: 1, backgroundColor: C.card, borderRadius: R.lg, borderWidth: 1, borderColor: C.border, overflow: 'hidden' },
   pressed: { opacity: 0.85 },
   imageBox: { height: 150, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
@@ -66,4 +70,4 @@ const s = StyleSheet.create({
   price: { fontSize: 18, fontWeight: '800', color: C.text, marginTop: 2 },
   stock: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   flex: { flex: 1 }
-});
+}));

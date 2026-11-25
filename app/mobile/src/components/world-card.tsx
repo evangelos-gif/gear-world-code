@@ -4,26 +4,32 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import type { World } from '@/lib/api';
 import { worldDescription, worldImage, worldTitle } from '@/lib/worlds-meta';
 import { useI18n } from '@/i18n';
-import { C, R, S } from '@/theme';
+import { DarkScope } from '@/lib/theme-context';
+import { DARK, R, S } from '@/theme';
 import { ImageShade, TEXT_ON_PICTURE } from './image-shade';
 import { Txt } from './ui';
+
+// Words on a picture: the dark colours in both themes (1.0.3).
+const C = DARK;
 
 export function WorldCard({ world, onPress }: { world: World; onPress: () => void }) {
   const { list } = useI18n();
   const title = worldTitle(world, list('worldTitles'));
   const desc = worldDescription(world, list('worldDescriptions'));
   return (
-    <Pressable accessibilityRole="button" accessibilityLabel={`${title}. ${desc}`} onPress={onPress}
-      style={({ pressed }) => [s.card, pressed && s.pressed]}>
-      <Image source={{ uri: worldImage(world.key) }} style={StyleSheet.absoluteFill} contentFit="cover" transition={200}
-        accessibilityIgnoresInvertColors />
-      <ImageShade />
-      <View style={s.text}>
-        <Txt style={s.code}>{world.key}</Txt>
-        <Txt style={s.title} numberOfLines={2}>{title}</Txt>
-        {desc ? <Txt style={s.desc} numberOfLines={2}>{desc}</Txt> : null}
-      </View>
-    </Pressable>
+    <DarkScope>
+      <Pressable accessibilityRole="button" accessibilityLabel={`${title}. ${desc}`} onPress={onPress}
+        style={({ pressed }) => [s.card, pressed && s.pressed]}>
+        <Image source={{ uri: worldImage(world.key) }} style={StyleSheet.absoluteFill} contentFit="cover" transition={200}
+          accessibilityIgnoresInvertColors />
+        <ImageShade />
+        <View style={s.text}>
+          <Txt style={s.code}>{world.key}</Txt>
+          <Txt style={s.title} numberOfLines={2}>{title}</Txt>
+          {desc ? <Txt style={s.desc} numberOfLines={2}>{desc}</Txt> : null}
+        </View>
+      </Pressable>
+    </DarkScope>
   );
 }
 

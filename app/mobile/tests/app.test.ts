@@ -29,6 +29,7 @@ import {
 } from '../src/lib/seasons.ts';
 import { apiSlug, categoriesFor } from '../src/lib/site-categories.ts';
 import { dayPart, worldIcon, WORLD_ICONS, DEFAULT_WORLD_ICON } from '../src/lib/warm.ts';
+import { DARK, LIGHT, PALETTES, DEFAULT_THEME, THEME_CHOICES, isThemeChoice, resolveMode } from '../src/theme.ts';
 
 const HUB = JSON.parse(readFileSync(new URL('../src/i18n/hub-strings.json', import.meta.url), 'utf8'));
 // The world order the Hub uses for its titles and descriptions (src/lib/worlds-meta.ts, read as text).
@@ -699,8 +700,8 @@ test('updates and notifications: remote updates per version, local alerts only, 
   const app = JSON.parse(read('../app.json')).expo;
   const eas = JSON.parse(read('../eas.json'));
   const pkg = JSON.parse(read('../package.json'));
-  assert.equal(app.version, '1.0.2');
-  assert.equal(pkg.version, '1.0.2');
+  assert.equal(app.version, '1.0.3');
+  assert.equal(pkg.version, '1.0.3');
   assert.deepEqual(app.runtimeVersion, { policy: 'appVersion' }, 'an update reaches only phones with the same app version');
   assert.equal(app.updates.url, undefined, 'the Expo project address is added on the PC by gw-app-dev, never kept in the repo');
   assert.equal(eas.build.production.channel, 'production');
@@ -731,3 +732,65 @@ function files(rel: string): string[] {
   walk(new URL(rel, import.meta.url));
   return out;
 }
+
+// ---------- version 1.0.3 (Idea 17 Γ, owner 25/11/2026): a light theme, chosen in Settings ----------
+
+function contrast(a: string, b: string): number {
+  const lum = (h: string) => {
+    const [r, g, bl] = [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16) / 255).map(c => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+    return 0.2126 * r + 0.7152 * g + 0.0722 * bl;
+  };
+  const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x);
+  return (hi + 0.05) / (lo + 0.05);
+}
+
+test('theme: both themes have the same colours, and every text colour reads at least 4.5:1 (owner is colour-blind, L35)', () => {
+  assert.deepEqual(Object.keys(LIGHT).sort(), Object.keys(DARK).sort());
+  assert.equal(PALETTES.dark, DARK);
+  assert.equal(PALETTES.light, LIGHT);
+  for (const P of [DARK, LIGHT]) {
+    for (const fg of ['text', 'muted', 'faint', 'gold', 'blue'] as const) {
+      for (const bg of ['bg', 'card', 'cardHigh'] as const) {
+        assert.ok(contrast(P[fg], P[bg]) >= 4.5, `${P.mode}: ${fg} on ${bg} = ${contrast(P[fg], P[bg]).toFixed(2)}`);
+      }
+    }
+    assert.ok(contrast(P.onGold, P.goldFill) >= 4.5, `${P.mode}: button words on gold`);
+  }
+  assert.ok(contrast(LIGHT.text, LIGHT.bg) > 10 && contrast(DARK.text, DARK.bg) > 10, 'body text is very clear in both');
+  // Choosing: dark until the person chooses (the look of 1.0.2), "system" follows the phone, dark when it does not say.
+  assert.equal(DEFAULT_THEME, 'dark');
+  assert.deepEqual([...THEME_CHOICES], ['dark', 'light', 'system']);
+  assert.equal(resolveMode('light', 'dark'), 'light');
+  assert.equal(resolveMode('dark', 'light'), 'dark');
+  assert.equal(resolveMode('system', 'light'), 'light');
+  assert.equal(resolveMode('system', 'dark'), 'dark');
+  assert.equal(resolveMode('system', null), 'dark');
+  assert.equal(resolveMode('system', 'unspecified'), 'dark');
+  assert.ok(isThemeChoice('system') && !isThemeChoice('blue') && !isThemeChoice(null));
+});
+
+test('theme: every screen takes its colours from the chosen theme; the brand bars stay dark', () => {
+  const read = (f: string) => readFileSync(f, 'utf8');
+  const app = JSON.parse(readFileSync(new URL('../app.json', import.meta.url), 'utf8')).expo;
+  assert.equal(app.userInterfaceStyle, 'automatic', 'the app can know the phone\'s light or dark setting');
+  for (const f of files('../src/')) {
+    const src = read(f);
+    const rel = f.split(/[\\/]src[\\/]/)[1];
+    assert.ok(!/import \{[^}]*\bC\b[^}]*\} from '@\/theme'/.test(src), `${rel}: no fixed colours imported`);
+    assert.ok(!/SafeAreaView/.test(src) || rel === 'components/ui.tsx', `${rel}: screens use <Screen>, whose top strip stays dark`);
+    // A style block that is made once (not per theme) may use colours only in the always-dark picture cards.
+    for (const m of src.matchAll(/^const \w+ = StyleSheet\.create\(\{[\s\S]*?^\}\);/gm)) {
+      if (/\bC\./.test(m[0])) assert.match(src, /^const C = DARK;$/m, `${rel}: colours in a fixed style block`);
+    }
+  }
+  const ui = read(fileURLToPath(new URL('../src/components/ui.tsx', import.meta.url)));
+  assert.match(ui, /export function Screen[\s\S]*backgroundColor: DARK\.bgDeep/, 'the strip under the status bar is dark in both themes');
+  assert.match(ui, /export function TopBar[\s\S]*<BrandBar>/);
+  assert.match(read(fileURLToPath(new URL('../src/app/(tabs)/index.tsx', import.meta.url))), /<BrandBar style=\{s\.topbar\}>/, 'the logo stays on dark navy');
+  assert.match(read(fileURLToPath(new URL('../src/app/(tabs)/_layout.tsx', import.meta.url))), /const C = DARK;/, 'the tab bar stays dark');
+  assert.match(read(fileURLToPath(new URL('../src/app/_layout.tsx', import.meta.url))), /<StatusBar style="light" \/>/);
+  const settings = read(fileURLToPath(new URL('../src/app/(tabs)/settings.tsx', import.meta.url)));
+  assert.match(settings, /THEME_CHOICES\.map\(c => <Row[^>]*selected=\{theme\.choice === c\}/, 'Settings: Dark, Light, Same as the phone');
+  // Bright gold is only a fill (with dark words on it); gold words use the theme's readable gold.
+  for (const f of files('../src/')) assert.ok(!/backgroundColor: C\.gold\b/.test(read(f)), `${f}: gold fills use goldFill`);
+});

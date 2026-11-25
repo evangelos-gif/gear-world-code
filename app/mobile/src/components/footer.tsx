@@ -5,10 +5,11 @@ import { LEGAL } from '@/lib/api';
 import { MEGA_STORES_URL } from '@/lib/client';
 import { openInBrowser, openSheet } from '@/lib/open';
 import { useI18n } from '@/i18n';
-import { C, S } from '@/theme';
+import { S, themed } from '@/theme';
 import { Txt } from './ui';
 
 export function LegalLinks() {
+  const s = useS();
   const { t } = useI18n();
   const links = [
     { label: t('privacy'), url: LEGAL.privacy },
@@ -28,6 +29,7 @@ export function LegalLinks() {
 }
 
 export function Footer() {
+  const s = useS();
   const { t } = useI18n();
   return (
     <View style={s.footer}>
@@ -44,9 +46,9 @@ export function Footer() {
   );
 }
 
-const s = StyleSheet.create({
+const useS = themed(C => StyleSheet.create({
   footer: { borderTopWidth: 1, borderTopColor: C.border, paddingTop: S.lg, gap: S.sm },
   links: { flexDirection: 'row', flexWrap: 'wrap', columnGap: S.lg },
   link: { minHeight: 40, justifyContent: 'center' },
   linkText: { color: C.gold, textDecorationLine: 'underline' }
-});
+}));

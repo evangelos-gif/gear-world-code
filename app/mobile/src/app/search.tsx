@@ -2,11 +2,11 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { FlatList, StyleSheet, View } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ProductCard } from '@/components/product-card';
 import { SearchBox } from '@/components/search-box';
-import { Dropdown, ErrorBox, Loading, TopBar, Txt } from '@/components/ui';
+import { Dropdown, ErrorBox, Loading, Screen, TopBar, Txt } from '@/components/ui';
 import { useI18n } from '@/i18n';
 import { searchAll, type SearchResult } from '@/lib/api';
 import { COUNTRY_NAMES } from '@/lib/client';
@@ -15,9 +15,11 @@ import { rememberProducts } from '@/lib/product-cache';
 import { useSettings } from '@/lib/settings-context';
 import { worldTitle } from '@/lib/worlds-meta';
 import { useWorlds } from '@/lib/worlds-context';
-import { C, MAX_WIDTH, S } from '@/theme';
+import { MAX_WIDTH, S, themed, useColors } from '@/theme';
 
 export default function SearchScreen() {
+  const s = useS();
+  const C = useColors();
   const { t, list } = useI18n();
   const { find } = useWorlds();
   // A new delivery country (Settings, 1.0.2) searches again.
@@ -126,7 +128,7 @@ export default function SearchScreen() {
   );
 
   return (
-    <SafeAreaView style={s.safe} edges={['top', 'left', 'right']}>
+    <Screen>
       <TopBar title={t('searchButton')} />
       <FlatList
         data={loading || error ? [] : shown}
@@ -138,12 +140,11 @@ export default function SearchScreen() {
         keyboardShouldPersistTaps="handled"
         renderItem={({ item }) => <View style={s.cell}><ProductCard product={item} showWorld /></View>}
       />
-    </SafeAreaView>
+    </Screen>
   );
 }
 
-const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: C.bg },
+const useS = themed(C => StyleSheet.create({
   list: { paddingHorizontal: S.lg, paddingBottom: S.xxl, gap: S.md, width: '100%', maxWidth: MAX_WIDTH, alignSelf: 'center' },
   header: { gap: S.md, paddingTop: S.lg, paddingBottom: S.sm },
   summary: { gap: S.sm },
@@ -157,4 +158,4 @@ const s = StyleSheet.create({
   helpLine: { color: C.text },
   colWrap: { gap: S.md },
   cell: { flex: 1, maxWidth: '50%' }
-});
+}));

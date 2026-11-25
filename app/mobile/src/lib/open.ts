@@ -1,7 +1,7 @@
 import * as WebBrowser from 'expo-web-browser';
 import { Linking } from 'react-native';
 
-import { C } from '@/theme';
+import { DARK } from '@/theme';
 import { safeHttps } from './api';
 
 /**
@@ -23,7 +23,7 @@ export async function openSheet(url: string): Promise<void> {
   const safe = safeHttps(url);
   if (!safe) return;
   try {
-    await WebBrowser.openBrowserAsync(safe, { toolbarColor: C.bgDeep, controlsColor: C.gold });
+    await WebBrowser.openBrowserAsync(safe, { toolbarColor: DARK.bgDeep, controlsColor: DARK.gold });
   } catch {
     await openInBrowser(safe);
   }

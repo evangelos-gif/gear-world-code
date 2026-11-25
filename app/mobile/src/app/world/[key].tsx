@@ -2,13 +2,13 @@ import { Image } from 'expo-image';
 import { useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { FlatList, StyleSheet, View } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ProductCard } from '@/components/product-card';
 import { Deals } from '@/components/deals';
 import { ImageShade } from '@/components/image-shade';
 import { SearchBox } from '@/components/search-box';
-import { Button, Chip, Dropdown, ErrorBox, Loading, TopBar, Txt } from '@/components/ui';
+import { Button, Chip, Dropdown, ErrorBox, Loading, Screen, TopBar, Txt } from '@/components/ui';
 import { useI18n } from '@/i18n';
 import { worldProducts, type Product, type SortKey } from '@/lib/api';
 import { openInBrowser } from '@/lib/open';
@@ -19,7 +19,7 @@ import { activeDeals, ukDay } from '@/lib/seasons';
 import { useDeals } from '@/lib/use-deals';
 import { worldDescription, worldImage, worldTitle } from '@/lib/worlds-meta';
 import { useWorlds } from '@/lib/worlds-context';
-import { C, MAX_WIDTH, R, S } from '@/theme';
+import { MAX_WIDTH, R, S, themed } from '@/theme';
 
 const SORTS: { key: SortKey; label: 'sortFeatured' | 'sortPriceAsc' | 'sortPriceDesc' | 'sortNewest' }[] = [
   { key: 'featured', label: 'sortFeatured' },
@@ -29,6 +29,7 @@ const SORTS: { key: SortKey; label: 'sortFeatured' | 'sortPriceAsc' | 'sortPrice
 ];
 
 export default function WorldScreen() {
+  const s = useS();
   const { t, list } = useI18n();
   const params = useLocalSearchParams<{ key: string; category?: string }>();
   const { find, loading: worldsLoading } = useWorlds();
@@ -75,10 +76,10 @@ export default function WorldScreen() {
 
   if (!world) {
     return (
-      <SafeAreaView style={s.safe} edges={['top', 'left', 'right']}>
+      <Screen>
         <TopBar />
         {worldsLoading ? <Loading /> : <ErrorBox message={t('loadError')} />}
-      </SafeAreaView>
+      </Screen>
     );
   }
 
@@ -126,7 +127,7 @@ export default function WorldScreen() {
   ) : undefined;
 
   return (
-    <SafeAreaView style={s.safe} edges={['top', 'left', 'right']}>
+    <Screen>
       <TopBar title={title} />
       <FlatList
         data={items}
@@ -139,12 +140,11 @@ export default function WorldScreen() {
         keyboardShouldPersistTaps="handled"
         renderItem={({ item }) => <View style={s.cell}><ProductCard product={item} /></View>}
       />
-    </SafeAreaView>
+    </Screen>
   );
 }
 
-const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: C.bg },
+const useS = themed(C => StyleSheet.create({
   list: { paddingHorizontal: S.lg, paddingBottom: S.xxl, gap: S.md, width: '100%', maxWidth: MAX_WIDTH, alignSelf: 'center' },
   header: { gap: S.md, paddingTop: S.lg, paddingBottom: S.sm },
   hero: { minHeight: 190, borderRadius: R.lg, overflow: 'hidden', backgroundColor: C.cardHigh },
@@ -153,4 +153,4 @@ const s = StyleSheet.create({
   cell: { flex: 1, maxWidth: '50%' },
   more: { paddingTop: S.lg, gap: S.sm },
   err: { color: C.blue }
-});
+}));

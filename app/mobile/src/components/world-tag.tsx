@@ -5,7 +5,7 @@ import { StyleSheet, View } from 'react-native';
 import { useI18n } from '@/i18n';
 import { worldIcon } from '@/lib/warm';
 import { worldTitle } from '@/lib/worlds-meta';
-import { C } from '@/theme';
+import { themed, useColors } from '@/theme';
 import { Txt } from './ui';
 
 type IconName = ComponentProps<typeof Ionicons>['name'];
@@ -15,6 +15,8 @@ type IconName = ComponentProps<typeof Ionicons>['name'];
  * code ("KGW"). Idea 17 Α, version 1.0.2. The icon is next to the words, never alone (lessons L35).
  */
 export function WorldTag({ worldKey, name }: { worldKey: string; name?: string }) {
+  const s = useS();
+  const C = useColors();
   const { list } = useI18n();
   const title = worldTitle({ key: worldKey, name: name || worldKey }, list('worldTitles'));
   return (
@@ -25,7 +27,7 @@ export function WorldTag({ worldKey, name }: { worldKey: string; name?: string }
   );
 }
 
-const s = StyleSheet.create({
+const useS = themed(C => StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   text: { flexShrink: 1, color: C.gold, fontSize: 12, lineHeight: 16, fontWeight: '800' }
-});
+}));
