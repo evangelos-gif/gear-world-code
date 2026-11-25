@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// READ-ONLY calls to the Yadore Publisher API (https://docs.yadore.com/) for tools/yadore.ps1 (lessons L232). Nothing is
+// READ-ONLY calls to the Yadore Publisher API (https://docs.yadore.com/) for tools/yadore.ps1 (lessons L235). Nothing is
 // clicked and nothing changes at Yadore or on the sites: only GET /v2/markets, /v2/merchant, /v2/offer and the Report and
 // Conversion endpoints.
 // The key comes only from the environment variable GW_YADORE_KEY (set by the PowerShell tool for this one run from this

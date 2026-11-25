@@ -1,4 +1,4 @@
-// Yadore (pay per click, lessons L232). Yadore GmbH (Munich) pays for every click on an offer of one of its stores
+// Yadore (pay per click, lessons L235). Yadore GmbH (Munich) pays for every click on an offer of one of its stores
 // (70% to us). Manager's order of 25 Nov 2026 (rules of Anna Andrews, Yadore, 20 Nov 2026):
 //   - first the Greek market (gr) in the categories that are empty in the Greek view, then the UK;
 //   - few stores at the start, few and steady clicks every day, raised step by step (Yadore is told before a rise of
@@ -292,7 +292,7 @@ export async function yadoreBox(env, ctx, { site, cat, market, own, at, origin }
   return { market, checked: new Date(fetchedAt).toISOString().slice(0, 10), offers };
 }
 
-// Clicks of one visitor in the box (independent review of L232: one person could use a site's clicks of the day, or click
+// Clicks of one visitor in the box (independent review of L235: one person could use a site's clicks of the day, or click
 // the same offer twice). A one-way hash of the IP address, the site and the UTC day, kept only in this data centre's
 // cache until the end of that day (the privacy page says so): at most YADORE_PER_VISITOR clicks, and one per offer link.
 // Returns { ok, reason, save }: save() writes the new count after the click is recorded. Without a cache: no limit

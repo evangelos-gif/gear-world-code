@@ -1,4 +1,4 @@
-// The words Yadore searches for each category, per market and site (lessons L232): at most 2 per category, the first one
+// The words Yadore searches for each category, per market and site (lessons L235): at most 2 per category, the first one
 // the most typical product of the category. Greek market first: ONLY the categories of the Manager's list of 25 Nov 2026,
 // the ones with no Greek retailer in the Greek view (their pages there show retailers that deliver mostly to the UK):
 // CGW, Pets, Gaming, Biker, Sporty, Travel, Tech, AGW without tyres, GGW furniture / buildings and storage / power garden

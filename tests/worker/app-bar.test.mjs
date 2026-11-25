@@ -225,7 +225,7 @@ test('L218: the stylesheet of every site has the row, after the hero buttons on 
 test('L218: the cookies page of every site names the browser storage of a closed app row, in every dictionary', async () => {
   const { infoPage } = await import('../../src/pages/info.js');
   const K = "If you close the Gear World app row on the home page, your browser's local storage remembers it, so the row does not come back. This is not a cookie and is not sent to us.";
-  assert.match(read('src/pages/info.js'), /const UPDATED = '(23 November 2026';\nconst UPDATED_ISO = '2026-11-23|2 December 2026';\nconst UPDATED_ISO = '2026-12-02)';/, 'a new date on the legal pages (then L232, the Yadore box)');
+  assert.match(read('src/pages/info.js'), /const UPDATED = '(23 November 2026';\nconst UPDATED_ISO = '2026-11-23|2 December 2026';\nconst UPDATED_ISO = '2026-12-02)';/, 'a new date on the legal pages (then L235, the Yadore box)');
   for (const s of SITES) {
     const html = infoPage(config[s], '/cookies/');
     assert.ok(String(html).includes(`<p>${K.replace(/'/g, '&#39;')}</p>`) || String(html).includes(`<p>${K}</p>`), `${s}: the line`);

@@ -7403,7 +7403,7 @@ $bgFile = Join-Path $bgUnit 'gate-unit.ps1'
 $bgOut = (@(& $exe -NoProfile -ExecutionPolicy Bypass -File $bgFile) | ForEach-Object { "$_" }) -join "`n"
 Check ($bgOut.Contains('GATE R1=False;R2=True;R3=True;R4=False;R5=False;S=[];C=2;T1=1')) ('bol.com gate: bol.com products without a download time are refused (an old bol.txt too), none to load needs none (' + $bgOut.Trim() + ')')
 
-# 27. yadore.ps1 (Yadore, lessons L232) with a fake wrangler (Windows only): the key goes to the 13 Workers only through
+# 27. yadore.ps1 (Yadore, lessons L235) with a fake wrangler (Windows only): the key goes to the 13 Workers only through
 # wrangler's input (never a command line or the report), one phrase per step, the undo in the report, off and pause.
 if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
     Write-Host 'yadore.ps1 (fake wrangler)'

@@ -220,7 +220,7 @@ export function createWorker(site) {
     if (m) {
       const cat = categories.get(m[1]);
       if (!cat) return notFound(path, method, shown);
-      // Yadore (lessons L232): the visitor's own country (never the Group's ?for= browsing), a Yadore market of ours, the
+      // Yadore (lessons L235): the visitor's own country (never the Group's ?for= browsing), a Yadore market of ours, the
       // key set and the day come. Its page copy is kept apart (one per market), so no other country ever gets the box.
       // Only for a GET of a person (or the network's own read-only check, L158) on the real domain: Yadore is not asked
       // for a bot's, a HEAD's or a test address's copy.
@@ -355,7 +355,7 @@ export function createWorker(site) {
     m = path.match(/^\/go\/([a-z0-9-]{1,60})\/?$/);
     if (m) return promoOut(request, env, ctx, url, m[1], view, shown);
 
-    // A click in the box of offers from other stores (Yadore, lessons L232): the signed link of that box.
+    // A click in the box of offers from other stores (Yadore, lessons L235): the signed link of that box.
     m = path.match(/^\/out\/y\/([A-Za-z0-9_.-]{40,3100})\/?$/);
     if (m) return yadoreOut(request, env, url, m[1], at);
     m = path.match(/^\/out\/(\d+)\/?$/);
@@ -423,7 +423,7 @@ export function createWorker(site) {
   }
 
   // One cached copy per page AND country group (lessons L107), so a visitor never gets another country's page.
-  // extra: a part of the page that only some countries of the group get (the Yadore box of one market, L232).
+  // extra: a part of the page that only some countries of the group get (the Yadore box of one market, L235).
   function cached(request, env, ctx, produce, view, extra = '') {
     if (extra) return withEdgeCache(request, ctx, produce, env, withExtra(cacheKeyUrl(request.url, view), extra));
     return withEdgeCache(request, ctx, produce, env, cacheKeyUrl(request.url, view));
@@ -479,7 +479,7 @@ export function createWorker(site) {
     return redirect(target.toString(), 302, { 'X-Robots-Tag': 'noindex, nofollow' });
   }
 
-  // /out/y/<token>: a click in the Yadore box (lessons L232). To the store through Yadore only for a person in that
+  // /out/y/<token>: a click in the Yadore box (lessons L235). To the store through Yadore only for a person in that
   // market's country on the real domain, with a fresh link of a store still on the list and clicks of the day left;
   // anything else goes back to the category page, with nothing recorded. The click is recorded before the redirect, so
   // the count of the day is right for the next one.

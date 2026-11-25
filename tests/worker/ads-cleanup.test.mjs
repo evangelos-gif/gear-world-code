@@ -246,7 +246,7 @@ test('the Hub legal pages say what is there: no affiliate links on the Hub, who 
   // And on 9/11/2026 (Awin or CJ, L107), on 15/11/2026 (the cookie gw_for of the Group's country links, L160), and on
   // 17/11/2026 (translated, EU GDPR and EU consumer law, L176), and on 18/11/2026 (the small sign-up window and "Remind
   // me on 27 Nov", L182).
-  assert.match(readFileSync('src/pages/info.js', 'utf8'), /const UPDATED = '(18 November 2026';\nconst UPDATED_ISO = '2026-11-18|23 November 2026';\nconst UPDATED_ISO = '2026-11-23|2 December 2026';\nconst UPDATED_ISO = '2026-12-02)';/); // L218: the cookies page names the app row's browser storage; L232: the Yadore box
+  assert.match(readFileSync('src/pages/info.js', 'utf8'), /const UPDATED = '(18 November 2026';\nconst UPDATED_ISO = '2026-11-18|23 November 2026';\nconst UPDATED_ISO = '2026-11-23|2 December 2026';\nconst UPDATED_ISO = '2026-12-02)';/); // L218: the cookies page names the app row's browser storage; L235: the Yadore box
 });
 
 function hub() {

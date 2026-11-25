@@ -1,4 +1,4 @@
-// Lessons L232 (Manager, 25 Nov 2026): Yadore (pay per click) on the 13 sites, first the Greek market in the categories
+// Lessons L235 (Manager, 25 Nov 2026): Yadore (pay per click) on the 13 sites, first the Greek market in the categories
 // that are empty in the Greek view. Live not before Wed 2 Dec 2026 18:00 (UK), only with the Worker secret YADORE_API_KEY,
 // few stores, few and steady clicks a day, the same product of the same store once, never the 5 big Linkwise stores,
 // Amazon, Aliexpress or Panora, rel="sponsored nofollow", a note that we are paid for each click, no L107 word.
@@ -97,7 +97,7 @@ const box = text => {
   return i < 0 ? '' : text.slice(i, text.indexOf('</section>', i) + 10);
 };
 
-test('L232: the live code ships with no store at all, so nothing shows until the stores are chosen from the read-only plan', () => {
+test('L235: the live code ships with no store at all, so nothing shows until the stores are chosen from the read-only plan', () => {
   assert.deepEqual(Object.keys(YADORE_STORES), ['gr']);
   assert.deepEqual([...YADORE_STORES.gr], []);
   assert.equal(new Date(YADORE_FROM).toISOString(), '2026-12-02T18:00:00.000Z', 'Wed 2 Dec 2026 18:00 UK time');
@@ -106,7 +106,7 @@ test('L232: the live code ships with no store at all, so nothing shows until the
   assert.equal(capsFor(DAY).site, 15);
 });
 
-test('L232: never the 5 big Linkwise stores, Amazon, Aliexpress or Panora, nor a store name with an L107 word', () => {
+test('L235: never the 5 big Linkwise stores, Amazon, Aliexpress or Panora, nor a store name with an L107 word', () => {
   for (const n of ['public.gr', 'www.public.gr', 'Public', 'Public GR', 'Public Greece', 'sephora.gr', 'Sephora Greece', 'Kotsovolos GR', 'e-shop.gr', 'ab.gr', 'AB Vasilopoulos', 'ΑΒ Βασιλόπουλος', 'kotsovolos.gr', 'Κωτσόβολος',
     'amazon.de', 'Amazon.co.uk', 'amazon', 'aliexpress.com', 'panora.gr', '']) assert.equal(neverStore(n), true, n);
   for (const n of ['alpha.gr', 'plaisio.gr', 'publicis.gr', 'kotsovolos-fan.example'.replace('kotsovolos', 'kots')]) assert.equal(neverStore(n), false, n);
@@ -122,7 +122,7 @@ test('L232: never the 5 big Linkwise stores, Amazon, Aliexpress or Panora, nor a
   assert.equal(storeLabel('Tsakiris Mallas GR'), storeLabel('tsakirismallas.gr'));
 });
 
-test('L232: only offers that may be shown: a Yadore https link, a price, a photo, in stock, a title without an L107 word', () => {
+test('L235: only offers that may be shown: a Yadore https link, a price, a photo, in stock, a title without an L107 word', () => {
   N = 0;
   const env = {};
   const good = offer('alpha.gr');
@@ -144,7 +144,7 @@ test('L232: only offers that may be shown: a Yadore https link, a price, a photo
   assert.ok(!JSON.stringify(out).includes('999'), 'no original price ("Was", L107)');
 });
 
-test('L232: the same product of the same store once, with the link that pays more; a product our own retailer lists keeps our card', () => {
+test('L235: the same product of the same store once, with the link that pays more; a product our own retailer lists keeps our card', () => {
   const a = { store: 'alpha.gr', title: 'Laptop X 16GB', cpc: 0.1 };
   const b = { store: 'www.alpha.gr', title: 'LAPTOP  x 16gb', cpc: 0.3 };
   const c = { store: 'beta.gr', title: 'Laptop X 16GB', cpc: 0.2 };
@@ -153,7 +153,7 @@ test('L232: the same product of the same store once, with the link that pays mor
   assert.deepEqual(kept, [b, c]);
 });
 
-test('L232: the box takes the words in turn, at most 2 offers per store and 8 in all, and none from a store whose clicks of the day are used up', () => {
+test('L235: the box takes the words in turn, at most 2 offers per store and 8 in all, and none from a store whose clicks of the day are used up', () => {
   const mk = (s, n) => Array.from({ length: n }, (_, i) => ({ store: s, title: `${s} ${i}` }));
   const cap = { site: 15, store: 5 };
   const none = { total: 0, byStore: new Map() };
@@ -167,7 +167,7 @@ test('L232: the box takes the words in turn, at most 2 offers per store and 8 in
   assert.deepEqual(pickOffers([mk('a.gr', 2)], none, null), [], 'no cap = before the start');
 });
 
-test('L232: the market: the key, the day, a Yadore market of ours, stores on its list and words for the category', () => {
+test('L235: the market: the key, the day, a Yadore market of ours, stores on its list and words for the category', () => {
   const cat = tgw.categories[0];
   const env = { YADORE_API_KEY: KEY };
   assert.equal(yadoreMarket(tgw, env, cat, 'GR', DAY), 'gr');
@@ -183,7 +183,7 @@ test('L232: the market: the key, the day, a Yadore market of ours, stores on its
   assert.equal(placementId(tgw, 'gr', cat), `tgw-gr-${cat.slug}`);
 });
 
-test('L232: words exactly for the Manager\'s list (25 Nov): CGW, Pets, Gaming, Biker, Sporty, Travel, Tech, AGW but tyres, GGW furniture/buildings/power tools, Smart Home, Kids Tech', () => {
+test('L235: words exactly for the Manager\'s list (25 Nov): CGW, Pets, Gaming, Biker, Sporty, Travel, Tech, AGW but tyres, GGW furniture/buildings/power tools, Smart Home, Kids Tech', () => {
   const all = s => config[s].categories.map(c => c.slug);
   const expected = {
     cgw: all('cgw'), zgw: all('zgw'), pgw: all('pgw'), bgw: all('bgw'), sgw: all('sgw'), vgw: all('vgw'), tgw: all('tgw'),
@@ -205,7 +205,7 @@ test('L232: words exactly for the Manager\'s list (25 Nov): CGW, Pets, Gaming, B
   for (const s of ['mgw', 'wgw']) for (const c of config[s].categories) assert.deepEqual(categoryWords(config[s], c, 'gr'), [], `${s}/${c.slug}`);
 });
 
-test('L232: links are signed with a key made from the API key and the site, carry only a Yadore address, and fail when changed', async () => {
+test('L235: links are signed with a key made from the API key and the site, carry only a Yadore address, and fail when changed', async () => {
   const key = await linkKey({ YADORE_API_KEY: KEY }, tgw);
   const other = await linkKey({ YADORE_API_KEY: KEY + 'x' }, tgw);
   const pgwKey = await linkKey({ YADORE_API_KEY: KEY }, config.pgw);
@@ -236,7 +236,7 @@ test('L232: links are signed with a key made from the API key and the site, carr
   assert.equal(await readLink(key, 'not-a-token'), null);
 });
 
-test('L232: a Greek visitor on an empty TGW category gets the box: 2 per store, sponsored links, the note and the date', async () => {
+test('L235: a Greek visitor on an empty TGW category gets the box: 2 per store, sponsored links, the note and the date', async () => {
   N = 0;
   const api = yadoreApi(fullAnswer);
   const env = { DB: tgwDb(), YADORE_API_KEY: KEY, YADORE_FETCH: api, CLICK_LOG: '', FX_FETCH: async () => { throw new Error('offline'); } };
@@ -275,7 +275,7 @@ test('L232: a Greek visitor on an empty TGW category gets the box: 2 per store, 
   assert.ok(!text.includes(KEY), 'never on the page');
 });
 
-test('L232: no box for the UK, Cyprus, Google, the Group\'s ?for=GR browsing, before the start, without a key, on page 2 or with filters', async () => {
+test('L235: no box for the UK, Cyprus, Google, the Group\'s ?for=GR browsing, before the start, without a key, on page 2 or with filters', async () => {
   const api = yadoreApi(fullAnswer);
   const env = { DB: tgwDb(), YADORE_API_KEY: KEY, YADORE_FETCH: api, FX_FETCH: async () => { throw new Error('offline'); } };
   const path = '/category/laptops-computing/';
@@ -294,7 +294,7 @@ test('L232: no box for the UK, Cyprus, Google, the Group\'s ?for=GR browsing, be
   assert.ok(box((await get(tgw, env, path, { country: 'US', ua: QA, headers: { 'X-GW-QA-Country': 'GR' } })).text));
 });
 
-test('L232: with our own products on the page the box goes above our list, apart from it, and our list keeps its order', async () => {
+test('L235: with our own products on the page the box goes above our list, apart from it, and our list keeps its order', async () => {
   N = 0;
   const api = yadoreApi(fullAnswer);
   const DB = tgwDb();
@@ -319,7 +319,7 @@ test('L232: with our own products on the page the box goes above our list, apart
   assert.equal(box(uk), '');
 });
 
-test('L232: a category with no words (HGW furniture, every MGW and WGW category) never asks Yadore', async () => {
+test('L235: a category with no words (HGW furniture, every MGW and WGW category) never asks Yadore', async () => {
   const api = yadoreApi(fullAnswer);
   const env = { DB: memD1(read('tests/fixtures/ggw-legacy-schema.sql'), read('tests/fixtures/ggw-seed.sql')), YADORE_API_KEY: KEY, YADORE_FETCH: api, FX_FETCH: async () => { throw new Error('offline'); } };
   for (const [site, slug] of [[config.hgw, 'furniture'], [config.mgw, 'watches'], [config.wgw, 'shoes'], [config.ggw, 'bbq-outdoor-cooking'], [config.agw, 'tyres-wheels']]) {
@@ -329,7 +329,7 @@ test('L232: a category with no words (HGW furniture, every MGW and WGW category)
   assert.equal(api.calls.length, 0);
 });
 
-test('L232: a slow, failing or strange Yadore never breaks the page', async () => {
+test('L235: a slow, failing or strange Yadore never breaks the page', async () => {
   const path = '/category/audio/';
   const base = { DB: tgwDb(), YADORE_API_KEY: KEY, FX_FETCH: async () => { throw new Error('offline'); } };
   const answers = [
@@ -348,7 +348,7 @@ test('L232: a slow, failing or strange Yadore never breaks the page', async () =
   assert.equal(slow.res.status, 200, 'the 2.5 s timeout');
 });
 
-test('L232: the Greek copy of the page is kept apart, and Yadore\'s answer is kept an hour, never under a public address', async () => {
+test('L235: the Greek copy of the page is kept apart, and Yadore\'s answer is kept an hour, never under a public address', async () => {
   N = 0;
   const store = new Map();
   const before = globalThis.caches;
@@ -394,7 +394,7 @@ async function clickNow(site, env, token, opts = {}) {
   return res;
 }
 
-test('L232: a click goes to the store through Yadore once recorded; a bot, the UK, a test address, a changed link go back to the page', async () => {
+test('L235: a click goes to the store through Yadore once recorded; a bot, the UK, a test address, a changed link go back to the page', async () => {
   N = 0;
   const env = { DB: tgwDb(), YADORE_API_KEY: KEY, YADORE_FETCH: yadoreApi(fullAnswer), FX_FETCH: async () => { throw new Error('offline'); } };
   const [t] = await pageTokens(tgw, env, '/category/laptops-computing/');
@@ -432,7 +432,7 @@ test('L232: a click goes to the store through Yadore once recorded; a bot, the U
   assert.equal(new URL(head.headers.get('Location')).pathname, back);
 });
 
-test('L232: few and steady clicks: 5 a day per store and 15 per site, then the box leaves that store out and its links go back', async () => {
+test('L235: few and steady clicks: 5 a day per store and 15 per site, then the box leaves that store out and its links go back', async () => {
   N = 0;
   const env = { DB: tgwDb(), YADORE_API_KEY: KEY, YADORE_FETCH: yadoreApi(fullAnswer), FX_FETCH: async () => { throw new Error('offline'); } };
   const ins = env.DB.sql.prepare("INSERT INTO affiliate_clicks (product_id, awin_advertiser_id, retailer, category_slug, page_path, country_code, click_ref, clicked_at) VALUES (0, 0, ?, 'x', '', 'GR', 'x', ?)");
@@ -452,7 +452,7 @@ test('L232: few and steady clicks: 5 a day per store and 15 per site, then the b
   for (const t of toks) assert.equal(new URL((await click(tgw, env, t)).headers.get('Location')).pathname, '/category/laptops-computing/');
 });
 
-test('L232: an older site (GGW, older database layout) shows the box and records the click in its own click table', async () => {
+test('L235: an older site (GGW, older database layout) shows the box and records the click in its own click table', async () => {
   N = 0;
   const env = { DB: ggwDb(), YADORE_API_KEY: KEY, YADORE_FETCH: yadoreApi(fullAnswer), FX_FETCH: async () => { throw new Error('offline'); } };
   const path = '/category/garden-furniture-outdoor-living/';
@@ -464,7 +464,7 @@ test('L232: an older site (GGW, older database layout) shows the box and records
   assert.deepEqual(rows, [{ retailer: `${CLICK_PREFIX}alpha.gr`, site_category: 'Garden Furniture & Outdoor Living', product_name: 'Yadore gr', country_code: 'GR', source: 'yadore_click' }], 'its own source: the retailer click reports stay as they were');
 });
 
-test('L232: the box\'s texts and the new texts of the about, money, privacy and cookies pages are in all 143 dictionaries', async () => {
+test('L235: the box\'s texts and the new texts of the about, money, privacy and cookies pages are in all 143 dictionaries', async () => {
   const yd = { market: 'gr', checked: '2026-12-03', offers: [{ title: 'T', store: 'alpha.gr', price: 10, currency: 'EUR', image: 'https://i.example/x.jpg', href: '/out/y/x' }] };
   const keys = new Set(translatableTexts(`<body>${htmlText(yadoreSection(tgw, yd))}</body>`));
   assert.deepEqual([...keys].sort(), ['More from other stores', 'Sponsored', 'These offers come through {0}, which pays us for each click, at no extra cost to you. Prices checked {1}, may change.', 'View at {0}']);
@@ -501,14 +501,14 @@ test('L232: the box\'s texts and the new texts of the about, money, privacy and 
   assert.equal(files, 143);
 });
 
-test('L232: the Hub search answer never carries Yadore offers, and robots.txt keeps /out/ closed', async () => {
+test('L235: the Hub search answer never carries Yadore offers, and robots.txt keeps /out/ closed', async () => {
   const env = { DB: tgwDb(), YADORE_API_KEY: KEY, YADORE_FETCH: yadoreApi(fullAnswer), FX_FETCH: async () => { throw new Error('offline'); } };
   const api = await get(tgw, env, '/api/products?deliver_to=GR&category=laptops-computing');
   assert.ok(!/yadore|\/out\/y\//i.test(api.text));
   assert.match((await get(tgw, env, '/robots.txt')).text, /Disallow: \/out\//);
 });
 
-test('L232: the click endpoint alone (no page): a store taken off the list since, or a token of another market, goes back', async () => {
+test('L235: the click endpoint alone (no page): a store taken off the list since, or a token of another market, goes back', async () => {
   const env = { DB: tgwDb(), YADORE_API_KEY: KEY };
   const key = await linkKey(env, tgw);
   const cats = new Map(tgw.categories.map(c => [c.slug, c]));
@@ -527,7 +527,7 @@ test('L232: the click endpoint alone (no page): a store taken off the list since
 
 // ---- Independent review, round 1 (25 Nov 2026)
 
-test('L232 review: on CGW and PGW Greece shares the "all" copy with Cyprus and France: the Greek copy stays apart, and no address can name it', async () => {
+test('L235 review: on CGW and PGW Greece shares the "all" copy with Cyprus and France: the Greek copy stays apart, and no address can name it', async () => {
   const { cacheKeyUrl, viewFor } = await import('../../src/lib/visibility.js');
   const pgw = config.pgw;
   assert.equal(viewFor(pgw, 'GR', DAY).group, viewFor(pgw, 'CY', DAY).group, 'the same view group');
@@ -557,7 +557,7 @@ test('L232 review: on CGW and PGW Greece shares the "all" copy with Cyprus and F
   }
 });
 
-test('L232 review: page 2 of a category with our own products never shows the box, and a HEAD or a bot from Greece never asks Yadore', async () => {
+test('L235 review: page 2 of a category with our own products never shows the box, and a HEAD or a bot from Greece never asks Yadore', async () => {
   const api = yadoreApi(fullAnswer);
   const DB = tgwDb();
   const cols = 'stable_key, awin_advertiser_id, awin_product_id, merchant_product_id, retailer, category_slug, subcategory, brand, product_name, product_slug, description, price, was_price, currency, in_stock, item_condition, image_url, affiliate_url, merchant_category, gtin, mpn, specs_json, first_seen_at, last_seen_at';
@@ -583,7 +583,7 @@ test('L232 review: page 2 of a category with our own products never shows the bo
   assert.equal(api.calls.length, asked, 'a HEAD and a test address never ask Yadore');
 });
 
-test('L232 review: prefetch, another site\'s page, a failing click log, the same link twice and more than 3 clicks of one person go back to the page', async () => {
+test('L235 review: prefetch, another site\'s page, a failing click log, the same link twice and more than 3 clicks of one person go back to the page', async () => {
   N = 0;
   const store = new Map();
   const before = globalThis.caches;
@@ -628,7 +628,7 @@ test('L232 review: prefetch, another site\'s page, a failing click log, the same
 
 // ---- Independent review, round 2 (25 Nov 2026)
 
-test('L232 review 2: clicks at the same moment never pass the caps (one statement with the counts), on both database layouts', async () => {
+test('L235 review 2: clicks at the same moment never pass the caps (one statement with the counts), on both database layouts', async () => {
   for (const [site, mk, path] of [[tgw, tgwDb, '/category/laptops-computing/'], [ggw, ggwDb, '/category/garden-furniture-outdoor-living/']]) {
     N = 0;
     const env = { DB: mk(), YADORE_API_KEY: KEY, YADORE_FETCH: yadoreApi(fullAnswer), FX_FETCH: async () => { throw new Error('offline'); } };
@@ -653,7 +653,7 @@ test('L232 review 2: clicks at the same moment never pass the caps (one statemen
   }
 });
 
-test('L232 review 2: an IPv6 visitor counts by its /64; the hash is keyed, so an address cannot be found from it', async () => {
+test('L235 review 2: an IPv6 visitor counts by its /64; the hash is keyed, so an address cannot be found from it', async () => {
   const { visitorAddress, visitorGate } = await import('../../src/lib/yadore.js');
   assert.equal(visitorAddress('2001:db8:1:2:aaaa::1'), '2001:db8:1:2::/64');
   assert.equal(visitorAddress('2001:0db8:0001:0002:ffff:1:2:3'), '2001:db8:1:2::/64');
@@ -675,7 +675,7 @@ test('L232 review 2: an IPv6 visitor counts by its /64; the hash is keyed, so an
   assert.notDeepEqual([...other.keys()], [...store.keys()].slice(0, 1), 'the key changes the hash');
 });
 
-test('L232 review 2: sale words of a Greek title, a final sigma and "Public-GR" are caught', async () => {
+test('L235 review 2: sale words of a Greek title, a final sigma and "Public-GR" are caught', async () => {
   const { promoTitle } = await import('../../src/lib/yadore.js');
   for (const t of ['ΠΡΟΣΦΟΡΑ Laptop', 'Laptop Προσφορά!', 'Έκπτωση -30% κράνος', 'κράνος -25%', 'κράνος (-15%)', 'Κράνος [-30%]', 'Κράνος /-30%', 'Κράνος *-30%*', 'Κράνος \u201130%', 'Κράνος —30%',
     'Κράνος -30％', 'Κράνος -20€', '30% discount helmet', 'Special offer helmet', 'Clearance helmet', 'Promo helmet', 'Μειωμένη τιμή κράνος', 'Τιμή σοκ!', 'ΕΚΠΤ. 30% κράνος',
@@ -692,7 +692,7 @@ test('L232 review 2: sale words of a Greek title, a final sigma and "Public-GR" 
   assert.equal(visitorAddress('::ffff:192.0.2.9'), '192.0.2.9', 'an IPv4-mapped address counts as its IPv4');
 });
 
-test('L232 review 4: one offer link per visitor even across new page copies, and a click sent back costs the visitor nothing', async () => {
+test('L235 review 4: one offer link per visitor even across new page copies, and a click sent back costs the visitor nothing', async () => {
   const { visitorAddress } = await import('../../src/lib/yadore.js');
   for (const a of ['::ffff:192.0.2.9', '0:0:0:0:0:ffff:192.0.2.9', '::ffff:c000:209', '::FFFF:C000:0209']) assert.equal(visitorAddress(a), '192.0.2.9', a);
   assert.equal(visitorAddress('fe80::1%eth0'), 'fe80:0:0:0::/64');

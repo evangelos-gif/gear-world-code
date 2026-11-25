@@ -1,6 +1,6 @@
 ﻿<#
 .SYNOPSIS
-  Yadore (pay per click) on the 13 Gear World sites (lessons L232). Read-only unless -Apply and the typed approval phrase.
+  Yadore (pay per click) on the 13 Gear World sites (lessons L235). Read-only unless -Apply and the typed approval phrase.
 
 .DESCRIPTION
   The API key is only in Anna's email of 20 Nov 2026 (Yadore). It is typed ONCE at a hidden prompt of this tool and kept
@@ -247,7 +247,7 @@ function Get-SecretNames([string]$folder, [string]$worker) {
     return , $names.ToArray()
 }
 # A JSON string with every letter outside ASCII as \uXXXX: Windows PowerShell 5.1 pipes text to a program in
-# $OutputEncoding (ASCII), which would turn Greek letters into "?" (independent review of L232).
+# $OutputEncoding (ASCII), which would turn Greek letters into "?" (independent review of L235).
 function ConvertTo-AsciiJson([string]$s) {
     $sb = New-Object System.Text.StringBuilder
     [void]$sb.Append('"')
@@ -305,7 +305,7 @@ function Prepare-Deploy {
 # ---------------- start ----------------
 $mode = 'ΜΟΝΟ ΑΝΑΓΝΩΣΗ (δεν αλλάζει τίποτα στα sites)'
 if ($Apply -and ($Step -eq 'keys' -or $Step -eq 'off' -or $Step -eq 'pause')) { $mode = 'APPLY (με έγκριση)' }
-Say ('YADORE (L232) - step: {0} - {1} - {2}' -f $Step, $mode, (Get-Date -Format 'yyyy-MM-dd HH:mm')) 'Cyan'
+Say ('YADORE (L235) - step: {0} - {1} - {2}' -f $Step, $mode, (Get-Date -Format 'yyyy-MM-dd HH:mm')) 'Cyan'
 Say ('Code version: {0}' -f (Split-Path -Leaf $repo))
 if (-not $env:GW_TEST_YADORE_API -and -not (Get-Command node -ErrorAction SilentlyContinue)) { Say 'Δεν βρέθηκε το Node.js. Στείλε στο Claude αυτό το μήνυμα.' 'Red'; Finish 3 }
 $siteList = @()
@@ -419,7 +419,7 @@ Say ''
 Say 'Σχέδιο:'
 if ($Step -eq 'keys') {
     Say ('  Το κλειδί του Yadore μπαίνει ως secret {0} στους {1} Workers (μέσα από την είσοδο του wrangler, δεν φαίνεται πουθενά).' -f $SecretName, $targets.Count)
-    Say '  Ο κώδικας ΔΕΝ αλλάζει: το secret μπαίνει στην έκδοση που τρέχει. Ο κώδικας του Yadore (L232) δείχνει το πλαίσιο μόνο από Τετ 2/12 18:00 και μόνο σε επισκέπτες από την Ελλάδα.'
+    Say '  Ο κώδικας ΔΕΝ αλλάζει: το secret μπαίνει στην έκδοση που τρέχει. Ο κώδικας του Yadore (L235) δείχνει το πλαίσιο μόνο από Τετ 2/12 18:00 και μόνο σε επισκέπτες από την Ελλάδα.'
     Say '  Αναίρεση: tools/yadore.ps1 -Step off -Apply (σβήνει το secret από όλους· το πλαίσιο φεύγει αμέσως).'
 } elseif ($Step -eq 'off') {
     Say ('  Σβήνει το secret {0} από τους {1} Workers: το πλαίσιο φεύγει αμέσως παντού και κάθε link /out/y/ γυρίζει στη σελίδα του.' -f $SecretName, $targets.Count)

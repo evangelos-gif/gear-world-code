@@ -1,4 +1,4 @@
-// Lessons L232: the read-only helper of tools/yadore.ps1 (tools/yadore-api.mjs): the key test, the plan of stores and
+// Lessons L235: the read-only helper of tools/yadore.ps1 (tools/yadore-api.mjs): the key test, the plan of stores and
 // category words, the report (300-click rule, 1% conversion) and the live check of the pages. Fake answers, no network.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -29,7 +29,7 @@ function fakeApi(routes) {
 }
 const offer = (store, n) => ({ title: `Product ${store} ${n}`, clickUrl: `https://api.yadore.com/v2/r/${n}`, availability: 'AVAILABLE', merchant: { name: store }, price: { amount: '10.00', currency: 'EUR' }, thumbnail: { url: 'https://img.example/x.jpg' } });
 
-test('L232 helper: the key test says whether Yadore took the key and which markets are open, never the key', async () => {
+test('L235 helper: the key test says whether Yadore took the key and which markets are open, never the key', async () => {
   const ok = await testKey(fakeApi({ '/v2/markets': { markets: [{ id: 'uk' }, { id: 'gr' }] } }), KEY);
   assert.equal(ok.ok, true);
   assert.deepEqual(ok.markets, ['gr', 'uk']);
@@ -42,7 +42,7 @@ test('L232 helper: the key test says whether Yadore took the key and which marke
   assert.ok(!api.calls[0].u.toString().includes(KEY), 'the key in the header only');
 });
 
-test('L232 helper: the plan lists the stores of the market and proposes a few, never the forbidden ones or one without SEO traffic', async () => {
+test('L235 helper: the plan lists the stores of the market and proposes a few, never the forbidden ones or one without SEO traffic', async () => {
   useYadoreStores(null);
   const merchants = [
     { name: 'alpha.gr', offerCount: 900, trafficTypes: [{ type: 'seo', permission: 'allowed' }] },
@@ -74,7 +74,7 @@ test('L232 helper: the plan lists the stores of the market and proposes a few, n
   assert.equal(closed.error, 'market');
 });
 
-test('L232 helper: the report applies the 300-click rule and the 1% target per store, and gives our 70% of the revenue', async () => {
+test('L235 helper: the report applies the 300-click rule and the 1% target per store, and gives our 70% of the revenue', async () => {
   const api = fakeApi({
     '/v2/conversion/detail/merchant': { total: { sales: 3, clicks: 760 }, salesByMerchant: [
       { market: 'gr', merchant: { name: 'alpha.gr' }, clicks: RULE_CLICKS, sales: 0 },
@@ -100,7 +100,7 @@ test('L232 helper: the report applies the 300-click rule and the 1% target per s
   assert.equal((await report(api, KEY, { from: '2026-12-05', to: '2026-12-01' })).ok, false, 'dates the wrong way round');
 });
 
-test('L232 helper: the live check reads the box as the site writes it, and every mark it must have', () => {
+test('L235 helper: the live check reads the box as the site writes it, and every mark it must have', () => {
   const yd = { market: 'gr', checked: '2026-12-03', offers: [1, 2].map(n => ({ title: `T${n}`, store: 'alpha.gr', price: 10, currency: 'EUR', image: 'https://i.example/x.jpg', href: `/out/y/${'a'.repeat(40)}.${'b'.repeat(32)}` })) };
   const page = body => `<html><head><meta name="robots" content="noindex,follow"></head><body>${body}</body></html>`;
   const b = readBox(page(htmlText(yadoreSection(tgw, yd))));
@@ -112,7 +112,7 @@ test('L232 helper: the live check reads the box as the site writes it, and every
   assert.ok(broken.problems.includes('κατάστημα που απαγορεύεται: amazon.de'));
 });
 
-test('L232 helper: the live check asks every category from Greece with the QA header and one page from the UK, never /out/', async () => {
+test('L235 helper: the live check asks every category from Greece with the QA header and one page from the UK, never /out/', async () => {
   const seen = [];
   const yd = { market: 'gr', checked: '2026-12-03', offers: [{ title: 'T', store: 'alpha.gr', price: 10, currency: 'EUR', image: 'https://i.example/x.jpg', href: `/out/y/${'a'.repeat(40)}.${'b'.repeat(32)}` }] };
   const withBox = `<html><head><meta name="robots" content="noindex,follow"></head><body>${htmlText(yadoreSection(tgw, yd))}</body></html>`;

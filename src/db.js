@@ -1298,7 +1298,7 @@ export async function logClick(db, row) {
     .run();
 }
 
-// A Yadore click (lessons L232) in ONE statement that also checks the clicks of the day: it is written only while the
+// A Yadore click (lessons L235) in ONE statement that also checks the clicks of the day: it is written only while the
 // site has fewer than `site` and the store fewer than `store` clicks since `day` (UTC). D1 runs one write at a time, so
 // clicks at the same moment can never pass the caps together (independent review, 25 Nov 2026). Returns the rows written
 // (0 = a cap was reached). clicked_at is the engine's clock (the real time on the live site; the fixed day in the tests),

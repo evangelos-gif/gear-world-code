@@ -15,7 +15,7 @@ function contactLink(site) {
 }
 
 // The legal texts last changed on 2 Dec 2026 (the box of offers from other stores through Yadore on the privacy and
-// cookies pages, lessons L232; the date of the paste that brings it live: if that day moves, move this date with it);
+// cookies pages, lessons L235; the date of the paste that brings it live: if that day moves, move this date with it);
 // before: 23 Nov 2026 (the cookies page: the browser storage of a closed Gear World app row, lessons
 // L218); before: 18 Nov 2026
 // (the small sign-up window and "Remind me on 27 Nov", lessons L182); before:

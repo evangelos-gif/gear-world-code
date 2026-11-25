@@ -147,7 +147,7 @@ export function facetRows(facets) {
   return ((facets && facets.retailers) || []).reduce((t, r) => t + (Number(r.n) || 0), 0);
 }
 
-// The box of offers from other stores through Yadore (lessons L232): above our own list on page 1 (in these categories
+// The box of offers from other stores through Yadore (lessons L235): above our own list on page 1 (in these categories
 // the Greek view has no Greek retailer, so the stores of the box are the ones that deliver to the visitor), marked
 // "Sponsored", apart from our own list (which it never changes), with
 // the date Yadore's prices were read and a note that we are paid for each click. Buttons and photos go through this

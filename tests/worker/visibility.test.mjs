@@ -228,7 +228,7 @@ test('the page cache keeps one copy per country group (lessons L107)', () => {
   // The engine passes it to the edge cache of every cached page.
   const engine = read('src/engine.js');
   assert.match(engine, /withEdgeCache\(request, ctx, produce, env, cacheKeyUrl\(request\.url, view\)\)/);
-  // The category page has one more part of the key: its Yadore box of one market (lessons L232).
+  // The category page has one more part of the key: its Yadore box of one market (lessons L235).
   assert.equal((engine.match(/\}, view(?:, ydMarket \? `yd-\$\{ydMarket\}` : '')?\);/g) || []).length, 6, 'home, category, product, deals, a guide and the guides list are cached per group');
 });
 
