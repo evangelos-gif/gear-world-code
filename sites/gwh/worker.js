@@ -1754,8 +1754,16 @@ export const MEGA_EDITION_HOME = {
   NL: "https://megastoresgearworld.com/nl/", BE: "https://megastoresgearworld.com/be/", US: "https://megastoresgearworld.com/us/",
   PL: "https://megastoresgearworld.com/pl/"
 };
-export function megaHomeFor(country) {
-  return MEGA_EDITION_HOME[String(country || "").toUpperCase()] || MEGA_HOME;
+// A new edition opens with at least 3 stores listed for its country, as megastoresgearworld.com decides (L232: with
+// fewer it sends its visitors to the home page); Greece always (L214).
+export const MEGA_MIN_EDITION_STORES = 3;
+export function megaHomeFor(country, hidden = MEGA_HIDDEN_NETWORKS, list = MEGA_BAR_STORES) {
+  const cc = String(country || "").toUpperCase();
+  const url = MEGA_EDITION_HOME[cc];
+  if (!url) return MEGA_HOME;
+  const here = list.filter(s => s.slug !== "amazon" && coversCountry(s.deliversTo, cc) && !(s.network && hidden.includes(s.network)));
+  if (cc !== "GR" && here.length < MEGA_MIN_EDITION_STORES) return MEGA_HOME;
+  return url;
 }
 // The Stores card's line for a country with Mega Stores but not the UK: the store names (never translated), the first
 // three and how many more, instead of the UK names.
@@ -1795,7 +1803,7 @@ export function megaBarHtml(text, country, hidden = MEGA_HIDDEN_NETWORKS) {
   }
   const names = stores.map(s => s.name).join(", ");
   const pills = stores.map(s => `<span class="gwh2-mega-pill" data-store="${escHtml(s.slug)}" data-logo="text-only" translate="no">${escHtml(s.name)}</span>`).join("");
-  const home = megaHomeFor(country);
+  const home = megaHomeFor(country, hidden);
   let out = text.replace('<a class="gwh2-mega" href="https://megastoresgearworld.com/">', `<a class="gwh2-mega" href="${home}">`);
   // The Stores card (L214): Mega Stores for this country, with its stores' names (no data-gwh2: the page script would
   // write the UK names back in the visitor's language).

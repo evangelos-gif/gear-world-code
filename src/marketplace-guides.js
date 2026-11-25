@@ -141,7 +141,7 @@ export function storeIn(store, country) {
   const cc = String(country || '').toUpperCase();
   const to = deliveryOf(store);
   if (!store || store.amazon || !to.includes(cc) || productCountry(store) === cc || !EDITIONS.some(e => e.country === cc)) return store;
-  return { ...store, deliversTo: [cc, ...to.filter(c => c !== cc)] };
+  return { ...store, deliversTo: [cc, ...to.filter(c => c !== cc)], inCountry: cc };
 }
 export function deliversHere(entry, country = VIEW_BASE) {
   if (country === ANY_COUNTRY) return true;
@@ -834,9 +834,9 @@ export function shownStores(site, mode, country = VIEW_BASE, lw = '') {
 }
 
 export function storeCacheKey(site, store) {
-  // The country its products are read for (L232), except the UK's, whose keys stay as they were.
-  const cc = productCountry(store);
-  return `https://${site.domain}/__cache/stores/${store.slug}?v=${encodeURIComponent(site.assetVersion)}${cc === VIEW_BASE ? '' : `&cc=${cc}`}`;
+  // A store read for another of its countries (storeIn, L232) has a copy of its own; every other key stays as it was.
+  const cc = store && /^[A-Z]{2}$/.test(String(store.inCountry || '')) ? store.inCountry : '';
+  return `https://${site.domain}/__cache/stores/${store.slug}?v=${encodeURIComponent(site.assetVersion)}${cc ? `&cc=${cc}` : ''}`;
 }
 
 const SITE_HOST = w => new URL(w.url).hostname;
@@ -2033,6 +2033,8 @@ export function createGuidesWorker(site, deps = {}) {
         const crawler = readsEnglish(request) || GOOGLE_CRAWLER.test(request.headers.get('user-agent') || '');
         const asked = crawler ? '' : languageCode(site, url.searchParams.get('lang'));
         const edLang = asked || ed.lang;
+        // The Content-Language of its answers: the edition's hreflang (de-AT, nl-BE, en-US) unless another was chosen (L232).
+        const edCL = asked ? edLang : (ed.hreflang || edLang);
         const edCtx = p => priced(makeContext(site, edLang, Boolean(asked), viewMode(site, baseMode, ed.country), p, ed.country, ed, lw));
         const rest = url.pathname.slice(ed.prefix.length);
         const edKeep = to => (asked ? edCtx('/').href(to) : edCtx('/').at(to));
@@ -2042,7 +2044,7 @@ export function createGuidesWorker(site, deps = {}) {
           // The app row (L218) as on the home page: this visitor's own country and browser.
           const edHome = edCtx('/');
           edHome.app = appBarWanted(country, request.headers.get('user-agent'));
-          return page(homePage(edHome, new Date(nowMs()), await allStoreData(ctx, ed.country, lw)), 200, edLang);
+          return page(homePage(edHome, new Date(nowMs()), await allStoreData(ctx, ed.country, lw)), 200, edCL);
         }
         // A category of the catalogue of a direct store (L228): /gr/stores/<store>/c/<id>-<name>/.
         const cm = rest.match(/^\/stores\/([a-z0-9-]+)\/c\/(\d{1,10})(?:-([a-z0-9-]*))?\/?$/);
@@ -2051,13 +2053,13 @@ export function createGuidesWorker(site, deps = {}) {
           const entry = catStores.get(String(cStore.direct.program));
           const cc = edCtx(`/stores/${cStore.slug}/`);
           // The database busy (an import) or the store in the middle of a load: try again soon (503), never half a store.
-          const busy = () => { const b = page(catalogBusyPage(cc, cStore), 503, edLang); b.headers.set('Retry-After', '300'); return b; };
+          const busy = () => { const b = page(catalogBusyPage(cc, cStore), 503, edCL); b.headers.set('Retry-After', '300'); return b; };
           if (!catState.ok || (entry && entry.loading)) return busy();
-          if (!catalogFresh(entry, nowMs())) return page(notFoundPage(edCtx(url.pathname), url.pathname), 404, edLang);
+          if (!catalogFresh(entry, nowMs())) return page(notFoundPage(edCtx(url.pathname), url.pathname), 404, edCL);
           const after = /^\d{1,16}$/.test(url.searchParams.get('after') || '') ? Number(url.searchParams.get('after')) : 0;
           let data;
           try { data = await catalogCategory(env.CATALOG, cStore.direct.program, Number(cm[2]), after); } catch { return busy(); }
-          if (!data) return page(notFoundPage(edCtx(url.pathname), url.pathname), 404, edLang);
+          if (!data) return page(notFoundPage(edCtx(url.pathname), url.pathname), 404, edCL);
           if (cm[3] !== data.cat.slug || !rest.endsWith('/')) {
             const to = new URL(url.toString());
             to.pathname = `${ed.prefix}/stores/${cStore.slug}/c/${data.cat.id}-${data.cat.slug}/`;
@@ -2067,7 +2069,7 @@ export function createGuidesWorker(site, deps = {}) {
           let broken = new Set();
           // The photos of its category cards too (L231), in the same check.
           if (!crawler) { try { broken = await catalogPhotos(site, cStore, [...data.products.map(p => p.image), ...data.children.map(k => k.image).filter(Boolean)], runtime(), ctx); } catch { broken = new Set(); } }
-          return page(catalogPage(edCtx(`/stores/${cStore.slug}/c/${data.cat.id}-${data.cat.slug}/`), cStore, data, entry, broken, after), 200, edLang);
+          return page(catalogPage(edCtx(`/stores/${cStore.slug}/c/${data.cat.id}-${data.cat.slug}/`), cStore, data, entry, broken, after), 200, edCL);
         }
         const em = rest.match(/^\/stores\/([a-z0-9-]+)\/?$/);
         const edStore = em && editionStores(site, ed, lw).find(s => s.slug === em[1]);
@@ -2083,7 +2085,7 @@ export function createGuidesWorker(site, deps = {}) {
             // The photos of the category cards (L231, L211): checked after the page is sent, never for crawlers.
             let catBroken = new Set();
             if (top && top.length && !crawler) { try { catBroken = await catalogPhotos(site, edStore, top.map(t => t.image).filter(Boolean), runtime(), ctx); } catch { catBroken = new Set(); } }
-            return page(directStorePage(edCtx(`/stores/${edStore.slug}/`), edStore, broken, top, catBroken), 200, edLang);
+            return page(directStorePage(edCtx(`/stores/${edStore.slug}/`), edStore, broken, top, catBroken), 200, edCL);
           }
           // The store's list first, then its showcase: never both at once on the same site's database (L221). Its
           // products for the edition's country (L232).
@@ -2093,9 +2095,9 @@ export function createGuidesWorker(site, deps = {}) {
           try { products = (await storeProducts(site, inEd, rt, ctx)).products; } catch { products = []; }
           let showcase = null;
           try { showcase = await storeShowcase(site, inEd, rt, ctx); } catch { showcase = null; }
-          return page(storePage(edCtx(`/stores/${edStore.slug}/`), edStore, products, nowMs(), showcase), 200, edLang);
+          return page(storePage(edCtx(`/stores/${edStore.slug}/`), inEd, products, nowMs(), showcase), 200, edCL);
         }
-        return page(notFoundPage(edCtx(url.pathname), url.pathname), 404, edLang);
+        return page(notFoundPage(edCtx(url.pathname), url.pathname), 404, edCL);
       }
       // A redirect keeps the chosen language (?lang= stays in the address).
       const keepLang = to => (choice.chosen ? makeContext(site, choice.lang, true).href(to) : to);
@@ -2135,7 +2137,7 @@ export function createGuidesWorker(site, deps = {}) {
           try { products = (await storeProducts(site, inHere, rt, ctx)).products; } catch { products = []; }
           let showcase = null;
           try { showcase = await storeShowcase(site, inHere, rt, ctx); } catch { showcase = null; }
-          return page(storePage(ctxFor(`/stores/${store.slug}/`), store, products, nowMs(), showcase));
+          return page(storePage(ctxFor(`/stores/${store.slug}/`), inHere, products, nowMs(), showcase));
         }
         // The Amazon page with Amazon links off: 404 without the word Amazon (not even in the canonical address).
         return page(notFoundPage(ctxFor('/stores/'), '/stores/'), 404);

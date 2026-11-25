@@ -77,7 +77,7 @@ for (const e of NEW) {
       const { r, text, calls } = await get(`${e.prefix}/`, { ua, cc });
       assert.equal(r.status, 200);
       assert.ok(text.startsWith(`<!doctype html>\n<html lang="${e.hreflang}">`), `${e.prefix}: ${e.hreflang}`);
-      assert.equal(r.headers.get('Content-Language'), e.lang);
+      assert.equal(r.headers.get('Content-Language'), e.hreflang, 'the language of the country (review 25/11/2026)');
       assert.ok(text.includes(`<link rel="canonical" href="${LIVE}${e.prefix}/">`));
       for (const x of EDITIONS) assert.ok(text.includes(`<link rel="alternate" hreflang="${x.hreflang}" href="${LIVE}${x.prefix}/">`), `hreflang ${x.hreflang}`);
       assert.ok(text.includes(`<link rel="alternate" hreflang="en-GB" href="${LIVE}/">`) && text.includes(`<link rel="alternate" hreflang="x-default" href="${LIVE}/">`));
@@ -120,7 +120,10 @@ test('L232: a store listed for several countries: each country its own products 
   assert.deepEqual(storeIn(reidl, 'AT').deliversTo, ['AT', 'DE']);
   assert.equal(storeIn(reidl, 'PL'), reidl, 'a country it is not listed for: as it is');
   assert.notEqual(storeCacheKey(site, storeIn(reidl, 'AT')), storeCacheKey(site, reidl));
-  assert.ok(storeCacheKey(site, storeIn(reidl, 'AT')).endsWith('&cc=AT') && storeCacheKey(site, reidl).endsWith('&cc=DE'));
+  assert.ok(storeCacheKey(site, storeIn(reidl, 'AT')).endsWith('&cc=AT'));
+  assert.equal(storeCacheKey(site, reidl), `${LIVE}/__cache/stores/reidl?v=${encodeURIComponent(site.assetVersion)}`, 'its first country: the key as every other store\'s');
+  // Review 25/11/2026: the UK and Greek keys stay byte for byte (no cold cache for /gr/).
+  for (const x of site.stores) assert.ok(!storeCacheKey(site, x).includes('&cc='), `${x.slug}: its key as before`);
   const joybuy = site.stores.find(s => s.slug === 'joybuy');
   assert.equal(storeCacheKey(site, joybuy), `${LIVE}/__cache/stores/joybuy?v=${encodeURIComponent(site.assetVersion)}`, 'the UK keys stay as they were');
   const parex = site.stores.find(s => s.slug === 'parex-gr');
@@ -135,6 +138,14 @@ test('L232: a store listed for several countries: each country its own products 
   assert.ok(intl.calls.length > 0 && intl.calls.every(u => u.searchParams.get('deliver_to') === 'AT'));
   const page = await get('/stores/reidl/', { cc: 'AT' });
   assert.ok(page.calls.length > 0 && page.calls.every(u => u.searchParams.get('deliver_to') === 'AT'));
+  // Review 25/11/2026: its "All … products on …" links ask the Gear World site for the page's country (?for=), never
+  // another (the site would keep that country in its gw_for cookie for a day).
+  for (const [path, cc, want] of [['/at/stores/reidl/', 'GB', 'at'], ['/de/stores/reidl/', 'GB', 'de'], ['/be/stores/refurbed-nl/', 'GB', 'be'],
+    ['/be/stores/vevor/', 'GB', 'be'], ['/pl/stores/home-tex/', 'GB', 'pl'], ['/stores/home-tex/', 'BE', 'be'], ['/stores/reidl/', 'AT', 'at']]) {
+    const t = (await get(path, { cc })).text;
+    const fors = [...t.matchAll(/[?&](?:amp;)?for=([a-z]{2})/g)].map(m => m[1]);
+    assert.ok(fors.length > 0 && fors.every(f => f === want), `${path} from ${cc}: for=${want} (${fors.join(',')})`);
+  }
   const elsewhere = await get('/stores/reidl/', { cc: 'GB' });
   assert.ok(elsewhere.text.includes('store-elsewhere') && elsewhere.calls.length === 0, 'from the UK: not listed there, nothing read');
 });

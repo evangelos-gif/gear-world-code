@@ -784,9 +784,20 @@ function Test-Site([string]$base, [bool]$isLive) {
     $usHome = Get-Web ($base + '/?gwcheck=' + $stamp) 'US'
     $usHtml = $enc8.GetString($usHome.bytes)
     $usUk = @($megaStores | Where-Object { $usHtml.Contains('data-store="' + $_ + '"') })
-    $usOk = ($usHome.status -eq 200 -and $usHtml.Contains('gwh2-mega-wrap') -and $usHtml.Contains('data-store="temu"') -and $usUk.Count -eq 0 -and (([regex]::Matches($usHtml, 'href="https://megastoresgearworld\.com/us/"')).Count -eq 2) -and $usHtml.Contains('id="hubSearch"'))
+    $usOk = ($usHome.status -eq 200 -and $usHtml.Contains('gwh2-mega-wrap') -and $usHtml.Contains('data-store="temu"') -and $usUk.Count -eq 0 -and (([regex]::Matches($usHtml, 'href="https://megastoresgearworld\.com/us/"')).Count -eq 2) -and (([regex]::Matches($usHtml, 'href="https://megastoresgearworld\.com/"')).Count -eq 0) -and $usHtml.Contains('id="hubSearch"'))
     if ($usOk) { Say '  Μπάρα Mega Stores και κάρτα «Stores» από ΗΠΑ (L232): ΕΝΤΑΞΕΙ - τα καταστήματα των ΗΠΑ, κανένα του UK, και τα δύο ανοίγουν το megastoresgearworld.com/us/' $Ok }
     else { Say ('  Μπάρα Mega Stores από ΗΠΑ (L232): ΠΡΟΒΛΗΜΑ - απάντηση {0}, μπάρα: {1}, καταστήματα του UK: {2}' -f $usHome.status, $usHtml.Contains('gwh2-mega-wrap'), ($usUk -join ', ')) $Bad }
+    # L232: from Germany the same with the German stores and /de/ (the card names the first three).
+    $deMega = Get-Web ($base + '/?gwcheck=' + $stamp) 'DE'
+    $deMegaHtml = $enc8.GetString($deMega.bytes)
+    $deUk = @($megaStores | Where-Object { $deMegaHtml.Contains('data-store="' + $_ + '"') })
+    $deOk = ($deMega.status -eq 200 -and $deMegaHtml.Contains('data-store="westwing-de"') -and $deUk.Count -eq 0 -and (([regex]::Matches($deMegaHtml, 'href="https://megastoresgearworld\.com/de/"')).Count -eq 2) -and (([regex]::Matches($deMegaHtml, 'href="https://megastoresgearworld\.com/"')).Count -eq 0) -and $deMegaHtml.Contains('<small class="gwh2-rc-desc" translate="no">Westwing DE, La Redoute DE, Reidl +3</small>'))
+    if ($deOk) { Say '  Μπάρα Mega Stores και κάρτα «Stores» από Γερμανία (L232): ΕΝΤΑΞΕΙ - τα γερμανικά καταστήματα, κανένα του UK, και τα δύο ανοίγουν το megastoresgearworld.com/de/' $Ok }
+    else { Say ('  Μπάρα Mega Stores από Γερμανία (L232): ΠΡΟΒΛΗΜΑ - απάντηση {0}, καταστήματα του UK: {1}' -f $deMega.status, ($deUk -join ', ')) $Bad }
+    $deBf = Get-Web ($base + '/black-friday/?gwcheck=' + $stamp) 'DE'
+    $deBfHtml = $enc8.GetString($deBf.bytes)
+    if ($deBf.status -eq 200 -and $deBfHtml.Contains('<a href="https://megastoresgearworld.com/de/" translate="no">Mega Stores</a>') -and -not $deBfHtml.Contains('data-delivers="GB"')) { Say '  /black-friday/ από Γερμανία (L232): ΕΝΤΑΞΕΙ - η γραμμή ανοίγει το megastoresgearworld.com/de/, τίποτα του UK' $Ok }
+    else { Say ('  /black-friday/ από Γερμανία (L232): ΠΡΟΒΛΗΜΑ - απάντηση {0}' -f $deBf.status) $Bad }
     # L218: the row of the Gear World app (Google Play badge) stays for the UK, Greece and the US (it is in the file, hidden
     # until hub-v2.js shows it) and is taken out for Germany, where the app is not on Google Play. Its link is never opened.
     $deHome = Get-Web ($base + '/?gwcheck=' + $stamp) 'DE'
@@ -1338,6 +1349,11 @@ function Assert-MegaStoresGr {
         $ogwEdHtml = (New-Object System.Text.UTF8Encoding($false)).GetString($ogwEd.bytes)
         if ($ogwEd.status -eq 200 -and $ogwEdHtml.Contains('<html lang="' + $ed[1] + '">') -and $ogwEdHtml.Contains('<link rel="canonical" href="' + $edUrl + '">')) {
             Say ('Το Mega Stores για {0} ({1}) είναι live, άρα τα links του Hub ανοίγουν (L214, L232): ΕΝΤΑΞΕΙ' -f $ed[2], $edUrl) $Ok
+            continue
+        }
+        # A closed edition (fewer than 3 stores, L232) answers with the home page; the Hub then opens the home page too.
+        if ($ed[0] -ne 'gr' -and $ogwEd.status -eq 200 -and $ogwEdHtml.Contains('<link rel="canonical" href="https://megastoresgearworld.com/">')) {
+            Say ('Το Mega Stores για {0} είναι κλειστό (λιγότερα από 3 καταστήματα, L232): το Hub ανοίγει την αρχική του για αυτή τη χώρα: ΠΡΟΣΟΧΗ' -f $ed[2]) $Warn
             continue
         }
         Say ('Το {0} δεν είναι ακόμα live (απάντηση {1}): ΔΕΝ ανεβάζω το Hub, γιατί από {2} θα άνοιγε σελίδα που δεν υπάρχει. Πρώτα το Mega Stores (tools/ogw-site.ps1). ΔΕΝ άλλαξε τίποτα. Στείλε αυτή την αναφορά στο Claude.' -f $edUrl, $ogwEd.status, $ed[2]) $Bad

@@ -545,6 +545,11 @@ function Test-Site([string]$base, [string]$mode) {
     foreach ($e in $editions) {
         $pre = '/' + $e.p + '/'
         $eh = Get-Page ($base + $pre)
+        # An edition with fewer than 3 stores closes by itself (302 to the international page, L232): said, not a failure.
+        if ($eh.status -eq 302 -and ($eh.location -eq ('https://' + $Domain + '/') -or $eh.location -eq ($base + '/'))) {
+            Say ('  {0} (Mega Stores για {1}, L232): ΠΡΟΣΟΧΗ - κλειστό, γιατί έχει λιγότερα από 3 καταστήματα (οι επισκέπτες του πάνε στην αρχική)' -f $pre, $e.n) $Warn
+            continue
+        }
         $eStores = @([regex]::Matches($eh.text, 'href="' + [regex]::Escape($pre) + 'stores/([a-z0-9-]+)/"') | ForEach-Object { $_.Groups[1].Value } | Select-Object -Unique)
         $eUk = ($eh.text -match $edUkStore) -or ($eh.text -match '(?i)amazon\.co\.uk|>Amazon<') -or $eh.text.Contains('class="promo-card"')
         $eOk = ($eh.status -eq 200 -and $eh.text.Contains('<html lang="' + $e.h + '">') -and $eh.text.Contains('<link rel="canonical" href="https://' + $Domain + $pre + '">') -and $eh.text.Contains('<link rel="alternate" hreflang="' + $e.h + '" href="https://' + $Domain + $pre + '">') -and $eh.text.Contains('<link rel="alternate" hreflang="en-GB" href="https://' + $Domain + '/">') -and $eStores.Count -ge 3 -and -not $eUk -and -not $eh.text.Contains('stores-none') -and $edSm.text.Contains('<loc>https://' + $Domain + $pre + '</loc>'))
