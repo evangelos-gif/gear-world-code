@@ -1285,9 +1285,11 @@ export async function logClick(db, row) {
     // The older sites' click table (same columns their dashboards and the Hub reports read).
     await db
       .prepare(`INSERT INTO affiliate_clicks (product_id, awin_product_id, retailer, brand, site_category, product_name,
-        page_path, language, display_currency, country_code, source) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'retailer_click')`)
+        page_path, language, display_currency, country_code, source) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
       .bind(row.product_id, row.awin_product_id || '', row.retailer || '', row.brand || '', row.site_category || '',
-        row.product_name || '', row.page_path || '', row.language || '', row.display_currency || 'GBP', row.country_code || '')
+        row.product_name || '', row.page_path || '', row.language || '', row.display_currency || 'GBP', row.country_code || '',
+        // A Yadore click (L232) keeps its own source, so the retailer click reports of these sites stay as they were.
+        row.source === 'yadore_click' ? 'yadore_click' : 'retailer_click')
       .run();
     return;
   }

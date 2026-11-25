@@ -110,7 +110,6 @@ test('L232 helper: the live check reads the box as the site writes it, and every
   assert.ok(broken.problems.includes('links χωρίς sponsored nofollow'));
   assert.ok(broken.problems.includes('λέξη L107'));
   assert.ok(broken.problems.includes('κατάστημα που απαγορεύεται: amazon.de'));
-  assert.ok(broken.problems.includes('η σελίδα δεν είναι noindex'));
 });
 
 test('L232 helper: the live check asks every category from Greece with the QA header and one page from the UK, never /out/', async () => {

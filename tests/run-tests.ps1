@@ -7481,7 +7481,17 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
         Check ($r.Contains('ΕΤΟΙΜΟ') -and $r.Contains('ίδια έκδοση') -and $r.Contains('-Step off -Apply') -and -not $r.Contains($ydKey)) 'yadore keys report: ready, the same code version, the undo, never the key'
         Check ((Run-YD @('-Step', 'pause', '-Stores', 'Alpha.gr, https://www.beta.gr/x', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ YADORE ΠΑΥΣΗ')) -eq 0 -and (YDCount 'pause') -eq 13) 'yadore pause: the secret YADORE_PAUSE on the 13 Workers'
         Check (([System.IO.File]::ReadAllText((Join-Path $ydState 'home-gear-world.bulk'))).Contains('"YADORE_PAUSE":"alpha.gr,beta.gr"')) 'yadore pause: store names cleaned (lower case, no www, no address)'
-        Check ((Run-YD @('-Step', 'pause', '-Stores', '', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ YADORE ΠΑΥΣΗ')) -eq 0 -and (YDCount 'pause') -eq 0) 'yadore pause with no stores: the pause secret is deleted'
+        # A name with spaces stays one name, Greek letters reach wrangler as \uXXXX (PS 5.1 pipes ASCII), the list before is shown.
+        $ydGreek = 'Tsakiris  Mallas GR, ' + [string][char]0x0386 + [string][char]0x03BB + [string][char]0x03C6 + [string][char]0x03B1 + '.gr'
+        Check ((Run-YD @('-Step', 'pause', '-Stores', $ydGreek, '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ YADORE ΠΑΥΣΗ')) -eq 0) 'yadore pause: names with spaces and Greek letters'
+        $b = [System.IO.File]::ReadAllText((Join-Path $ydState 'kids-gear-world.bulk'))
+        Check ($b.Contains('"YADORE_PAUSE":"tsakiris mallas gr,\u03ac\u03bb\u03c6\u03b1.gr"')) ('yadore pause: one name with its spaces, Greek letters as \u escapes (' + $b.Trim() + ')')
+        $r = YDLast 'YADORE_PAUSE_*.txt'
+        Check ($r.Contains('alpha.gr,beta.gr') -and $r.Contains('-Stores ''alpha.gr,beta.gr''')) 'yadore pause: the report shows the list before and the undo with it'
+        $pf = Join-Path (Join-Path $ydHome 'gear-world-secrets') 'yadore-pause.txt'
+        Check ((Test-Path -LiteralPath $pf) -and ([System.IO.File]::ReadAllText($pf, [System.Text.Encoding]::UTF8)).StartsWith('tsakiris mallas gr,')) 'yadore pause: the new list kept on this PC'
+        Check ((Run-YD @('-Step', 'pause', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ YADORE ΠΑΥΣΗ')) -eq 2 -and (YDCount 'pause') -eq 13) 'yadore pause without -Stores or -Clear: refused, nothing changes'
+        Check ((Run-YD @('-Step', 'pause', '-Clear', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ YADORE ΠΑΥΣΗ')) -eq 0 -and (YDCount 'pause') -eq 0) 'yadore pause -Clear: the pause secret is deleted'
         Write-Utf8 (Join-Path $ydState 'fail-bulk-mens-gear-world.flag') 'x'
         Remove-Item -LiteralPath (Join-Path $ydState 'mens-gear-world.key') -Force
         Check ((Run-YD @('-Step', 'keys', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ YADORE ΚΛΕΙΔΙ')) -eq 7) 'yadore keys: a failing Worker stops the run (exit 7)'

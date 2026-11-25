@@ -9,7 +9,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { createWorker } from '../../src/engine.js';
 import { useClock } from '../../src/lib/visibility.js';
 import {
-  YADORE_FROM, YADORE_STORES, YADORE_CAPS, YADORE_MAX_OWN, useYadoreStores, storeKey, neverStore, storeAllowed, readOffers,
+  YADORE_FROM, YADORE_STORES, YADORE_CAPS, useYadoreStores, storeKey, neverStore, storeAllowed, readOffers,
   dedupe, pickOffers, capsFor, yadoreMarket, categoryWords, placementId, linkKey, signLink, readLink, yadoreClick, L107_WORDS,
   CLICK_PREFIX, storeLabel
 } from '../../src/lib/yadore.js';
@@ -99,13 +99,12 @@ test('L232: the live code ships with no store at all, so nothing shows until the
   assert.deepEqual([...YADORE_STORES.gr], []);
   assert.equal(new Date(YADORE_FROM).toISOString(), '2026-12-02T18:00:00.000Z', 'Wed 2 Dec 2026 18:00 UK time');
   assert.deepEqual(YADORE_CAPS.map(c => ({ ...c })), [{ from: '2026-12-02', site: 15, store: 5 }], 'few and steady clicks: 15 a day per site, 5 per store');
-  assert.equal(YADORE_MAX_OWN, 5);
   assert.equal(capsFor(Date.parse('2026-12-01T23:00:00Z')), null, 'no clicks before the start day');
   assert.equal(capsFor(DAY).site, 15);
 });
 
 test('L232: never the 5 big Linkwise stores, Amazon, Aliexpress or Panora, nor a store name with an L107 word', () => {
-  for (const n of ['public.gr', 'www.public.gr', 'Public', 'sephora.gr', 'e-shop.gr', 'ab.gr', 'AB Vasilopoulos', 'ΑΒ Βασιλόπουλος', 'kotsovolos.gr', 'Κωτσόβολος',
+  for (const n of ['public.gr', 'www.public.gr', 'Public', 'Public GR', 'Public Greece', 'sephora.gr', 'Sephora Greece', 'Kotsovolos GR', 'e-shop.gr', 'ab.gr', 'AB Vasilopoulos', 'ΑΒ Βασιλόπουλος', 'kotsovolos.gr', 'Κωτσόβολος',
     'amazon.de', 'Amazon.co.uk', 'amazon', 'aliexpress.com', 'panora.gr', '']) assert.equal(neverStore(n), true, n);
   for (const n of ['alpha.gr', 'plaisio.gr', 'publicis.gr', 'kotsovolos-fan.example'.replace('kotsovolos', 'kots')]) assert.equal(neverStore(n), false, n);
   const env = {};
@@ -181,32 +180,39 @@ test('L232: the market: the key, the day, a Yadore market of ours, stores on its
   assert.equal(placementId(tgw, 'gr', cat), `tgw-gr-${cat.slug}`);
 });
 
-test('L232: words for every category of the 13 sites in the Greek market (but AGW tyres), at most 2, no L107 word', () => {
-  const codes = SITES.filter(s => s !== 'group' && s !== 'ogw' && config[s].categories);
-  assert.equal(codes.length, 13);
-  for (const s of codes) {
+test('L232: words exactly for the Manager\'s list (25 Nov): CGW, Pets, Gaming, Biker, Sporty, Travel, Tech, AGW but tyres, GGW furniture/buildings/power tools, Smart Home, Kids Tech', () => {
+  const all = s => config[s].categories.map(c => c.slug);
+  const expected = {
+    cgw: all('cgw'), zgw: all('zgw'), pgw: all('pgw'), bgw: all('bgw'), sgw: all('sgw'), vgw: all('vgw'), tgw: all('tgw'),
+    agw: all('agw').filter(x => x !== 'tyres-wheels'),
+    ggw: ['power-garden-tools', 'garden-furniture-outdoor-living', 'garden-buildings-fencing-storage'],
+    hgw: ['smart-home'], kgw: ['kids-tech']
+  };
+  assert.deepEqual(Object.keys(YADORE_WORDS.gr).sort(), Object.keys(expected).sort(), 'no words for MGW and WGW (Greek retailers)');
+  for (const [s, slugs] of Object.entries(expected)) {
     const site = config[s];
-    const words = YADORE_WORDS.gr[s];
-    assert.ok(words, s);
-    for (const slug of Object.keys(words)) assert.ok(site.categories.some(c => c.slug === slug), `${s}: ${slug} is a category`);
+    assert.deepEqual(Object.keys(YADORE_WORDS.gr[s]).sort(), [...slugs].sort(), s);
     for (const c of site.categories) {
       const w = categoryWords(site, c, 'gr');
-      if (s === 'agw' && c.slug === 'tyres-wheels') { assert.deepEqual(w, []); continue; }
+      if (!slugs.includes(c.slug)) { assert.deepEqual(w, [], `${s}/${c.slug}: no box`); continue; }
       assert.ok(w.length >= 1 && w.length <= 2, `${s}/${c.slug}`);
       for (const x of w) assert.ok(!L107_WORDS.test(x) && x.length <= 60, `${s}/${c.slug}: ${x}`);
     }
   }
+  for (const s of ['mgw', 'wgw']) for (const c of config[s].categories) assert.deepEqual(categoryWords(config[s], c, 'gr'), [], `${s}/${c.slug}`);
 });
 
-test('L232: links are signed with a key made from the API key, carry only a Yadore address, and fail when changed', async () => {
-  const key = await linkKey({ YADORE_API_KEY: KEY });
-  const other = await linkKey({ YADORE_API_KEY: KEY + 'x' });
-  assert.equal(await linkKey({}), null);
+test('L232: links are signed with a key made from the API key and the site, carry only a Yadore address, and fail when changed', async () => {
+  const key = await linkKey({ YADORE_API_KEY: KEY }, tgw);
+  const other = await linkKey({ YADORE_API_KEY: KEY + 'x' }, tgw);
+  const pgwKey = await linkKey({ YADORE_API_KEY: KEY }, config.pgw);
+  assert.equal(await linkKey({}, tgw), null);
   const payload = { u: 'https://api.yadore.com/v2/r/abc?x=1', m: 'Άλφα.gr', c: 'laptops-computing', k: 'gr', t: Math.floor(DAY / 1000) };
   const token = await signLink(key, payload);
   assert.match(token, /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]{32}$/);
   assert.deepEqual(await readLink(key, token), { url: payload.u, store: 'Άλφα.gr', category: 'laptops-computing', market: 'gr', at: payload.t * 1000 });
   assert.equal(await readLink(other, token), null, 'another key');
+  assert.equal(await readLink(pgwKey, token), null, 'a TGW link does not work on PGW');
   const [body, sig] = token.split('.');
   assert.equal(await readLink(key, `${body}x.${sig}`), null, 'changed body');
   assert.equal(await readLink(key, `${body}.${sig.slice(0, -1)}A`), null, 'changed signature');
@@ -273,23 +279,35 @@ test('L232: no box for the UK, Cyprus, Google, the Group\'s ?for=GR browsing, be
   assert.ok(box((await get(tgw, env, path, { country: 'US', ua: QA, headers: { 'X-GW-QA-Country': 'GR' } })).text));
 });
 
-test('L232: a category with more than 5 own products in the Greek view keeps its own list, without asking Yadore', async () => {
+test('L232: with our own products on the page the box goes above our list, apart from it, and our list keeps its order', async () => {
+  N = 0;
   const api = yadoreApi(fullAnswer);
   const DB = tgwDb();
   DB.sql.exec("UPDATE products SET last_seen_at = '2026-12-03 09:00:00'");
   const env = { DB, YADORE_API_KEY: KEY, YADORE_FETCH: api, FX_FETCH: async () => { throw new Error('offline'); } };
-  let full = 0;
-  for (const c of tgw.categories) {
-    const before = api.calls.length;
-    const { text } = await get(tgw, env, `/category/${c.slug}/`);
-    const own = (text.match(/<article class="label-card">/g) || []).length - (box(text).match(/<article class="label-card">/g) || []).length;
-    if (own > YADORE_MAX_OWN) {
-      full++;
-      assert.equal(box(text), '', `${c.slug}: ${own} own products`);
-      assert.equal(api.calls.length, before, `${c.slug}: not asked`);
-    }
+  const path = '/category/laptops-computing/';
+  const gr = (await get(tgw, env, path)).text;
+  const uk = (await get(tgw, env, path, { country: 'GB' })).text;
+  const b = box(gr);
+  assert.ok(b, 'the box');
+  const own = gr.indexOf('<h2 class="visually-hidden">');
+  assert.ok(own > 0 && gr.indexOf('yd-box') < own, 'above our list');
+  const ownIds = t => [...t.matchAll(/href="\/out\/(\d+)"/g)].map(m => m[1]);
+  assert.ok(ownIds(gr).length > 0);
+  // Our own list is the same as without the box (the UK copy of the same products, same order).
+  assert.deepEqual(ownIds(gr.replace(b, '')), ownIds(gr));
+  assert.ok(!/href="\/out\/\d/.test(b), 'no card of ours inside the box');
+  assert.equal(box(uk), '');
+});
+
+test('L232: a category with no words (HGW furniture, every MGW and WGW category) never asks Yadore', async () => {
+  const api = yadoreApi(fullAnswer);
+  const env = { DB: memD1(read('tests/fixtures/ggw-legacy-schema.sql'), read('tests/fixtures/ggw-seed.sql')), YADORE_API_KEY: KEY, YADORE_FETCH: api, FX_FETCH: async () => { throw new Error('offline'); } };
+  for (const [site, slug] of [[config.hgw, 'furniture'], [config.mgw, 'watches'], [config.wgw, 'shoes'], [config.ggw, 'bbq-outdoor-cooking'], [config.agw, 'tyres-wheels']]) {
+    const r = await createWorker(site).fetch(request(site, `/category/${slug}/`), env, { waitUntil: p => p });
+    assert.equal(box(await r.text()), '', `${site.code} ${slug}`);
   }
-  assert.ok(full >= 1, 'at least one category of the test data has more than 5 products in the Greek view');
+  assert.equal(api.calls.length, 0);
 });
 
 test('L232: a slow, failing or strange Yadore never breaks the page', async () => {
@@ -423,7 +441,7 @@ test('L232: an older site (GGW, older database layout) shows the box and records
   const r = await click(ggw, env, toks[0]);
   assert.match(r.headers.get('Location'), /^https:\/\/api\.yadore\.com\//);
   const rows = env.DB.sql.prepare("SELECT retailer, site_category, product_name, country_code, source FROM affiliate_clicks WHERE retailer LIKE 'Yadore%'").all().map(x => ({ ...x }));
-  assert.deepEqual(rows, [{ retailer: `${CLICK_PREFIX}alpha.gr`, site_category: 'Garden Furniture & Outdoor Living', product_name: 'Yadore gr', country_code: 'GR', source: 'retailer_click' }]);
+  assert.deepEqual(rows, [{ retailer: `${CLICK_PREFIX}alpha.gr`, site_category: 'Garden Furniture & Outdoor Living', product_name: 'Yadore gr', country_code: 'GR', source: 'yadore_click' }], 'its own source: the retailer click reports stay as they were');
 });
 
 test('L232: the box\'s texts and the new texts of the about, money, privacy and cookies pages are in all 143 dictionaries', async () => {
@@ -434,9 +452,9 @@ test('L232: the box\'s texts and the new texts of the about, money, privacy and 
   const NEW = [
     'In some categories, a box marked "Sponsored" shows offers from other stores through Yadore, with the date their prices were checked.',
     'In some categories, a box marked "Sponsored" shows offers from other stores through Yadore (Yadore GmbH, Germany). Those stores pay Yadore for each click, and Yadore pays us a share. You pay the same price as you would if you went to the store directly.',
-    'The box marked "Sponsored" is apart from our own list and does not change it. Its offers come in the order Yadore gives for the words of the category.',
+    'The box marked "Sponsored" is apart from our own list and does not change it. Its offers come in Yadore\'s order for the words of the category, at most two per store.',
     'Sponsored offers.',
-    'When you select a button in the box marked "Sponsored", we record the store, the page you were on, the date and your country in the same way, and you go to the store through Yadore (Yadore GmbH, Germany), which records the click so that the store pays for it.',
+    'When you select a button in the box marked "Sponsored", we record the store, the page you were on, the date and your country in the same way, and you go to the store through Yadore (Yadore GmbH, Germany), which records the click so that the store pays for it. To keep these clicks real, a one-way scrambled (hashed) form of your IP address is kept in our hosting provider\'s cache until the end of that day, only to count your clicks in the box (legitimate interests).',
     'Links in the box marked "Sponsored" go through Yadore (Yadore GmbH, Germany). Yadore and the store may set their own cookies to record the click. Their privacy policies apply on their websites.',
     'Yadore privacy policy',
     'When you select a button in the box marked "Sponsored", Yadore and the store may set cookies on their own websites to record the click.'
@@ -471,7 +489,7 @@ test('L232: the Hub search answer never carries Yadore offers, and robots.txt ke
 
 test('L232: the click endpoint alone (no page): a store taken off the list since, or a token of another market, goes back', async () => {
   const env = { DB: tgwDb(), YADORE_API_KEY: KEY };
-  const key = await linkKey(env);
+  const key = await linkKey(env, tgw);
   const cats = new Map(tgw.categories.map(c => [c.slug, c]));
   const base = { env, site: tgw, country: 'GR', bot: false, preview: false, at: DAY, categories: cats };
   const t = async p => signLink(key, { u: 'https://api.yadore.com/v2/r/1', m: 'alpha.gr', c: 'audio', k: 'gr', t: Math.floor(DAY / 1000), ...p });
@@ -484,4 +502,100 @@ test('L232: the click endpoint alone (no page): a store taken off the list since
   useYadoreStores({ gr: ['beta.gr'] });
   assert.equal((await yadoreClick({ ...base, token: await t({}) })).to, '/category/audio/', 'taken off the list since');
   useYadoreStores(STORES);
+});
+
+// ---- Independent review, round 1 (25 Nov 2026)
+
+test('L232 review: on CGW and PGW Greece shares the "all" copy with Cyprus and France: the Greek copy stays apart, and no address can name it', async () => {
+  const { cacheKeyUrl, viewFor } = await import('../../src/lib/visibility.js');
+  const pgw = config.pgw;
+  assert.equal(viewFor(pgw, 'GR', DAY).group, viewFor(pgw, 'CY', DAY).group, 'the same view group');
+  assert.equal(cacheKeyUrl('https://gaminggearworld.com/category/x/?gw-view=gb&gw-extra=yd-gr&gw-stale=1&page=1', viewFor(pgw, 'CY', DAY)),
+    'https://gaminggearworld.com/category/x/?page=1&gw-view=all', 'the visitor\'s own gw-* values are dropped');
+  N = 0;
+  const store = new Map();
+  const before = globalThis.caches;
+  globalThis.caches = { default: {
+    match: async key => (store.has(key.url) ? store.get(key.url).clone() : undefined),
+    put: async (key, res) => { store.set(key.url, res); }
+  } };
+  try {
+    const DB = memD1(readdirSync('sites/pgw/migrations').sort().map(f => read(`sites/pgw/migrations/${f}`)).join('\n'), read('tests/fixtures/pgw-seed.sql'));
+    const env = { DB, YADORE_API_KEY: KEY, YADORE_FETCH: yadoreApi(fullAnswer), FX_FETCH: async () => { throw new Error('offline'); } };
+    const path = '/category/controllers/';
+    // Cyprus first, with a made-up address of the Greek copy: it gets its own page, without the box...
+    assert.equal(box((await get(pgw, env, `${path}?gw-view=all&gw-extra=yd-gr`, { country: 'CY' })).text), '');
+    // ...and the Greek visitor still gets the box (no copy without it was stored under the Greek key).
+    assert.ok(box((await get(pgw, env, path)).text));
+    // Greece first, then Cyprus and France with or without the made-up address: never the box.
+    for (const [cc, q] of [['CY', ''], ['FR', ''], ['CY', '?gw-view=all&gw-extra=yd-gr'], ['FR', '?gw-extra=yd-gr']]) {
+      assert.equal(box((await get(pgw, env, path + q, { country: cc })).text), '', `${cc} ${q}`);
+    }
+  } finally {
+    globalThis.caches = before;
+  }
+});
+
+test('L232 review: page 2 of a category with our own products never shows the box, and a HEAD or a bot from Greece never asks Yadore', async () => {
+  const api = yadoreApi(fullAnswer);
+  const DB = tgwDb();
+  const cols = 'stable_key, awin_advertiser_id, awin_product_id, merchant_product_id, retailer, category_slug, subcategory, brand, product_name, product_slug, description, price, was_price, currency, in_stock, item_condition, image_url, affiliate_url, merchant_category, gtin, mpn, specs_json, first_seen_at, last_seen_at';
+  for (let n = 1; n <= 3; n++) DB.sql.exec(`INSERT INTO products (${cols}) SELECT stable_key || '-c${n}', awin_advertiser_id, awin_product_id || 'c${n}', merchant_product_id, retailer, category_slug, subcategory, brand, product_name || ' ${n}', product_slug || '-${n}', description, price, was_price, currency, in_stock, item_condition, image_url, affiliate_url, merchant_category, '', mpn, specs_json, first_seen_at, last_seen_at FROM products WHERE category_slug = 'laptops-computing' AND stable_key NOT LIKE '%-c%'`);
+  DB.sql.exec("UPDATE products SET last_seen_at = '2026-12-03 09:00:00'");
+  const env = { DB, YADORE_API_KEY: KEY, YADORE_FETCH: api, FX_FETCH: async () => { throw new Error('offline'); } };
+  const p2 = await get(tgw, env, '/category/laptops-computing/?page=2');
+  assert.equal(p2.res.status, 200, 'there is a page 2');
+  assert.match(p2.text, /<article class="label-card">/);
+  assert.equal(box(p2.text), '');
+  assert.equal(api.calls.length, 0);
+  for (const ua of ['Mozilla/5.0 (compatible; AhrefsBot/7.0; +http://ahrefs.com/robot/)', 'curl/8.4.0', '']) {
+    assert.equal(box((await get(tgw, env, '/category/audio/', { ua })).text), '', ua);
+  }
+  const head = await createWorker(tgw).fetch(request(tgw, '/category/audio/'), env, { waitUntil: p => p });
+  await head.text();
+  const h = await createWorker(tgw).fetch(Object.defineProperty(new Request(`https://${tgw.domain}/category/audio/`, { method: 'HEAD', headers: { 'User-Agent': BROWSER } }), 'cf', { value: { country: 'GR' } }), env, { waitUntil: p => p });
+  assert.equal(h.status, 200);
+  const asked = api.calls.length;
+  assert.ok(asked >= 1, 'the person\'s GET asked Yadore');
+  await createWorker(tgw).fetch(Object.defineProperty(new Request(`https://${tgw.domain}/category/gaming/`, { method: 'HEAD', headers: { 'User-Agent': BROWSER } }), 'cf', { value: { country: 'GR' } }), env, { waitUntil: p => p });
+  await get(tgw, env, '/category/gaming/', { host: 'technology-gear-world-preview.example.workers.dev' });
+  assert.equal(api.calls.length, asked, 'a HEAD and a test address never ask Yadore');
+});
+
+test('L232 review: prefetch, another site\'s page, a failing click log, the same link twice and more than 3 clicks of one person go back to the page', async () => {
+  N = 0;
+  const store = new Map();
+  const before = globalThis.caches;
+  globalThis.caches = { default: {
+    match: async key => (store.has(key.url) ? store.get(key.url).clone() : undefined),
+    put: async (key, res) => { store.set(key.url, res); }
+  } };
+  try {
+    const env = { DB: tgwDb(), YADORE_API_KEY: KEY, YADORE_FETCH: yadoreApi(fullAnswer), FX_FETCH: async () => { throw new Error('offline'); } };
+    const toks = [...new Set(await pageTokens(tgw, env, '/category/laptops-computing/'))];
+    const back = '/category/laptops-computing/';
+    const where = r => { const l = r.headers.get('Location'); return /^https:\/\/api\.yadore\.com\//.test(l) ? 'yadore' : new URL(l).pathname; };
+    const ip = a => ({ 'CF-Connecting-IP': a });
+    for (const [name, h] of [['prefetch', { 'Sec-Purpose': 'prefetch' }], ['prerender', { 'Sec-Purpose': 'prefetch;prerender' }], ['old prefetch', { Purpose: 'prefetch' }],
+      ['another site', { 'Sec-Fetch-Site': 'cross-site' }], ['typed or bookmarked', { 'Sec-Fetch-Site': 'none' }]]) {
+      assert.equal(where(await click(tgw, env, toks[0], { headers: { ...ip('192.0.2.1'), ...h } })), back, name);
+    }
+    assert.equal(env.DB.sql.prepare('SELECT COUNT(*) AS n FROM affiliate_clicks').get().n, 0);
+    // A click from our own page, then the same link again from the same person: once.
+    assert.equal(where(await click(tgw, env, toks[0], { headers: { ...ip('192.0.2.1'), 'Sec-Fetch-Site': 'same-origin' } })), 'yadore');
+    assert.equal(where(await click(tgw, env, toks[0], { headers: ip('192.0.2.1') })), back, 'the same link twice');
+    assert.equal(toks.length, 6, '6 offers, one link each (button and photo)');
+    assert.equal(where(await click(tgw, env, toks[1], { headers: ip('192.0.2.1') })), 'yadore');
+    assert.equal(where(await click(tgw, env, toks[2], { headers: ip('192.0.2.1') })), 'yadore', 'the 3rd click of the day');
+    assert.equal(where(await click(tgw, env, toks[3], { headers: ip('192.0.2.1') })), back, 'the 4th of the same person');
+    assert.equal(where(await click(tgw, env, toks[3], { headers: ip('192.0.2.2') })), 'yadore', 'another person');
+    assert.equal(env.DB.sql.prepare('SELECT COUNT(*) AS n FROM affiliate_clicks').get().n, 4);
+    assert.ok(![...store.keys()].some(k => k.includes('192.0.2')), 'the address is only a one-way hash');
+    // The click log fails: the click is not counted, so it does not go to Yadore either.
+    const broken = { ...env, DB: { prepare: t => (/^INSERT/i.test(t.trim()) ? { bind: () => ({ run: async () => { throw new Error('D1_ERROR: overloaded'); } }) } : env.DB.prepare(t)) } };
+    assert.equal(where(await click(tgw, broken, toks[4], { headers: ip('192.0.2.3') })), back, 'no record, no click');
+    assert.equal(where(await click(tgw, env, toks[4], { headers: ip('192.0.2.3') })), 'yadore', 'the same person later, when the log works');
+  } finally {
+    globalThis.caches = before;
+  }
 });

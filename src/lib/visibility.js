@@ -350,7 +350,9 @@ export function browseView(site, country, at = now()) {
 export const NOISE_PARAMS = /^(utm_[a-z0-9_]*|gclid|gbraid|wbraid|dclid|fbclid|msclkid|ttclid|twclid|yclid|igshid|srsltid|mc_cid|mc_eid|_ga|_gl|v|cb|nocache|_)$/i;
 export function cacheKeyUrl(url, view) {
   const u = new URL(String(url));
-  for (const k of [...new Set(u.searchParams.keys())]) if (NOISE_PARAMS.test(k)) u.searchParams.delete(k);
+  // gw-* are the engine's own parts of the key (gw-view, gw-extra, gw-stale): a value in the visitor's address is dropped,
+  // so no address can name another country's copy (independent review of L232, 25 Nov 2026).
+  for (const k of [...new Set(u.searchParams.keys())]) if (NOISE_PARAMS.test(k) || /^gw-/i.test(k)) u.searchParams.delete(k);
   if (view && view.group) u.searchParams.set('gw-view', view.group);
   return u.toString();
 }

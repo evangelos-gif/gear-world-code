@@ -147,7 +147,9 @@ export function facetRows(facets) {
   return ((facets && facets.retailers) || []).reduce((t, r) => t + (Number(r.n) || 0), 0);
 }
 
-// The box of offers from other stores through Yadore (lessons L232): marked "Sponsored", apart from our own list, with
+// The box of offers from other stores through Yadore (lessons L232): above our own list on page 1 (in these categories
+// the Greek view has no Greek retailer, so the stores of the box are the ones that deliver to the visitor), marked
+// "Sponsored", apart from our own list (which it never changes), with
 // the date Yadore's prices were read and a note that we are paid for each click. Buttons and photos go through this
 // site's /out/y/ link (rel="sponsored nofollow"); no iframe, no price claim beyond the price, no L107 word.
 export function yadoreSection(site, yd) {
@@ -199,7 +201,7 @@ export function categoryPage(site, cat, p, result, facets, subCounts = null, yd 
       ${subcategoryNav(base, cat, p, subCounts)}
       ${resultsHeader(result)}
       ${result.products.length
-        ? html`<h2 class="visually-hidden">${tr('Products')}</h2>${productGrid(site, result.products)}${yadoreSection(site, yd)}`
+        ? html`${yadoreSection(site, yd)}<h2 class="visually-hidden">${tr('Products')}</h2>${productGrid(site, result.products)}`
         : filtered
           ? html`<div class="empty"><h2>No products match these filters</h2><p>Remove a filter or <a href="${base}">see all products in this category</a>.</p></div>`
           : html`${yadoreSection(site, yd)}<div class="empty" data-empty-category><h2>${tr('Coming soon')}</h2><p>${tr('We are adding products to this category. Until then, browse the other categories.')}</p>

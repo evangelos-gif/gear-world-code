@@ -26,7 +26,7 @@ import { deliveryCountries } from './lib/delivery.js';
 import { remindProbe, REMIND_UNTIL, REMIND_URL, REMIND_PATH } from './lib/remind.js';
 import { noAlerts } from './lib/retailer-terms.js';
 import { COUNTRY_LANGUAGES, MULTI_LANGUAGE_COUNTRIES } from './lib/country-language.js';
-import { yadoreMarket, yadoreBox, yadoreClick, YADORE_MAX_OWN } from './lib/yadore.js';
+import { yadoreMarket, yadoreBox, yadoreClick, visitorGate, notAClick } from './lib/yadore.js';
 
 // Gear World Hub keeps the one list of members; sites reach it only through a service binding (lessons L92).
 // The address is not public: requests from the internet never carry this host name.
@@ -222,7 +222,10 @@ export function createWorker(site) {
       if (!cat) return notFound(path, method, shown);
       // Yadore (lessons L232): the visitor's own country (never the Group's ?for= browsing), a Yadore market of ours, the
       // key set and the day come. Its page copy is kept apart (one per market), so no other country ever gets the box.
-      const ydMarket = yadoreMarket(site, env, cat, browsing ? '' : requestCountry(request, url), at);
+      // Only for a GET of a person (or the network's own read-only check, L158) on the real domain: Yadore is not asked
+      // for a bot's, a HEAD's or a test address's copy.
+      const ydPerson = method === 'GET' && (!isBot(request) || QA_BOT.test(request.headers.get('user-agent') || '')) && !isPreviewHost(host, site.domain);
+      const ydMarket = ydPerson ? yadoreMarket(site, env, cat, browsing ? '' : requestCountry(request, url), at) : '';
       return cached(request, env, ctx, async () => {
         const p = readListingParams(url);
         // ?sub= only for a subcategory the site config lists for this category (ZGW birds); anything else is ignored.
@@ -237,8 +240,8 @@ export function createWorker(site) {
         ]);
         if (p.page > 1 && p.page > result.pages && !hasFilters(p)) return notFound(path, method, shown);
         marked(view, result.products);
-        // The box of offers from other stores: page 1, no filter, at most YADORE_MAX_OWN own products in this view.
-        const yd = ydMarket && p.page === 1 && !hasFilters(p) && result.total <= YADORE_MAX_OWN
+        // The box of offers from other stores: page 1 without filters, in a category of the Manager's list (yadore-words.js).
+        const yd = ydMarket && p.page === 1 && !hasFilters(p)
           ? await yadoreBox(env, ctx, { site, cat, market: ydMarket, own: result.products, at, origin: url.origin })
           : null;
         return htmlResponse(categoryPage(shown, cat, p, result, facets, subCounts, yd), { method });
@@ -484,18 +487,29 @@ export function createWorker(site) {
     const r = await yadoreClick({
       env, site, token, at, categories,
       country: String((request.cf && request.cf.country) || ''),
-      bot: request.method !== 'GET' || isBot(request),
+      bot: request.method !== 'GET' || isBot(request) || Boolean(notAClick(request.headers)),
       preview: isPreviewHost(url.hostname, site.domain) || env.CLICK_LOG === 'off'
     });
     if (!r.log) return redirect(new URL(r.to, url.origin).toString(), 302, { 'X-Robots-Tag': 'noindex, nofollow' });
+    // One person: at most YADORE_PER_VISITOR clicks a day on this site and one per offer link (a one-way hash, cache only).
+    let cache = null;
+    try { cache = typeof caches !== 'undefined' && caches.default && env.EDGE_CACHE !== 'off' ? caches.default : null; } catch { cache = null; }
+    const gate = await visitorGate({ origin: url.origin, site, ip: request.headers.get('cf-connecting-ip') || '', token, at, cache });
+    const toPage = redirect(new URL(r.log.category_slug && categories.has(r.log.category_slug) ? `/category/${r.log.category_slug}/` : '/', url.origin).toString(), 302, { 'X-Robots-Tag': 'noindex, nofollow' });
+    if (!gate.ok) return toPage;
     let pagePath = '';
     try {
       const ref = new URL(request.headers.get('referer') || '');
       if (ref.hostname === url.hostname) pagePath = ref.pathname.slice(0, 300);
     } catch { /* no referer */ }
+    // A click that cannot be recorded is not counted, so it does not go to Yadore either (the caps of the day must hold).
     try {
       await db.logClick(env.DB, { ...r.log, page_path: pagePath, country_code: String((request.cf && request.cf.country) || '').slice(0, 2).toUpperCase() });
-    } catch (err) { console.error('yadore click log failed', err); }
+    } catch (err) {
+      console.error('yadore click log failed', err && err.message);
+      return toPage;
+    }
+    await gate.save();
     return redirect(r.to, 302, { 'X-Robots-Tag': 'noindex, nofollow' });
   }
 

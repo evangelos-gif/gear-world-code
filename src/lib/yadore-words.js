@@ -1,7 +1,9 @@
 // The words Yadore searches for each category, per market and site (lessons L232): at most 2 per category, the first one
-// the most typical product of the category. Greek market first (the categories that are empty in the Greek view). The
-// box shows only where the visitor's view has at most YADORE_MAX_OWN own products (src/lib/yadore.js), so a category
-// that has Greek retailers (e.g. AGW tyres, which also has no words here: Manager, 25 Nov 2026) keeps its own list.
+// the most typical product of the category. Greek market first: ONLY the categories of the Manager's list of 25 Nov 2026,
+// the ones with no Greek retailer in the Greek view (their pages there show retailers that deliver mostly to the UK):
+// CGW, Pets, Gaming, Biker, Sporty, Travel, Tech, AGW without tyres, GGW furniture / buildings and storage / power garden
+// tools, HGW Smart Home, KGW Kids Tech. A category with no words here never gets the box (MGW, WGW and the other
+// categories of HGW, KGW and GGW have Greek retailers). A new category = a new line, with the Manager's decision.
 // Checked against the live API with the read-only tools/yadore.ps1 -Step plan (offers and stores per word).
 export const YADORE_WORDS = Object.freeze({
   gr: Object.freeze({
@@ -14,58 +16,15 @@ export const YADORE_WORDS = Object.freeze({
       'site-equipment': ['σκάλα αλουμινίου', 'καρότσι μεταφοράς']
     },
     ggw: {
-      'garden-tools': ['εργαλεία κήπου'],
       'power-garden-tools': ['χλοοκοπτική μηχανή', 'θαμνοκοπτικό'],
       'garden-furniture-outdoor-living': ['έπιπλα κήπου', 'ξαπλώστρα'],
-      'bbq-outdoor-cooking': ['ψησταριά', 'μπάρμπεκιου'],
-      'garden-buildings-fencing-storage': ['αποθήκη κήπου', 'περίφραξη'],
-      'watering-irrigation': ['λάστιχο ποτίσματος', 'ποτιστικό'],
-      'plants-growing-garden-care': ['λίπασμα', 'γλάστρα'],
-      'outdoor-lighting-garden-electrical': ['φωτιστικό κήπου', 'ηλιακό φωτιστικό']
+      'garden-buildings-fencing-storage': ['αποθήκη κήπου', 'περίφραξη']
     },
     hgw: {
-      furniture: ['καναπές', 'τραπεζαρία'],
-      'kitchen-dining': ['τηγάνι', 'σετ μαχαιροπίρουνα'],
-      'home-appliances': ['ηλεκτρική σκούπα', 'καφετιέρα'],
-      'bedding-bath': ['σεντόνια', 'πετσέτες μπάνιου'],
-      'home-decor': ['καθρέπτης', 'διακοσμητικά σπιτιού'],
-      lighting: ['φωτιστικό οροφής', 'πορτατίφ'],
-      'storage-organisation': ['κουτιά αποθήκευσης', 'ραφιέρα'],
-      'cleaning-laundry': ['σιδερωτήριο', 'απλώστρα'],
-      'smart-home': ['έξυπνη λάμπα', 'κάμερα ασφαλείας wifi'],
-      'home-office': ['καρέκλα γραφείου', 'γραφείο υπολογιστή']
+      'smart-home': ['έξυπνη λάμπα', 'κάμερα ασφαλείας wifi']
     },
     kgw: {
-      clothing: ['παιδικά ρούχα'],
-      'baby-toddler': ['καρότσι μωρού', 'παιδικό κάθισμα αυτοκινήτου'],
-      'toys-games': ['παιχνίδια lego', 'κούκλα'],
-      'sports-outdoors': ['παιδικό ποδήλατο', 'τραμπολίνο'],
-      'kids-tech': ['παιδικό smartwatch', 'παιδικό tablet'],
-      'bedroom-home': ['παιδικό κρεβάτι', 'παιδική ντουλάπα'],
-      accessories: ['παιδική τσάντα', 'παιδικό καπέλο'],
-      shoes: ['παιδικά παπούτσια'],
-      'gifts-for-kids': ['επιτραπέζια παιχνίδια', 'δώρα για παιδιά'],
-      'school-backpacks': ['σχολική τσάντα', 'κασετίνα']
-    },
-    mgw: {
-      clothing: ['ανδρικό μπουφάν', 'ανδρικό πουκάμισο'],
-      watches: ['ανδρικό ρολόι'],
-      jewellery: ['ανδρικό βραχιόλι'],
-      shoes: ['ανδρικά παπούτσια'],
-      'everyday-carry': ['πολυεργαλείο', 'ανδρικό πορτοφόλι'],
-      'bags-accessories': ['ανδρική τσάντα', 'σακίδιο πλάτης'],
-      'grooming-fragrances': ['ξυριστική μηχανή', 'ανδρικό άρωμα'],
-      'gifts-for-him': ['δώρα για άνδρες']
-    },
-    wgw: {
-      clothing: ['γυναικείο φόρεμα', 'γυναικείο μπουφάν'],
-      watches: ['γυναικείο ρολόι'],
-      jewellery: ['γυναικεία σκουλαρίκια', 'γυναικείο κολιέ'],
-      shoes: ['γυναικεία παπούτσια'],
-      'bags-accessories': ['γυναικεία τσάντα'],
-      'beauty-fragrances': ['γυναικείο άρωμα', 'πιστολάκι μαλλιών'],
-      'everyday-essentials': ['γυναικείο πορτοφόλι', 'ομπρέλα βροχής'],
-      'gifts-for-her': ['δώρα για γυναίκες']
+      'kids-tech': ['παιδικό smartwatch', 'παιδικό tablet']
     },
     agw: {
       'garage-tools-equipment': ['γρύλος αυτοκινήτου', 'κομπρεσέρ αέρος'],

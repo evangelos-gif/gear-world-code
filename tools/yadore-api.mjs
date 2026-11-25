@@ -153,7 +153,9 @@ export async function report(fetchFn, key, { market = 'gr', from, to, wait = 250
   let clicks = 0;
   let revenue = 0;
   let n = 0;
-  for (const day of days(from, to)) {
+  const list = days(from, to);
+  if (list[list.length - 1] !== to) lines.push(`  (μόνο οι πρώτες ${list.length} ημέρες: για περισσότερες, ξανά με νέο -From)`);
+  for (const day of list) {
     if (n++) await sleep(wait);
     const st = await call(fetchFn, key, '/v2/report/status', { date: day });
     const g = await call(fetchFn, key, '/v2/report/general', { date: day, format: 'json' });
@@ -172,9 +174,8 @@ export async function report(fetchFn, key, { market = 'gr', from, to, wait = 250
 
 // The live pages as the network's own read-only check sees them (lessons L158). Per site: /api/version, every category
 // of the Yadore words from Greece (box or not, how many offers, which stores, the marks it must have) and one page from
-// the UK (no box). A page with the box must also be noindex (no product of ours or a thin page).
+// the UK (no box).
 export const QA_UA = 'GearWorldQA-bot/1.0 (+read-only check)';
-const BOX_L107 = /\bshop|\bcart\b|\bsale\b|\bdeals?\b|\bofficial\b|\bpartner|lowest price|% off|\bsave\b/i;
 export function readBox(html) {
   const i = html.indexOf('<section class="yd-box"');
   if (i < 0) return null;
@@ -189,9 +190,8 @@ export function readBox(html) {
   if (!/Prices checked/.test(b)) problems.push('χωρίς ημερομηνία ελέγχου');
   if (links !== cards * 2 || sponsored !== cards * 2) problems.push('links χωρίς sponsored nofollow');
   if (/<iframe|api\.yadore\.com/i.test(b)) problems.push('iframe ή link του Yadore μέσα στη σελίδα');
-  if (BOX_L107.test(b.replace(/<[^>]+>/g, ' '))) problems.push('λέξη L107');
+  if (L107_WORDS.test(b.replace(/<[^>]+>/g, ' '))) problems.push('λέξη L107');
   for (const s of stores) if (neverStore(s)) problems.push(`κατάστημα που απαγορεύεται: ${s}`);
-  if (!/<meta name="robots" content="noindex,follow">/.test(html)) problems.push('η σελίδα δεν είναι noindex');
   return { cards, stores, problems };
 }
 export async function siteCheck(fetchFn, { sites = null, root = '.', wait = 150 } = {}) {
@@ -221,7 +221,7 @@ export async function siteCheck(fetchFn, { sites = null, root = '.', wait = 150 
       const r = await get(`${origin}/category/${slug}/`, 'GR');
       if (r.status !== 200) { bad++; lines.push(`  ${pad(slug, 36)} 🔴 ΠΡΟΒΛΗΜΑ: απάντηση ${r.status}`); continue; }
       const b = readBox(r.text);
-      if (!b) { lines.push(`  ${pad(slug, 36)} χωρίς πλαίσιο (έχει δικά του προϊόντα ή δεν βρέθηκε κάτι)`); continue; }
+      if (!b) { lines.push(`  ${pad(slug, 36)} χωρίς πλαίσιο (πριν από 2/12 18:00, χωρίς κλειδί, χωρίς κατάστημα της λίστας ή όρια ημέρας)`); continue; }
       shown++;
       if (b.problems.length) bad++;
       lines.push(`  ${pad(slug, 36)} ${b.problems.length ? '🔴 ΠΡΟΒΛΗΜΑ' : '🟢 ΕΝΤΑΞΕΙ'} πλαίσιο ${b.cards} · ${[...new Set(b.stores)].join(', ')}${b.problems.length ? ' · ' + b.problems.join(' · ') : ''}`);

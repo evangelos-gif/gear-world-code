@@ -21,15 +21,15 @@ export const YADORE_NAME = 'Yadore';
 export const YADORE_MARKETS = Object.freeze({ GR: 'gr' });
 // Not before Wed 2 Dec 2026 18:00 UK time (= UTC in December): the Manager's date, after Black Friday and Cyber Monday.
 export const YADORE_FROM = Date.parse('2026-12-02T18:00:00Z');
-// The box shows on page 1 of a category, without filters, when the visitor's view has at most this many own products
-// there ("the empty categories of the Greek view").
-export const YADORE_MAX_OWN = 5;
+// The box shows on page 1 of a category without filters, in the categories of src/lib/yadore-words.js ("the empty
+// categories of the Greek view": no Greek retailer there; the Greek view shows retailers that deliver mostly to the UK).
 export const YADORE_SHOWN = 8; // offers in the box
 export const YADORE_PER_STORE = 2; // offers of one store in the box
 export const YADORE_ASK = 30; // offers asked from Yadore per word (the API allows 1-100)
 export const YADORE_CACHE_SECONDS = 3600; // one answer of Yadore kept per data centre
 export const YADORE_TIMEOUT_MS = 2500; // a slow Yadore never holds the page
 export const YADORE_LINK_HOURS = 26; // a /out/y/ link older than this goes back to the page (fresh offers there)
+export const YADORE_PER_VISITOR = 3; // clicks in the box a day per visitor and site (a one-way hash of the IP, cache only)
 // Clicks a day (UTC day), per site and per store on that site. Few and steady at the start (Anna, 20 Nov 2026). A higher
 // step is a new line with its date, after the Manager's decision and an email to Yadore when it is 20% or more.
 export const YADORE_CAPS = Object.freeze([
@@ -63,7 +63,8 @@ export function storeKey(name) {
 export function neverStore(name) {
   const k = storeKey(name);
   if (!k) return true;
-  const label = k.split('.')[0];
+  // The first word or label: "public.gr", "Public GR", "Public Greece", "AB Vasilopoulos" (independent review).
+  const label = k.split(/[.\s]/)[0];
   return NEVER_LABELS.includes(label) || NEVER_WORDS.test(k);
 }
 
@@ -270,13 +271,55 @@ export async function yadoreBox(env, ctx, { site, cat, market, own, at, origin }
   const picked = pickOffers(lists.map(l => l.filter(o => allowed.has(o))), counts, cap);
   if (!picked.length) return null;
   const fetchedAt = Math.min(...answers.filter(Boolean).map(a => a.at));
-  const signKey = await linkKey(env);
+  const signKey = await linkKey(env, site);
   const offers = [];
   for (const o of picked) {
     const token = await signLink(signKey, { u: o.click, m: o.store, c: cat.slug, k: market, t: Math.floor(fetchedAt / 1000) });
     offers.push({ title: o.title, store: o.store, price: o.price, currency: o.currency, image: o.image, href: `/out/y/${token}` });
   }
   return { market, checked: new Date(fetchedAt).toISOString().slice(0, 10), offers };
+}
+
+// Clicks of one visitor in the box (independent review of L232: one person could use a site's clicks of the day, or click
+// the same offer twice). A one-way hash of the IP address, the site and the UTC day, kept only in this data centre's
+// cache until the end of that day (the privacy page says so): at most YADORE_PER_VISITOR clicks, and one per offer link.
+// Returns { ok, reason, save }: save() writes the new count after the click is recorded. Without a cache: no limit
+// here (the caps of the day still hold).
+export async function visitorGate({ origin, site, ip, token, at, cache }) {
+  const ok = { ok: true, reason: '', save: async () => {} };
+  if (!cache || !ip) return ok;
+  const day = new Date(at).toISOString().slice(0, 10);
+  const hex = async text => [...new Uint8Array(await crypto.subtle.digest('SHA-256', enc.encode(text)))].slice(0, 16).map(b => b.toString(16).padStart(2, '0')).join('');
+  const who = await hex(`gw-yadore-visitor|${day}|${String(site.code).toLowerCase()}|${ip}`);
+  const link = (await hex(`gw-yadore-token|${token}`)).slice(0, 16);
+  const key = new Request(`${origin}/api/yadore-seen?v=${who}`);
+  let seen = { n: 0, links: [] };
+  try {
+    const hit = await cache.match(key);
+    if (hit) seen = await hit.json();
+  } catch { seen = { n: 0, links: [] }; }
+  const links = Array.isArray(seen.links) ? seen.links : [];
+  if (links.includes(link)) return { ok: false, reason: 'again', save: ok.save };
+  if ((Number(seen.n) || 0) >= YADORE_PER_VISITOR) return { ok: false, reason: 'visitor', save: ok.save };
+  const end = Date.parse(`${day}T00:00:00Z`) + 86400000;
+  const seconds = Math.max(60, Math.ceil((end - at) / 1000));
+  return {
+    ok: true,
+    reason: '',
+    save: async () => {
+      const body = JSON.stringify({ n: (Number(seen.n) || 0) + 1, links: [...links, link].slice(-20) });
+      try { await cache.put(key, new Response(body, { headers: { 'Content-Type': 'application/json', 'Cache-Control': `public, max-age=${seconds}` } })); } catch { /* best effort */ }
+    }
+  };
+}
+// A request that a browser makes on its own or that does not come from a click on our page: prefetch or prerender, or
+// a page of another site (Sec-Fetch-Site other than same-origin, when the browser sends it).
+export function notAClick(headers) {
+  const h = name => String(headers.get(name) || '').toLowerCase();
+  if (/prefetch|prerender/.test(h('sec-purpose')) || /prefetch|prerender/.test(h('purpose')) || h('x-moz') === 'prefetch') return 'prefetch';
+  const site = h('sec-fetch-site');
+  if (site && site !== 'same-origin') return 'not from our page';
+  return '';
 }
 
 // ---- The /out/y/<token> links. The token carries Yadore's click address and the store, signed with a key made from
@@ -292,10 +335,12 @@ function unb64url(text) {
   const bin = atob(s + '='.repeat((4 - (s.length % 4)) % 4));
   return Uint8Array.from(bin, c => c.charCodeAt(0));
 }
-export async function linkKey(env) {
+// One key per site (a link of one site never works on another) made from the API key.
+export async function linkKey(env, site) {
   const k = yadoreKey(env);
   if (!k) return null;
-  const raw = await crypto.subtle.digest('SHA-256', enc.encode(`gw-yadore-link-v1|${k}`));
+  const code = String((site && site.code) || '').toLowerCase();
+  const raw = await crypto.subtle.digest('SHA-256', enc.encode(`gw-yadore-link-v1|${code}|${k}`));
   return crypto.subtle.importKey('raw', raw, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign', 'verify']);
 }
 async function mac(key, body) {
@@ -331,7 +376,7 @@ function timingSafeSame(a, b) {
 // keep (only for a click that goes to Yadore). Never to Yadore for a bot, a test address, another country's visitor, an
 // old link, a store no longer on the list, or once the day's clicks are used up.
 export async function yadoreClick({ env, site, token, country, bot, preview, at, categories }) {
-  const key = await linkKey(env);
+  const key = await linkKey(env, site);
   const link = key ? await readLink(key, token) : null;
   const back = link && link.category && categories.has(link.category) ? categoryPath(link.category) : '/';
   const no = reason => ({ to: back, log: null, reason });
@@ -359,6 +404,7 @@ export async function yadoreClick({ env, site, token, country, bot, preview, at,
       category_slug: link.category,
       site_category: cat ? cat.name : '',
       product_name: `${YADORE_NAME} ${link.market}`,
+      source: 'yadore_click',
       click_ref: `${String(site.code).toLowerCase()}-yd-${link.market}-${link.category}`.slice(0, 80)
     }
   };

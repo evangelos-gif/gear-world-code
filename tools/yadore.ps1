@@ -19,9 +19,12 @@
                  added to the version that runs. Undo: -Step off.
   -Step off      CHANGES CLOUDFLARE, one approval: ΕΓΚΡΙΝΩ YADORE OFF. Deletes YADORE_API_KEY from the 13 Workers: the box
                  disappears at once everywhere and every /out/y/ link goes back to its page. Undo: -Step keys.
-  -Step pause    CHANGES CLOUDFLARE, one approval: ΕΓΚΡΙΝΩ YADORE ΠΑΥΣΗ. -Stores 'a.gr,b.gr' (the 300-click rule): the
-                 secret YADORE_PAUSE on the 13 Workers, so those stores leave the box at once (the whole list each time;
-                 -Stores '' removes it). Undo: -Step pause with the list before (in the report).
+  -Step pause    CHANGES CLOUDFLARE, one approval: ΕΓΚΡΙΝΩ YADORE ΠΑΥΣΗ. -Stores 'a.gr, Tsakiris Mallas GR' (the 300-click
+                 rule; names separated by commas, as Yadore writes them): the secret YADORE_PAUSE on the 13 Workers, so
+                 those stores leave the box at once. -Stores is the WHOLE list (-Clear removes it: Windows PowerShell 5.1
+                 drops an empty -Stores '' when it starts a script, so an empty list is never typed). The list is also
+                 kept on this PC (<home>\gear-world-secrets\yadore-pause.txt, not a secret), so the plan shows the list
+                 before and the undo is that list.
   -Step check    READ-ONLY. The live category pages from Greece (the network's QA header, L158) and one page per site from
                  the UK: box or not, offers, stores, marks (Sponsored, the note, the date, sponsored nofollow, no L107
                  word, noindex). Never a /out/ or /out/y/ link.
@@ -35,6 +38,7 @@ param(
     [switch]$Apply,
     [string]$Approve = '',
     [string]$Stores = '',
+    [switch]$Clear,
     [string]$From = '',
     [string]$To = '',
     [string]$Sites = '',
@@ -74,6 +78,7 @@ if (-not $PcHome) { $PcHome = $HOME }
 if (-not $WorkDir) { $WorkDir = Join-Path $PcHome 'gear-world-yadore' }
 if (-not $OutDir) { $OutDir = Join-Path $PcHome 'gear-world-reports' }
 if (-not $SecretFile) { $SecretFile = Join-Path (Join-Path $PcHome 'gear-world-secrets') 'yadore-api.dat' }
+$PauseFile = Join-Path (Split-Path -Parent $SecretFile) 'yadore-pause.txt'
 $stamp = Get-Date -Format 'yyyyMMdd_HHmmss'
 $script:Secrets = New-Object System.Collections.Generic.List[string]
 
@@ -241,9 +246,24 @@ function Get-SecretNames([string]$folder, [string]$worker) {
     foreach ($s in $j) { if ([string]$s.name) { [void]$names.Add([string]$s.name) } }
     return , $names.ToArray()
 }
+# A JSON string with every letter outside ASCII as \uXXXX: Windows PowerShell 5.1 pipes text to a program in
+# $OutputEncoding (ASCII), which would turn Greek letters into "?" (independent review of L232).
+function ConvertTo-AsciiJson([string]$s) {
+    $sb = New-Object System.Text.StringBuilder
+    [void]$sb.Append('"')
+    foreach ($ch in $s.ToCharArray()) {
+        $c = [int]$ch
+        if ($ch -eq '"') { [void]$sb.Append('\"') }
+        elseif ($ch -eq '\') { [void]$sb.Append('\\') }
+        elseif ($c -lt 32 -or $c -gt 126) { [void]$sb.Append(('\u{0:x4}' -f $c)) }
+        else { [void]$sb.Append($ch) }
+    }
+    [void]$sb.Append('"')
+    return $sb.ToString()
+}
 # One secret through wrangler's standard input only (secret bulk): never on a command line, in a file or in the report.
 function Set-Secret([string]$folder, [string]$worker, [string]$name, [string]$value) {
-    $json = '{' + (ConvertTo-Json $name -Compress) + ':' + (ConvertTo-Json $value -Compress) + '}'
+    $json = '{' + (ConvertTo-AsciiJson $name) + ':' + (ConvertTo-AsciiJson $value) + '}'
     $r = Invoke-Wrangler $folder ('secret bulk --name {0}' -f $worker) $json
     $json = ''
     return $r
@@ -365,10 +385,17 @@ if ($Step -eq 'keys') {
     if (@($T.markets) -notcontains 'gr') { Say '🔴 ΠΡΟΒΛΗΜΑ: η αγορά gr δεν είναι ανοιχτή για τον λογαριασμό. Δεν άλλαξε τίποτα.' 'Red'; Finish 5 }
     Say 'Δοκιμή κλειδιού στο Yadore (μία κλήση, /v2/markets): 🟢 ΕΝΤΑΞΕΙ, η αγορά gr είναι ανοιχτή' 'Green'
 }
+$pauseBefore = ''
 if ($Step -eq 'pause') {
-    $list = @($Stores.ToLower() -split '[,\s]+' | Where-Object { $_ } | ForEach-Object { ($_ -replace '^https?://', '' -replace '^www\.', '' -replace '/.*$', '') } | Where-Object { $_ -match '^[\p{L}\p{N}][\p{L}\p{N}.\- ]{0,80}$' } | Select-Object -Unique)
-    $pauseList = ($list -join ',')
-    if ($Stores -and -not $pauseList) { Say ('Δεν κατάλαβα τα καταστήματα: {0}' -f $Stores) 'Red'; Finish 2 }
+    # Names as src/lib/yadore.js storeKey() writes them: lower case, no https:// or www., no path, single spaces. Only
+    # commas and new lines separate two names ("Tsakiris Mallas GR" is one name).
+    $list = @($Stores.ToLowerInvariant() -split '[,\r\n]+' | ForEach-Object { (($_.Trim() -replace '^https?://', '') -replace '^www\.', '') -replace '/.*$', '' } | ForEach-Object { ($_ -replace '\s+', ' ').Trim() } | Where-Object { $_ })
+    $bad = @($list | Where-Object { $_ -notmatch '^[\p{L}\p{N}][\p{L}\p{N}.\- ]{0,80}$' })
+    if ($bad.Count -gt 0) { Say ('Δεν κατάλαβα αυτά τα καταστήματα: {0}' -f ($bad -join ' | ')) 'Red'; Finish 2 }
+    $pauseList = (@($list | Select-Object -Unique) -join ',')
+    if (-not $pauseList -and -not $Clear) { Say 'Δώσε τα καταστήματα με -Stores ''a.gr, b.gr'' ή -Clear για να σβηστεί η παύση. Δεν άλλαξε τίποτα.' 'Red'; Finish 2 }
+    if ($pauseList -and $Clear) { Say '-Stores και -Clear μαζί: διάλεξε ένα. Δεν άλλαξε τίποτα.' 'Red'; Finish 2 }
+    if (Test-Path -LiteralPath $PauseFile) { $pauseBefore = ([System.IO.File]::ReadAllText($PauseFile)).Trim() }
 }
 
 Say ''
@@ -397,8 +424,9 @@ if ($Step -eq 'keys') {
     Say ('  Σβήνει το secret {0} από τους {1} Workers: το πλαίσιο φεύγει αμέσως παντού και κάθε link /out/y/ γυρίζει στη σελίδα του.' -f $SecretName, $targets.Count)
     Say '  Αναίρεση: tools/yadore.ps1 -Step keys -Apply (με το κλειδί αυτού του υπολογιστή).'
 } else {
-    if ($pauseList) { Say ('  Παύση καταστημάτων (secret {0}): {1}' -f $PauseName, $pauseList) } else { Say ('  Καμία παύση: το secret {0} σβήνεται' -f $PauseName) }
-    Say '  Τα καταστήματα αυτά φεύγουν αμέσως από το πλαίσιο και τα links τους γυρίζουν στη σελίδα. Αναίρεση: -Step pause με την προηγούμενη λίστα.'
+    if ($pauseBefore) { Say ('  Λίστα παύσης πριν (από αυτόν τον υπολογιστή): {0}' -f $pauseBefore) } else { Say '  Λίστα παύσης πριν: καμία (σε αυτόν τον υπολογιστή)' }
+    if ($pauseList) { Say ('  ΝΕΑ λίστα παύσης, ολόκληρη (secret {0}): {1}' -f $PauseName, $pauseList) } else { Say ('  Καμία παύση: το secret {0} σβήνεται' -f $PauseName) }
+    Say '  Τα καταστήματα της λίστας φεύγουν αμέσως από το πλαίσιο και τα links τους γυρίζουν στη σελίδα.'
 }
 if (-not $Apply) { Say ''; Say ('Χωρίς -Apply: τίποτα δεν άλλαξε. Για να γίνει: ίδια εντολή με -Apply (φράση: {0}).' -f $Phrases[$Step]) 'Yellow'; Finish 0 }
 if (-not (Confirm-Approval $Phrases[$Step])) { Say 'Δεν δόθηκε έγκριση: σταμάτησα χωρίς αλλαγές.' 'Yellow'; Finish 1 }
@@ -427,6 +455,11 @@ foreach ($w in $targets) {
     Say ('  {0}: 🟢 ΕΝΤΑΞΕΙ' -f $label) 'Green'
 }
 $key = ''
+if ($Step -eq 'pause') {
+    $dir = Split-Path -Parent $PauseFile
+    if (-not (Test-Path -LiteralPath $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
+    [System.IO.File]::WriteAllText($PauseFile, $pauseList, (New-Object System.Text.UTF8Encoding($false)))
+}
 
 Say ''
 Say 'Έλεγχος μετά (ονόματα secrets και έκδοση που τρέχει):'
@@ -447,7 +480,7 @@ Say ''
 Say 'Αναίρεση:'
 if ($Step -eq 'keys') { Say '  tools/yadore.ps1 -Step off -Apply   (φράση ΕΓΚΡΙΝΩ YADORE OFF)' }
 elseif ($Step -eq 'off') { Say '  tools/yadore.ps1 -Step keys -Apply  (φράση ΕΓΚΡΙΝΩ YADORE ΚΛΕΙΔΙ)' }
-else { Say '  tools/yadore.ps1 -Step pause -Apply -Stores ''<η λίστα πριν>''   (φράση ΕΓΚΡΙΝΩ YADORE ΠΑΥΣΗ)' }
+else { Say ('  tools/yadore.ps1 -Step pause -Apply -Stores ''{0}''   (φράση ΕΓΚΡΙΝΩ YADORE ΠΑΥΣΗ)' -f ($pauseBefore -replace "'", "''")) }
 if ($bad -gt 0) { Say ''; Say ('Αποτέλεσμα: 🔴 ΠΡΟΒΛΗΜΑ σε {0} site(s). Στείλε την αναφορά στο Claude.' -f $bad) 'Red'; Finish 8 }
 Say ''
 Say ('Αποτέλεσμα: 🟢 ΕΤΟΙΜΟ: {0} ({1} sites).' -f $(if ($Step -eq 'keys') { 'το κλειδί μπήκε' } elseif ($Step -eq 'off') { 'το Yadore σταμάτησε' } else { 'η παύση ισχύει' }), $done.Count) 'Green'
