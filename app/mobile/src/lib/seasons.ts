@@ -183,12 +183,14 @@ export function parseDeals(data: unknown): Deal[] {
 
 /**
  * The deals that run today, like the Hub: codes first (smaller minimum spend first), then sales. A sale needs a name
- * and never shows a percentage: one that still carries "upTo" is left out (lessons L107: no "Save N%").
+ * and never shows a percentage: one that still carries "upTo" is left out (lessons L107: no "Save N%"). Since 1.0.2 a
+ * sale shows only the retailer's own campaign name, never our word "Sale" (Idea 17, chat 8), so a sale whose name
+ * is over (Halloween in November) or has a percentage in it is left out too.
  */
 export function activeDeals(deals: Deal[], day: string): Deal[] {
   return deals
     .filter(d => d.start <= day && day <= d.end)
-    .filter(d => (d.kind === 'code' ? d.off > 0 : d.upTo === 0 && Boolean(d.campaign)))
+    .filter(d => (d.kind === 'code' ? d.off > 0 : d.upTo === 0 && Boolean(campaignLabel(d, day)) && !d.campaign.includes('%')))
     .sort((a, b) => (a.kind === b.kind ? 0 : a.kind === 'code' ? -1 : 1) ||
       (a.kind === 'code' ? a.minSpend - b.minSpend : 0));
 }

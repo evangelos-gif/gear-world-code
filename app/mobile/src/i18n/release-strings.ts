@@ -1,10 +1,12 @@
 // Texts of version 1.0.2 in the 11 Hub languages (25/11/2026): price alerts for saved products and the delivery
 // country. Like the 1.0.1 texts, the retailer is named by its own name ({retailer}), never "shop" or "partner", and
 // a price alert says only the new price and the day it was checked: never "discount", "%", "sale" or "price drop"
-// (lessons L107, Manager 24/11/2026).
+// (lessons L107, Manager 24/11/2026). Idea 17 Α of chat 8 (owner 25/11/2026): a greeting for the time of day, a
+// friendlier "nothing found" and one plain sentence on how Gear World works.
 export const RELEASE_KEYS = [
   'alertOn', 'alertOff', 'alertHint', 'alertTitle', 'alertBody', 'alertsOff', 'openSettings', 'alertChannel', 'alertTag',
-  'deliverTitle', 'deliverAuto', 'deliverHint'
+  'deliverTitle', 'deliverAuto', 'deliverHint',
+  'greetMorning', 'greetAfternoon', 'greetEvening', 'noResultsHelp', 'noResultsCountry', 'howWeSell'
 ] as const;
 
 export type ReleaseKey = (typeof RELEASE_KEYS)[number];
@@ -22,7 +24,13 @@ export const RELEASE_STRINGS: Record<string, Record<ReleaseKey, string>> = {
     alertTag: 'Price alert',
     deliverTitle: 'Delivery country',
     deliverAuto: 'Automatic (where you are)',
-    deliverHint: 'Shows the products that retailers deliver to this country.'
+    deliverHint: 'Shows the products that retailers deliver to this country.',
+    greetMorning: "Good morning!",
+    greetAfternoon: "Good afternoon!",
+    greetEvening: "Good evening!",
+    noResultsHelp: "Try fewer or different words, or check the spelling. You can also search by voice or with a photo.",
+    noResultsCountry: "Delivery country: {country}. You can change it in Settings.",
+    howWeSell: "We don't sell anything. We find the retailer, and you buy directly on the retailer's own website."
   },
   'el-GR': {
     alertOn: 'Ειδοποίηση τιμής: ενεργή',
@@ -36,7 +44,13 @@ export const RELEASE_STRINGS: Record<string, Record<ReleaseKey, string>> = {
     alertTag: 'Ειδοποίηση τιμής',
     deliverTitle: 'Χώρα παράδοσης',
     deliverAuto: 'Αυτόματα (εκεί που βρίσκεστε)',
-    deliverHint: 'Δείχνει τα προϊόντα που τα καταστήματα παραδίδουν σε αυτή τη χώρα.'
+    deliverHint: 'Δείχνει τα προϊόντα που τα καταστήματα παραδίδουν σε αυτή τη χώρα.',
+    greetMorning: "Καλημέρα!",
+    greetAfternoon: "Καλησπέρα!",
+    greetEvening: "Καλησπέρα!",
+    noResultsHelp: "Δοκιμάστε λιγότερες ή άλλες λέξεις ή ελέγξτε την ορθογραφία. Μπορείτε επίσης να ψάξετε με τη φωνή ή με φωτογραφία.",
+    noResultsCountry: "Χώρα παράδοσης: {country}. Μπορείτε να την αλλάξετε στις Ρυθμίσεις.",
+    howWeSell: "Δεν πουλάμε τίποτα. Βρίσκουμε το κατάστημα και αγοράζετε απευθείας από τη δική του ιστοσελίδα."
   },
   'de-DE': {
     alertOn: 'Preisalarm an',
@@ -50,7 +64,13 @@ export const RELEASE_STRINGS: Record<string, Record<ReleaseKey, string>> = {
     alertTag: 'Preisalarm',
     deliverTitle: 'Lieferland',
     deliverAuto: 'Automatisch (wo Sie sind)',
-    deliverHint: 'Zeigt die Produkte, die Händler in dieses Land liefern.'
+    deliverHint: 'Zeigt die Produkte, die Händler in dieses Land liefern.',
+    greetMorning: "Guten Morgen!",
+    greetAfternoon: "Guten Tag!",
+    greetEvening: "Guten Abend!",
+    noResultsHelp: "Versuchen Sie weniger oder andere Wörter oder prüfen Sie die Schreibweise. Sie können auch per Sprache oder mit einem Foto suchen.",
+    noResultsCountry: "Lieferland: {country}. Sie können es in den Einstellungen ändern.",
+    howWeSell: "Wir verkaufen nichts. Wir finden den Händler, und Sie kaufen direkt auf seiner eigenen Website."
   },
   'fr-FR': {
     alertOn: 'Alerte prix activée',
@@ -64,7 +84,13 @@ export const RELEASE_STRINGS: Record<string, Record<ReleaseKey, string>> = {
     alertTag: 'Alerte prix',
     deliverTitle: 'Pays de livraison',
     deliverAuto: 'Automatique (là où vous êtes)',
-    deliverHint: 'Affiche les produits que les marchands livrent dans ce pays.'
+    deliverHint: 'Affiche les produits que les marchands livrent dans ce pays.',
+    greetMorning: "Bonjour !",
+    greetAfternoon: "Bonjour !",
+    greetEvening: "Bonsoir !",
+    noResultsHelp: "Essayez moins de mots ou d’autres mots, ou vérifiez l’orthographe. Vous pouvez aussi chercher à la voix ou avec une photo.",
+    noResultsCountry: "Pays de livraison : {country}. Vous pouvez le changer dans les Paramètres.",
+    howWeSell: "Nous ne vendons rien. Nous trouvons le marchand, et vous achetez directement sur son propre site."
   },
   'it-IT': {
     alertOn: 'Avviso prezzo attivo',
@@ -78,7 +104,13 @@ export const RELEASE_STRINGS: Record<string, Record<ReleaseKey, string>> = {
     alertTag: 'Avviso prezzo',
     deliverTitle: 'Paese di consegna',
     deliverAuto: 'Automatico (dove ti trovi)',
-    deliverHint: 'Mostra i prodotti che i rivenditori consegnano in questo paese.'
+    deliverHint: 'Mostra i prodotti che i rivenditori consegnano in questo paese.',
+    greetMorning: "Buongiorno!",
+    greetAfternoon: "Buon pomeriggio!",
+    greetEvening: "Buonasera!",
+    noResultsHelp: "Prova con meno parole o con parole diverse, oppure controlla come sono scritte. Puoi anche cercare con la voce o con una foto.",
+    noResultsCountry: "Paese di consegna: {country}. Puoi cambiarlo in Impostazioni.",
+    howWeSell: "Non vendiamo nulla. Troviamo il rivenditore e tu acquisti direttamente sul suo sito."
   },
   'es-ES': {
     alertOn: 'Aviso de precio activado',
@@ -92,7 +124,13 @@ export const RELEASE_STRINGS: Record<string, Record<ReleaseKey, string>> = {
     alertTag: 'Aviso de precio',
     deliverTitle: 'País de entrega',
     deliverAuto: 'Automático (donde estás)',
-    deliverHint: 'Muestra los productos que los vendedores entregan en este país.'
+    deliverHint: 'Muestra los productos que los vendedores entregan en este país.',
+    greetMorning: "¡Buenos días!",
+    greetAfternoon: "¡Buenas tardes!",
+    greetEvening: "¡Buenas noches!",
+    noResultsHelp: "Prueba con menos palabras o con otras, o revisa cómo están escritas. También puedes buscar por voz o con una foto.",
+    noResultsCountry: "País de entrega: {country}. Puedes cambiarlo en Ajustes.",
+    howWeSell: "No vendemos nada. Encontramos al vendedor y compras directamente en su propia web."
   },
   'pt-PT': {
     alertOn: 'Alerta de preço ativo',
@@ -106,7 +144,13 @@ export const RELEASE_STRINGS: Record<string, Record<ReleaseKey, string>> = {
     alertTag: 'Alerta de preço',
     deliverTitle: 'País de entrega',
     deliverAuto: 'Automático (onde está)',
-    deliverHint: 'Mostra os produtos que os vendedores entregam neste país.'
+    deliverHint: 'Mostra os produtos que os vendedores entregam neste país.',
+    greetMorning: "Bom dia!",
+    greetAfternoon: "Boa tarde!",
+    greetEvening: "Boa noite!",
+    noResultsHelp: "Experimente menos palavras ou outras palavras, ou verifique a ortografia. Também pode pesquisar por voz ou com uma fotografia.",
+    noResultsCountry: "País de entrega: {country}. Pode alterá-lo em Definições.",
+    howWeSell: "Não vendemos nada. Encontramos o vendedor e compra diretamente no site dele."
   },
   'nl-NL': {
     alertOn: 'Prijsmelding aan',
@@ -120,7 +164,13 @@ export const RELEASE_STRINGS: Record<string, Record<ReleaseKey, string>> = {
     alertTag: 'Prijsmelding',
     deliverTitle: 'Leverland',
     deliverAuto: 'Automatisch (waar u bent)',
-    deliverHint: 'Toont de producten die verkopers in dit land leveren.'
+    deliverHint: 'Toont de producten die verkopers in dit land leveren.',
+    greetMorning: "Goedemorgen!",
+    greetAfternoon: "Goedemiddag!",
+    greetEvening: "Goedenavond!",
+    noResultsHelp: "Probeer minder of andere woorden, of controleer de spelling. U kunt ook zoeken met uw stem of met een foto.",
+    noResultsCountry: "Leverland: {country}. U kunt dit wijzigen in Instellingen.",
+    howWeSell: "Wij verkopen niets. Wij vinden de verkoper, en u koopt rechtstreeks op de website van de verkoper."
   },
   'sq-AL': {
     alertOn: 'Njoftimi i çmimit aktiv',
@@ -134,7 +184,13 @@ export const RELEASE_STRINGS: Record<string, Record<ReleaseKey, string>> = {
     alertTag: 'Njoftim çmimi',
     deliverTitle: 'Vendi i dorëzimit',
     deliverAuto: 'Automatik (ku ndodheni)',
-    deliverHint: 'Shfaq produktet që shitësit i dorëzojnë në këtë vend.'
+    deliverHint: 'Shfaq produktet që shitësit i dorëzojnë në këtë vend.',
+    greetMorning: "Mirëmëngjes!",
+    greetAfternoon: "Mirëdita!",
+    greetEvening: "Mirëmbrëma!",
+    noResultsHelp: "Provoni më pak fjalë ose fjalë të tjera, ose kontrolloni drejtshkrimin. Mund të kërkoni edhe me zë ose me një foto.",
+    noResultsCountry: "Vendi i dorëzimit: {country}. Mund ta ndryshoni te Cilësimet.",
+    howWeSell: "Ne nuk shesim asgjë. Gjejmë shitësin dhe ju blini drejtpërdrejt në faqen e tij."
   },
   'ro-RO': {
     alertOn: 'Alertă de preț activă',
@@ -148,7 +204,13 @@ export const RELEASE_STRINGS: Record<string, Record<ReleaseKey, string>> = {
     alertTag: 'Alertă de preț',
     deliverTitle: 'Țara de livrare',
     deliverAuto: 'Automat (unde te afli)',
-    deliverHint: 'Arată produsele pe care comercianții le livrează în această țară.'
+    deliverHint: 'Arată produsele pe care comercianții le livrează în această țară.',
+    greetMorning: "Bună dimineața!",
+    greetAfternoon: "Bună ziua!",
+    greetEvening: "Bună seara!",
+    noResultsHelp: "Încearcă mai puține cuvinte sau altele ori verifică ortografia. Poți căuta și vocal sau cu o fotografie.",
+    noResultsCountry: "Țara de livrare: {country}. O poți schimba în Setări.",
+    howWeSell: "Nu vindem nimic. Găsim comerciantul, iar tu cumperi direct de pe site-ul lui."
   },
   'ru-RU': {
     alertOn: 'Уведомление о цене включено',
@@ -162,6 +224,12 @@ export const RELEASE_STRINGS: Record<string, Record<ReleaseKey, string>> = {
     alertTag: 'Уведомление о цене',
     deliverTitle: 'Страна доставки',
     deliverAuto: 'Автоматически (где вы находитесь)',
-    deliverHint: 'Показывает товары, которые продавцы доставляют в эту страну.'
+    deliverHint: 'Показывает товары, которые продавцы доставляют в эту страну.',
+    greetMorning: "Доброе утро!",
+    greetAfternoon: "Добрый день!",
+    greetEvening: "Добрый вечер!",
+    noResultsHelp: "Попробуйте меньше слов или другие слова либо проверьте написание. Можно также искать голосом или по фото.",
+    noResultsCountry: "Страна доставки: {country}. Её можно изменить в разделе «Настройки».",
+    howWeSell: "Мы ничего не продаём. Мы находим продавца, а вы покупаете прямо на его сайте."
   }
 };

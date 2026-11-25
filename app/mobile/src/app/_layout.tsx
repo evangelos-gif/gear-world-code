@@ -30,10 +30,14 @@ function OpenFromNotification() {
       const key = n.request.content.data?.key;
       if (typeof key === 'string' && /^[A-Z]{3}:[0-9A-Za-z_-]{1,40}$/.test(key)) router.push({ pathname: '/product', params: { key } });
     };
-    const last = Notifications.getLastNotificationResponse();
-    if (last?.notification) open(last.notification);
-    const sub = Notifications.addNotificationResponseReceivedListener(r => open(r.notification));
-    return () => sub.remove();
+    // Never stops the app: where notifications are not available (the web preview), nothing opens from one.
+    try {
+      const last = Notifications.getLastNotificationResponse();
+      if (last?.notification) open(last.notification);
+    } catch { /* no notifications here */ }
+    let sub: { remove: () => void } | null = null;
+    try { sub = Notifications.addNotificationResponseReceivedListener(r => open(r.notification)); } catch { /* none */ }
+    return () => sub?.remove();
   }, []);
   return null;
 }

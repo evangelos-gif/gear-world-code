@@ -1,3 +1,4 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { FlatList, StyleSheet, View } from 'react-native';
@@ -8,6 +9,7 @@ import { SearchBox } from '@/components/search-box';
 import { Dropdown, ErrorBox, Loading, TopBar, Txt } from '@/components/ui';
 import { useI18n } from '@/i18n';
 import { searchAll, type SearchResult } from '@/lib/api';
+import { COUNTRY_NAMES } from '@/lib/client';
 import { countByWorld, decodePhotoParam, encodePhotoParam, orderByBest, photoResults, photoWords } from '@/lib/photo';
 import { rememberProducts } from '@/lib/product-cache';
 import { useSettings } from '@/lib/settings-context';
@@ -102,6 +104,16 @@ export default function SearchScreen() {
               ? t('productsFound', { count: result.products.length, worlds: Object.keys(result.counts).length })
               : t('noProductsFor', { query: photo ? used : q })}
           </Txt>
+          {result.products.length === 0 ? (
+            // Nothing found: a friendly next step instead of a dead end (Idea 17 Α, version 1.0.2).
+            <View style={s.help}>
+              <Ionicons name="bulb-outline" size={20} color={C.gold} accessible={false} />
+              <View style={s.helpText}>
+                <Txt v="small" style={s.helpLine}>{t('noResultsHelp')}</Txt>
+                {country ? <Txt v="small" style={s.helpLine}>{t('noResultsCountry', { country: COUNTRY_NAMES[country] })}</Txt> : null}
+              </View>
+            </View>
+          ) : null}
           {result.partial ? <Txt v="small" style={s.partial}>{t('partial')}</Txt> : null}
           {Object.keys(result.counts).length > 1 ? (
             <Dropdown label={t('worldLabel')} value={filter} onChange={setFilter}
@@ -140,6 +152,9 @@ const s = StyleSheet.create({
   photoMeta: { color: C.text },
   photoHint: { color: C.faint },
   partial: { color: C.blue },
+  help: { flexDirection: 'row', gap: S.sm, padding: S.md, borderRadius: 12, borderWidth: 1, borderColor: C.border, backgroundColor: C.card },
+  helpText: { flex: 1, gap: S.xs },
+  helpLine: { color: C.text },
   colWrap: { gap: S.md },
   cell: { flex: 1, maxWidth: '50%' }
 });

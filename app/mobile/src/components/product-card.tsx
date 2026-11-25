@@ -8,6 +8,7 @@ import { formatPrice } from '@/lib/format';
 import { useI18n } from '@/i18n';
 import { C, R, S } from '@/theme';
 import { Txt } from './ui';
+import { WorldTag } from './world-tag';
 
 export function StockLine({ inStock, checkRetailer, size = 'small' }: { inStock: boolean | null; checkRetailer?: boolean; size?: 'small' | 'body' }) {
   const { t } = useI18n();
@@ -45,7 +46,7 @@ export function ProductCard({ product, showWorld }: { product: Product; showWorl
         ) : <Ionicons name="pricetag-outline" size={36} color={C.faint} />}
       </View>
       <View style={s.body}>
-        {showWorld ? <Txt style={s.world} numberOfLines={1}>{product.worldKey}</Txt> : null}
+        {showWorld ? <WorldTag worldKey={product.worldKey} name={product.worldName} /> : null}
         <Txt style={s.name} numberOfLines={3}>{product.name}</Txt>
         {price ? <Txt style={s.price}>{price}</Txt> : null}
         {product.retailer ? <Txt v="small" numberOfLines={1}>{product.retailer}</Txt> : null}
@@ -61,7 +62,6 @@ const s = StyleSheet.create({
   imageBox: { height: 150, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
   image: { width: '100%', height: '100%' },
   body: { padding: S.md, gap: 4, flex: 1 },
-  world: { color: C.gold, fontSize: 12, fontWeight: '800', letterSpacing: 1 },
   name: { fontSize: 14, lineHeight: 19, fontWeight: '600' },
   price: { fontSize: 18, fontWeight: '800', color: C.text, marginTop: 2 },
   stock: { flexDirection: 'row', alignItems: 'center', gap: 4 },

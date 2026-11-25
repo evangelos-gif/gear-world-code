@@ -22,14 +22,11 @@ export function Deals({ deals, day, compact }: { deals: Deal[]; day: string; com
       <Txt v="muted">{t('dealsSub')}</Txt>
       <View style={s.list}>
         {deals.map(d => {
-          const offer = d.kind === 'code'
-            ? (d.minSpend > 0
-              ? t('dealCode', { off: formatMoney(d.off, d.currency, locale), min: formatMoney(d.minSpend, d.currency, locale) })
-              : t('dealCodeNoMin', { off: formatMoney(d.off, d.currency, locale) }))
-            : t('dealSale');
+          const offer = offerText(d, day, t, locale);
           const label = campaignLabel(d, day);
-          // Like the Hub: a code says "With a code" and its campaign; a sale says only its own name (never a percentage).
-          const meta = d.kind === 'code' ? `${t('dealWithCode')}${label ? ` · ${label}` : ''}` : label;
+          // A code says "With a code" and its campaign; a sale says only the retailer's own campaign name, never our
+          // word "Sale" and never a percentage (lessons L107, Idea 17 of chat 8, version 1.0.2).
+          const meta = d.kind === 'code' ? `${t('dealWithCode')}${label ? ` · ${label}` : ''}` : '';
           return (
             <Pressable key={d.id} accessibilityRole="link" accessibilityLabel={`${d.retailer}. ${offer}. ${t('dealUntil', { date: formatDay(d.end, locale) })}`}
               accessibilityHint={t('opensBrowser')} onPress={() => openInBrowser(d.link)}
@@ -63,9 +60,9 @@ function CompactDeals({ deals, day }: { deals: Deal[]; day: string }) {
         <Txt style={s.compactTitle}>{t('navDeals')}</Txt>
       </View>
       {deals.map((d, i) => {
-        const offer = offerText(d, t, locale);
+        const offer = offerText(d, day, t, locale);
         const until = t('dealUntil', { date: formatDay(d.end, locale, 'short') });
-        const label = campaignLabel(d, day);
+        const label = d.kind === 'code' ? campaignLabel(d, day) : '';
         return (
           <Pressable key={d.id} accessibilityRole="link" accessibilityLabel={`${d.retailer}. ${offer}. ${until}`}
             accessibilityHint={t('opensBrowser')} onPress={() => openInBrowser(d.link)}
@@ -82,8 +79,8 @@ function CompactDeals({ deals, day }: { deals: Deal[]; day: string }) {
   );
 }
 
-function offerText(d: Deal, t: ReturnType<typeof useI18n>['t'], locale: string): string {
-  if (d.kind !== 'code') return d.campaign ? `${t('dealSale')} · ${d.campaign}` : t('dealSale');
+function offerText(d: Deal, day: string, t: ReturnType<typeof useI18n>['t'], locale: string): string {
+  if (d.kind !== 'code') return campaignLabel(d, day);
   return d.minSpend > 0
     ? t('dealCode', { off: formatMoney(d.off, d.currency, locale), min: formatMoney(d.minSpend, d.currency, locale) })
     : t('dealCodeNoMin', { off: formatMoney(d.off, d.currency, locale) });

@@ -28,6 +28,7 @@ import {
   SEASONS_ON_DEFAULT, parseSeasonsOn, seasonOn
 } from '../src/lib/seasons.ts';
 import { apiSlug, categoriesFor } from '../src/lib/site-categories.ts';
+import { dayPart, worldIcon, WORLD_ICONS, DEFAULT_WORLD_ICON } from '../src/lib/warm.ts';
 
 const HUB = JSON.parse(readFileSync(new URL('../src/i18n/hub-strings.json', import.meta.url), 'utf8'));
 // The world order the Hub uses for its titles and descriptions (src/lib/worlds-meta.ts, read as text).
@@ -387,6 +388,44 @@ test('deals: only checked site links, only running deals, codes first, old seaso
   assert.deepEqual(parseDeals({ deals: 'x' }), []);
 });
 
+
+test('Idea 17 Α: greeting by the hour, world names with icons, our word "Sale" gone from the deals', () => {
+  const read = (f: string) => readFileSync(new URL(f, import.meta.url), 'utf8');
+  assert.equal(dayPart(4), 'greetEvening');
+  assert.equal(dayPart(5), 'greetMorning');
+  assert.equal(dayPart(11), 'greetMorning');
+  assert.equal(dayPart(12), 'greetAfternoon');
+  assert.equal(dayPart(17), 'greetAfternoon');
+  assert.equal(dayPart(18), 'greetEvening');
+  assert.equal(dayPart(23), 'greetEvening');
+  assert.equal(dayPart(Number.NaN), 'greetAfternoon');
+  // Every world of the Hub has an icon that exists in the app's icon font.
+  const glyphs = JSON.parse(read('../node_modules/@expo/vector-icons/build/vendor/react-native-vector-icons/glyphmaps/Ionicons.json'));
+  const order = JSON.parse(read('../src/lib/worlds-meta.ts').match(/HUB_ORDER = (\[[^\]]+\])/)![1].replace(/'/g, '"'));
+  assert.equal(order.length, 13);
+  for (const k of order) assert.ok(WORLD_ICONS[k] && glyphs[WORLD_ICONS[k]] !== undefined, `${k}: icon`);
+  assert.ok(glyphs[DEFAULT_WORLD_ICON] !== undefined);
+  assert.equal(worldIcon('XYZ'), DEFAULT_WORLD_ICON);
+  assert.equal(new Set(Object.values(WORLD_ICONS)).size, 13, 'one icon per world');
+  // The product cards and the Saved rows name the world, never its code alone.
+  for (const f of ['../src/components/product-card.tsx', '../src/app/(tabs)/saved.tsx']) {
+    const src = read(f);
+    assert.match(src, /<WorldTag worldKey=/, `${f}: world name with icon`);
+    assert.ok(!/>\{(product|item)\.worldKey\}</.test(src), `${f}: no bare world code`);
+  }
+  assert.match(read('../src/components/world-tag.tsx'), /worldTitle\(/);
+  // The greeting sits right above the Hub's title, which already asks "What are you looking for?".
+  assert.match(read('../src/app/(tabs)/index.tsx'), /heroEyebrow[\s\S]*\{t\(part\)\}[\s\S]*heroTitle1/);
+  assert.match(read('../src/app/(tabs)/index.tsx'), /t\('howWeSell'\)/);
+  assert.match(read('../src/app/search.tsx'), /t\('noResultsHelp'\)/);
+  // Our own "Sale" / «Εκπτώσεις» is never shown: a sale says only the retailer's campaign name (lessons L107).
+  for (const f of files('../src/')) assert.ok(!/dealSale/.test(readFileSync(f, 'utf8')), `${f}: no dealSale`);
+  const sale = (id: string, campaign: string) => ({ id, retailer: 'R', kind: 'sale', campaign, currency: 'GBP', sites: ['HGW'], start: '2026-10-01', end: '2026-12-31', link: 'https://homegearworld.com/discount-codes/r/' });
+  const deals = parseDeals({ deals: [sale('h', 'Halloween'), sale('p', 'Up to 50% off'), sale('n', 'Black Friday')] });
+  assert.deepEqual(activeDeals(deals, '2026-10-25').map(d => d.id), ['h', 'n']);
+  assert.deepEqual(activeDeals(deals, '2026-11-25').map(d => d.id), ['n'], 'a sale whose name is over has nothing to say');
+  assert.match(read('../src/components/deals.tsx'), /if \(d\.kind !== 'code'\) return campaignLabel\(d, day\);/);
+});
 
 test('categories: every world has categories the site understands', () => {
   const none = (key: string) => ({ key, categories: [] as { key: string; name: string; slug: string }[] });

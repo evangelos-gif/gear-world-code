@@ -1,8 +1,8 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
-import { useRef } from 'react';
-import { RefreshControl, ScrollView, StyleSheet, View, type ScrollViewInstance } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { AppState, RefreshControl, ScrollView, StyleSheet, View, type ScrollViewInstance } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Deals } from '@/components/deals';
@@ -16,6 +16,7 @@ import { WorldCard } from '@/components/world-card';
 import { useI18n } from '@/i18n';
 import { activeDeals, DEALS_SHOWN, ukDay, type Target } from '@/lib/seasons';
 import { useDeals } from '@/lib/use-deals';
+import { dayPart } from '@/lib/warm';
 import { INTERESTS } from '@/lib/worlds-meta';
 import { useWorlds } from '@/lib/worlds-context';
 import { C, MAX_WIDTH, R, S } from '@/theme';
@@ -29,6 +30,12 @@ export default function Home() {
   const places = useRef<Record<string, number>>({});
   // The Hub's deals: read when the app starts, and again when the person pulls down to refresh.
   const { deals, seasonsOn, loaded: dealsLoaded, reload: loadDeals } = useDeals();
+  // "Good morning!" by the phone's own clock, checked again when the app comes back to the screen (Idea 17 Α).
+  const [part, setPart] = useState(() => dayPart(new Date().getHours()));
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', st => { if (st === 'active') setPart(dayPart(new Date().getHours())); });
+    return () => sub.remove();
+  }, []);
 
   const today = ukDay(Date.now());
   const shownDeals = activeDeals(deals, today).slice(0, DEALS_SHOWN);
@@ -56,6 +63,8 @@ export default function Home() {
         <View style={s.inner}>
           <View style={s.hero}>
             <Txt v="eyebrow">{t('heroEyebrow')}</Txt>
+            {/* "Good afternoon!" right above "What are you looking for?" (Idea 17 Α, 1.0.2). */}
+            <Txt style={s.greet}>{t(part)}</Txt>
             <Txt v="title">{t('heroTitle1')} <Txt v="title" style={s.gold}>{t('heroTitle2')}</Txt></Txt>
             <Txt v="muted">{t('heroDesc')}</Txt>
             <SearchBox onSearch={q => router.push({ pathname: '/search', params: { q } })} tiles />
@@ -96,6 +105,10 @@ export default function Home() {
           <View style={[s.section, s.how]}>
             <Txt v="eyebrow">{t('howLabel')}</Txt>
             <Txt v="label">{t('howTitle')}</Txt>
+            <View style={s.plain}>
+              <Ionicons name="storefront-outline" size={20} color={C.gold} accessible={false} />
+              <Txt style={s.flex}>{t('howWeSell')}</Txt>
+            </View>
             {steps.map((step, i) => (
               <View key={step} style={s.step}>
                 <View style={s.stepNo}><Txt style={s.stepNoText}>{i + 1}</Txt></View>
@@ -126,6 +139,7 @@ const s = StyleSheet.create({
   scroll: { paddingBottom: S.xxl },
   inner: { width: '100%', maxWidth: MAX_WIDTH, alignSelf: 'center', paddingHorizontal: S.lg, gap: S.xl, paddingTop: S.lg },
   hero: { gap: S.md },
+  greet: { color: C.text, fontSize: 20, lineHeight: 26, fontWeight: '700', marginBottom: -S.sm },
   gold: { color: C.gold },
   section: { gap: S.md },
   grid: { gap: S.md },
@@ -138,5 +152,6 @@ const s = StyleSheet.create({
   stepNoText: { color: C.onGold, fontWeight: '800' },
   stepText: { flex: 1, fontWeight: '600' },
   disclosure: { flexDirection: 'row', gap: S.sm, marginTop: S.sm },
+  plain: { flexDirection: 'row', gap: S.sm, alignItems: 'flex-start' },
   flex: { flex: 1 }
 });

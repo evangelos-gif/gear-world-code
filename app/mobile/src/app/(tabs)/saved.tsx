@@ -6,6 +6,7 @@ import { FlatList, Pressable, RefreshControl, StyleSheet, View } from 'react-nat
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Txt } from '@/components/ui';
+import { WorldTag } from '@/components/world-tag';
 import { useI18n } from '@/i18n';
 import { formatDay, formatPrice } from '@/lib/format';
 import type { SavedItem } from '@/lib/saved';
@@ -72,7 +73,7 @@ function SavedRow({ item }: { item: SavedItem }) {
             : <Ionicons name="pricetag-outline" size={28} color={C.faint} />}
         </View>
         <View style={s.body}>
-          <Txt style={s.world} numberOfLines={1}>{item.worldKey}</Txt>
+          <WorldTag worldKey={item.worldKey} name={item.worldName} />
           <Txt style={s.name} numberOfLines={2}>{item.name}</Txt>
           {item.notListed ? (
             <Txt v="small" style={s.gone}>{t('notListed', { site })}</Txt>
@@ -118,7 +119,6 @@ const s = StyleSheet.create({
   imageBox: { width: 84, height: 84, borderRadius: R.md, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   image: { width: '100%', height: '100%' },
   body: { flex: 1, gap: 2 },
-  world: { color: C.gold, fontSize: 12, fontWeight: '800', letterSpacing: 1 },
   name: { fontWeight: '600' },
   price: { fontSize: 18, fontWeight: '800' },
   gone: { color: C.blue, fontWeight: '700' },
