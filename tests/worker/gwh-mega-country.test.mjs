@@ -8,7 +8,7 @@ import { readFileSync } from 'node:fs';
 import ogw from '../../sites/ogw/site.config.js';
 import {
   MEGA_BAR_STORES, megaCountry, megaStoresFor, coversCountry, megaBarHtml, blackFridayHtml, withMegaCountry, elementEnd,
-  BF_COUNTRY_NOTE, BF_NONE_HERE, QA_COUNTRY_HEADER, MEGA_HIDDEN_NETWORKS, megaHomeFor, megaCardNames, MEGA_EDITION_HOME
+  BF_COUNTRY_NOTE, BF_NONE_HERE, QA_COUNTRY_HEADER, MEGA_HIDDEN_NETWORKS, megaHomeFor, megaCardNames, MEGA_EDITION_HOME, bfMegaNote
 } from '../../sites/gwh/worker.js';
 
 const HOME = readFileSync('sites/gwh/public/index.html', 'utf8');
@@ -101,6 +101,8 @@ test('L214: Greece opens Mega Stores /gr/, every other country with stores its h
   assert.equal(megaHomeFor('DE', [], fewer), 'https://megastoresgearworld.com/de/', 'Germany keeps 5');
   assert.equal(megaHomeFor('PL'), 'https://megastoresgearworld.com/pl/', 'Poland has 5');
   assert.equal(megaHomeFor('IE'), 'https://megastoresgearworld.com/ie/', 'Ireland has 5 (25 Nov 2026 evening)');
+  // The /black-friday/ line takes the same hidden networks as the bar (L215).
+  assert.ok(bfMegaNote('IE').includes('href="https://megastoresgearworld.com/ie/"') && bfMegaNote('GR', ['linkwise']).includes('href="https://megastoresgearworld.com/gr/"'));
   assert.equal(megaHomeFor('GR', ['linkwise']), 'https://megastoresgearworld.com/gr/', 'Greece always (L214)');
   assert.equal(megaHomeFor('GR'), 'https://megastoresgearworld.com/gr/');
   assert.equal(megaHomeFor('gr'), 'https://megastoresgearworld.com/gr/');

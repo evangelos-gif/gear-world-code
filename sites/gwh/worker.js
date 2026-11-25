@@ -1831,7 +1831,7 @@ export function megaBarHtml(text, country, hidden = MEGA_HIDDEN_NETWORKS) {
 export const BF_COUNTRY_NOTE = "Only the retailers we list for your country are shown here.";
 export const BF_MEGA_NOTE = 'The stores listed for your country are on <a href="https://megastoresgearworld.com/" translate="no">Mega Stores</a>.';
 // The same line with the address for the visitor's country (L214: /gr/ for Greece).
-export const bfMegaNote = country => BF_MEGA_NOTE.replace('href="https://megastoresgearworld.com/"', `href="${megaHomeFor(country)}"`);
+export const bfMegaNote = (country, hidden = MEGA_HIDDEN_NETWORKS) => BF_MEGA_NOTE.replace('href="https://megastoresgearworld.com/"', `href="${megaHomeFor(country, hidden)}"`);
 export const BF_NONE_HERE = "Nothing listed for your country yet.";
 // The Black Friday page for a country: the file itself for the UK; elsewhere only the items whose data-delivers covers
 // the country (an item without it is a UK one), the line that says so, and "Nothing listed for your country yet." in each
@@ -1847,7 +1847,7 @@ export function blackFridayHtml(text, country, hidden = MEGA_HIDDEN_NETWORKS) {
     });
     return s.replace(/<p class="gd-note rt-none"( hidden)?>[\s\S]*?<\/p>/, kept ? `<p class="gd-note rt-none" hidden>${BF_NONE_HERE}</p>` : `<p class="gd-note rt-none">${BF_NONE_HERE}</p>`);
   });
-  const note = `<p class="gd-note rt-country">${BF_COUNTRY_NOTE}${megaStoresFor(country, hidden).length ? ` ${bfMegaNote(country)}` : ""}</p>`;
+  const note = `<p class="gd-note rt-country">${BF_COUNTRY_NOTE}${megaStoresFor(country, hidden).length ? ` ${bfMegaNote(country, hidden)}` : ""}</p>`;
   out = out.replace(/(<p class="gd-checked">[\s\S]*?<\/p>)/, `$1\n    ${note}`);
   return out;
 }
