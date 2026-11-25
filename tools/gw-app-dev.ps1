@@ -84,7 +84,7 @@ function Save-Report {
     if (-not $NoClipboard) { try { Set-Clipboard -Value $text } catch { } }
     Write-Host ''
     Write-Host ('Η αναφορά γράφτηκε: {0}' -f $file)
-    if (-not $NoClipboard) { Write-Host 'Αντιγράφηκε στο πρόχειρο. Πήγαινε στη συζήτηση με το Claude και πάτα Ctrl+V.' -ForegroundColor Green }
+    if (-not $NoClipboard) { Write-Host 'Αντιγράφηκε στο πρόχειρο. Πήγαινε στη συζήτηση με το Claude «5 · Εφαρμογή» και πάτα Ctrl+V.' -ForegroundColor Green }
 }
 
 function Finish([int]$code) { Save-Report; exit $code }
