@@ -1,9 +1,10 @@
 // Category, search and deals pages: server-rendered lists with filters and pagination (lessons L09, L10).
 import { html, raw } from '../lib/html.js';
 import { seasonBanner } from './season.js';
-import { categoryPath } from '../lib/text.js';
+import { categoryPath, formatDate } from '../lib/text.js';
 import { SORT_OPTIONS } from '../db.js';
-import { page, productGrid, breadcrumbs, breadcrumbSchema, categoryImage, tr } from './layout.js';
+import { page, productGrid, breadcrumbs, breadcrumbSchema, categoryImage, tr, keepName, viewAt, priceTag } from './layout.js';
+import { YADORE_NAME } from '../lib/yadore.js';
 
 export function readListingParams(url) {
   const sp = url.searchParams;
@@ -146,7 +147,30 @@ export function facetRows(facets) {
   return ((facets && facets.retailers) || []).reduce((t, r) => t + (Number(r.n) || 0), 0);
 }
 
-export function categoryPage(site, cat, p, result, facets, subCounts = null) {
+// The box of offers from other stores through Yadore (lessons L232): marked "Sponsored", apart from our own list, with
+// the date Yadore's prices were read and a note that we are paid for each click. Buttons and photos go through this
+// site's /out/y/ link (rel="sponsored nofollow"); no iframe, no price claim beyond the price, no L107 word.
+export function yadoreSection(site, yd) {
+  if (!yd || !Array.isArray(yd.offers) || !yd.offers.length) return '';
+  const checked = { text: formatDate(`${yd.checked} 12:00:00`, site.locale), date: yd.checked };
+  return html`<section class="yd-box" aria-labelledby="yd-h" data-yadore="${yd.market}">
+  <h2 id="yd-h">${tr('More from other stores')} <span class="badge">${tr('Sponsored')}</span></h2>
+  <p class="category-note">${tr('These offers come through {0}, which pays us for each click, at no extra cost to you. Prices checked {1}, may change.', keepName(YADORE_NAME), checked)}</p>
+  <div class="label-grid">${yd.offers.map(o => html`<article class="label-card">
+    <a class="label-photo" href="${o.href}" rel="sponsored nofollow noopener" target="_blank" tabindex="-1" aria-hidden="true">
+      <img src="${o.image}" alt="" loading="lazy" decoding="async" width="240" height="240" referrerpolicy="no-referrer">
+    </a>
+    <div class="label-body">
+      <h3 class="label-name" translate="no">${o.title}</h3>
+      <p class="label-price">${priceTag(site, o.price, o.currency)}</p>
+      <p class="label-meta"><span class="retailer" translate="no">${o.store}</span></p>
+      <a class="btn btn-deal" href="${o.href}" rel="sponsored nofollow noopener" target="_blank">${viewAt(o.store)}</a>
+    </div>
+  </article>`)}</div>
+</section>`;
+}
+
+export function categoryPage(site, cat, p, result, facets, subCounts = null, yd = null) {
   const base = categoryPath(cat.slug);
   const sub = p.sub ? (Array.isArray(cat.subcategories) ? cat.subcategories : []).find(s => s.slug === p.sub) : null;
   const own = sub && sub.index ? sub : null;
@@ -175,10 +199,10 @@ export function categoryPage(site, cat, p, result, facets, subCounts = null) {
       ${subcategoryNav(base, cat, p, subCounts)}
       ${resultsHeader(result)}
       ${result.products.length
-        ? html`<h2 class="visually-hidden">${tr('Products')}</h2>${productGrid(site, result.products)}`
+        ? html`<h2 class="visually-hidden">${tr('Products')}</h2>${productGrid(site, result.products)}${yadoreSection(site, yd)}`
         : filtered
           ? html`<div class="empty"><h2>No products match these filters</h2><p>Remove a filter or <a href="${base}">see all products in this category</a>.</p></div>`
-          : html`<div class="empty" data-empty-category><h2>${tr('Coming soon')}</h2><p>${tr('We are adding products to this category. Until then, browse the other categories.')}</p>
+          : html`${yadoreSection(site, yd)}<div class="empty" data-empty-category><h2>${tr('Coming soon')}</h2><p>${tr('We are adding products to this category. Until then, browse the other categories.')}</p>
             <ul class="chip-list">${site.categories.filter(c => c.slug !== cat.slug).map(c => html`<li><a href="${categoryPath(c.slug)}">${c.name}</a></li>`)}</ul></div>`}
       ${pagination(base, params, result)}
     </div>

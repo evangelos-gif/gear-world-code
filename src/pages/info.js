@@ -14,15 +14,17 @@ function contactLink(site) {
   return site.contactEmail ? html`<a href="mailto:${site.contactEmail}">${site.contactEmail}</a>` : PLACEHOLDER;
 }
 
-// The legal texts last changed on 23 Nov 2026 (the cookies page: the browser storage of a closed Gear World app row, lessons
-// L218; the date of the ALL UPDATES that brings it live: if that day moves, move this date with it); before: 18 Nov 2026
+// The legal texts last changed on 2 Dec 2026 (the box of offers from other stores through Yadore on the privacy and
+// cookies pages, lessons L232; the date of the paste that brings it live: if that day moves, move this date with it);
+// before: 23 Nov 2026 (the cookies page: the browser storage of a closed Gear World app row, lessons
+// L218); before: 18 Nov 2026
 // (the small sign-up window and "Remind me on 27 Nov", lessons L182); before:
 // 17 Nov 2026 (translated, EU GDPR and EU consumer law, lessons L176); 9 Nov
 // 2026 (the retailer links go through Awin or CJ, Google Ads compliance, lessons
 // L107; before: 8 Nov 2026, Cloudflare Turnstile on the "Get deal updates" form, L106; 7 Nov 2026, who runs Gear World,
 // L101); keep this date honest (L103).
-const UPDATED = '23 November 2026';
-const UPDATED_ISO = '2026-11-23';
+const UPDATED = '2 December 2026';
+const UPDATED_ISO = '2026-12-02';
 
 // Who runs the network and how to reach them, the same on every site and on the Hub (Google Ads review, 7 Nov 2026,
 // lessons L101). Owner's decision, 7 Nov 2026: "Run by Evangelos Kalogerakis, United Kingdom" and the email, no address.
@@ -46,6 +48,7 @@ const PAGES = {
 <ul class="chip-list">${site.categories.map(c => html`<li><a href="${categoryPath(c.slug)}">${c.name}</a></li>`)}</ul>
 <h2>Where the prices come from</h2>
 <p>Retailers publish product feeds through the Awin and CJ affiliate networks. We import those feeds, sort the products into categories and show the price, stock and condition that the retailer reports. Each product page shows the date the price was last checked.</p>
+<p>In some categories, a box marked "Sponsored" shows offers from other stores through Yadore, with the date their prices were checked.</p>
 <p>A product whose price has not been checked for more than 30 days is no longer listed. After 14 days we ask you to check the price and stock at the retailer. Visitors in the UK see only retailers that deliver to the UK, and visitors in Poland and the United States only those that deliver there, where this site has some. Everywhere else you see a notice that most of the retailers deliver to the UK only. A product described in a language other than English is shown only in the countries where that language is spoken. Every product says where its retailer delivers. Prices can change after a check, so the retailer's website always has the final price.</p>
 <h2>What we do not do</h2>
 <p>We do not sell products, take payments or handle deliveries. Orders, returns and warranties are between you and the retailer.</p>
@@ -61,8 +64,10 @@ const PAGES = {
 <p>${tr('{0} is free to use. We earn money through affiliate links.', site.name)}</p>
 <h2>What an affiliate link is</h2>
 <p>When you select a "View at" button, you go to the retailer through an affiliate network, Awin or CJ. If you then buy something, the retailer may pay us a commission. You pay the same price as you would if you went to the retailer directly.</p>
+<p>In some categories, a box marked "Sponsored" shows offers from other stores through Yadore (Yadore GmbH, Germany). Those stores pay Yadore for each click, and Yadore pays us a share. You pay the same price as you would if you went to the store directly.</p>
 <h2>How this affects what you see</h2>
 <p>We do not rank products by commission. The default order mixes products in stock first, and you can sort by price, newest or furthest below RRP at any time. A retailer cannot pay to change a price or a product's position on this site.</p>
+<p>The box marked "Sponsored" is apart from our own list and does not change it. Its offers come in the order Yadore gives for the words of the category.</p>
 <h2>RRP</h2>
 <p>When a retailer's feed lists a recommended retail price (RRP), we show it as "RRP" next to the price. An RRP is the price the brand or the retailer recommends, not a price the product was sold at before, so we do not present it as a saving.</p>`
   }),
@@ -94,6 +99,7 @@ const PAGES = {
 <h2>What we collect</h2>
 <ul>
 <li><strong>Clicks to retailers.</strong> When you select a "View at" button we record the product, the retailer, the page you were on, the date and your country as reported by our hosting provider. We do not record your IP address or anything that identifies you. We use this to understand which products are useful (legitimate interests). If you came to this site from one of our ads or campaign links, the campaign name and source of that link (utm_campaign, utm_source) go with the click to the affiliate network (Awin, or for a few retailers CJ), so we can see which campaigns are useful. They do not identify you.</li>
+<li><strong>Sponsored offers.</strong> When you select a button in the box marked "Sponsored", we record the store, the page you were on, the date and your country in the same way, and you go to the store through Yadore (Yadore GmbH, Germany), which records the click so that the store pays for it.</li>
 ${site.dealUpdates ? html`<li><strong>Deal updates.</strong> If you sign up with the "Get deal updates" form, we keep your email address, the site you signed up on, the date and the consent you gave. The list is shared by the Gear World sites and kept by Gear World Hub (gearworldhub.com), and the emails are sent for us by MailerLite (our email service provider). We use it only to send deal and new-site emails (consent). Every email has an unsubscribe link, and you can also ask us by email to delete your address.</li>
 <li><strong>Abuse protection.</strong> To stop automated abuse of the form we keep a one-way scrambled (hashed) form of your IP address for up to one hour, and the form uses Cloudflare Turnstile, which checks that you are a person when you start to fill it in (legitimate interests).</li>
 <li><strong>Small sign-up window.</strong> On some pages a small window at the bottom of the screen offers the same weekly email. It works like the "Get deal updates" form, and we also note that you signed up there.</li>
@@ -111,6 +117,8 @@ ${site.googleAds === false ? html`<p>We do not use advertising or tracking cooki
 <p>Retailer links go through an affiliate network: Awin, or for a few retailers CJ (Commission Junction). The network and the retailer may set their own cookies to record that you came from this site. Their privacy policies apply on their websites.</p>
 <p><a href="https://www.awin.com/gb/privacy">Awin privacy policy</a></p>
 <p><a href="https://www.cj.com/legal/privacy">CJ privacy policy</a></p>
+<p>Links in the box marked "Sponsored" go through Yadore (Yadore GmbH, Germany). Yadore and the store may set their own cookies to record the click. Their privacy policies apply on their websites.</p>
+<p><a href="https://www.yadore.com/en/privacy/">Yadore privacy policy</a></p>
 <h2>Sharing and transfers</h2>
 <p>We do not sell personal data. ${site.googleAds === false
   ? (site.dealUpdates ? 'Our service providers (Cloudflare, MailerLite) may process data outside the UK and the European Economic Area with appropriate safeguards.' : 'Our service provider (Cloudflare) may process data outside the UK and the European Economic Area with appropriate safeguards.')
@@ -149,7 +157,8 @@ ${site.dealUpdates ? html`<p>The small sign-up window and "Remind me on 27 Nov" 
 ${site.dealUpdates ? html`<p>If the small sign-up window appears, your browser's local storage keeps the date it last appeared, and that you signed up if you did, so it appears at most once a month and never after you sign up. This is not a cookie and is not sent to us.</p>` : ''}
 <p>If you close the Gear World app row on the home page, your browser's local storage remembers it, so the row does not come back. This is not a cookie and is not sent to us.</p>
 <h2>After you leave this site</h2>
-<p>When you select a "View at" button, the affiliate network (Awin or CJ) and the retailer may set cookies on their own websites to record the referral. You can manage those in your browser settings.</p>`
+<p>When you select a "View at" button, the affiliate network (Awin or CJ) and the retailer may set cookies on their own websites to record the referral. You can manage those in your browser settings.</p>
+<p>When you select a button in the box marked "Sponsored", Yadore and the store may set cookies on their own websites to record the click.</p>`
   }),
 
   '/terms/': site => ({

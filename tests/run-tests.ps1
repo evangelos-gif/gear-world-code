@@ -7403,6 +7403,103 @@ $bgFile = Join-Path $bgUnit 'gate-unit.ps1'
 $bgOut = (@(& $exe -NoProfile -ExecutionPolicy Bypass -File $bgFile) | ForEach-Object { "$_" }) -join "`n"
 Check ($bgOut.Contains('GATE R1=False;R2=True;R3=True;R4=False;R5=False;S=[];C=2;T1=1')) ('bol.com gate: bol.com products without a download time are refused (an old bol.txt too), none to load needs none (' + $bgOut.Trim() + ')')
 
+# 27. yadore.ps1 (Yadore, lessons L232) with a fake wrangler (Windows only): the key goes to the 13 Workers only through
+# wrangler's input (never a command line or the report), one phrase per step, the undo in the report, off and pause.
+if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
+    Write-Host 'yadore.ps1 (fake wrangler)'
+    $ydTool = Join-Path (Join-Path $repo 'tools') 'yadore.ps1'
+    $ydHome = Join-Path $work 'yd-home'
+    $ydState = Join-Path $work 'yd-state'
+    $ydBin = Join-Path $work 'yd-bin'
+    $ydOut = Join-Path $ydHome 'gear-world-reports'
+    New-Item -ItemType Directory -Path $ydState, $ydBin -Force | Out-Null
+    $ydNpx = @(
+        '@echo off',
+        'echo %* >> "%GW_FAKE_STATE%\npx.log"',
+        'if "%3"=="whoami" goto whoami',
+        'if "%3 %4"=="secret list" goto list',
+        'if "%3 %4"=="secret bulk" goto bulk',
+        'if "%3 %4"=="secret delete" goto del',
+        'echo unknown command 1>&2',
+        'exit /b 1',
+        ':whoami',
+        'echo You are logged in with an API Token, associated with the email test@example.com.',
+        'exit /b 0',
+        ':list',
+        'echo [{"name":"OTHER_SECRET","type":"secret_text"}',
+        'if exist "%GW_FAKE_STATE%\%6.key" echo ,{"name":"YADORE_API_KEY","type":"secret_text"}',
+        'if exist "%GW_FAKE_STATE%\%6.pause" echo ,{"name":"YADORE_PAUSE","type":"secret_text"}',
+        'echo ]',
+        'exit /b 0',
+        ':bulk',
+        'if exist "%GW_FAKE_STATE%\fail-bulk-%6.flag" exit /b 1',
+        'findstr "^" > "%GW_FAKE_STATE%\%6.bulk"',
+        'findstr /C:"YADORE_API_KEY" "%GW_FAKE_STATE%\%6.bulk" >nul && type nul > "%GW_FAKE_STATE%\%6.key"',
+        'findstr /C:"YADORE_PAUSE" "%GW_FAKE_STATE%\%6.bulk" >nul && type nul > "%GW_FAKE_STATE%\%6.pause"',
+        'echo Success! Uploaded 1 secret',
+        'exit /b 0',
+        ':del',
+        'if "%5"=="YADORE_API_KEY" del "%GW_FAKE_STATE%\%7.key" 2>nul',
+        'if "%5"=="YADORE_PAUSE" del "%GW_FAKE_STATE%\%7.pause" 2>nul',
+        'echo Success! Deleted secret %5',
+        'exit /b 0'
+    ) -join "`r`n"
+    [System.IO.File]::WriteAllText((Join-Path $ydBin 'npx.cmd'), $ydNpx + "`r`n", [System.Text.Encoding]::ASCII)
+    $ydLog = Join-Path $ydState 'npx.log'
+    $ydKey = 'yd-test-key-0123456789abcdef'
+    $env:GW_FAKE_STATE = $ydState
+    $env:GW_T_YADORE_API_KEY = $ydKey
+    $env:GW_TEST_YADORE_API = '{"ok":true,"markets":["gr","ie","uk"],"lines":["ok"]}'
+    $env:GW_TEST_YADORE_VERSION = ('cd' * 20)
+    $ydOldPath = $env:PATH
+    $env:PATH = $ydBin + ';' + $ydOldPath
+    $ydWorkers = @('construction-gear-uk', 'garden-gear-world', 'home-gear-world', 'kids-gear-world', 'mens-gear-world', 'womens-gear-world', 'car-gear-world', 'biker-gear-world', 'technology-gear-world', 'travel-gear-world', 'sporty-gear-world', 'gaming-gear-world', 'pets-gear-world')
+    function Run-YD([string[]]$a) {
+        $all = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $ydTool, '-PcHome', $ydHome, '-SkipInstall', '-NoClipboard', '-SecretEnvPrefix', 'GW_T_') + $a
+        & $exe @all | Out-Null
+        return $LASTEXITCODE
+    }
+    function YDLast([string]$filter) {
+        $f = @(Get-ChildItem -LiteralPath $ydOut -Filter $filter -ErrorAction SilentlyContinue | Sort-Object LastWriteTime, Name | Select-Object -Last 1)
+        if ($f.Count -eq 0) { return '' }
+        return [System.IO.File]::ReadAllText($f[0].FullName)
+    }
+    function YDLog { if (Test-Path -LiteralPath $ydLog) { return [System.IO.File]::ReadAllText($ydLog) } else { return '' } }
+    function YDCount([string]$ext) { return @(Get-ChildItem -LiteralPath $ydState -Filter ('*.' + $ext) -ErrorAction SilentlyContinue).Count }
+    try {
+        Check ((Run-YD @('-Step', 'keys')) -eq 0 -and (YDCount 'key') -eq 0 -and -not ((YDLog) -match 'secret bulk')) 'yadore keys without -Apply: the plan only, no secret set'
+        $r = YDLast 'YADORE_KEYS_*.txt'
+        Check ($r.Contains('ΕΓΚΡΙΝΩ YADORE ΚΛΕΙΔΙ') -and $r.Contains('-Step off') -and $r.Contains('TGW technology-gear-world') -and $r.Contains('YADORE_API_KEY=όχι') -and -not $r.Contains($ydKey)) 'yadore keys plan: the phrase, the undo, the 13 Workers and what they have; never the key'
+        Check ((Run-YD @('-Step', 'keys', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ YADORE OFF')) -eq 1 -and (YDCount 'key') -eq 0) 'yadore keys with another step''s phrase: nothing changes'
+        Check ((Run-YD @('-Step', 'keys', '-Apply', '-Approve', 'egkrino yadore kleidi')) -eq 1) 'yadore keys: a Latin phrase other than EGKRINO + the Greek words is refused'
+        Check ((Run-YD @('-Step', 'keys', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ YADORE ΚΛΕΙΔΙ')) -eq 0 -and (YDCount 'key') -eq 13) 'yadore keys with the phrase: the secret on the 13 Workers'
+        $log = YDLog
+        Check (-not $log.Contains($ydKey) -and @($ydWorkers | Where-Object { -not $log.Contains('secret bulk --name ' + $_) }).Count -eq 0) 'yadore keys: every Worker through secret bulk, the key never on a command line'
+        $b = [System.IO.File]::ReadAllText((Join-Path $ydState 'pets-gear-world.bulk'))
+        Check ($b.Contains('"YADORE_API_KEY"') -and $b.Contains($ydKey)) 'yadore keys: the key went through wrangler''s input'
+        $r = YDLast 'YADORE_KEYS_*.txt'
+        Check ($r.Contains('ΕΤΟΙΜΟ') -and $r.Contains('ίδια έκδοση') -and $r.Contains('-Step off -Apply') -and -not $r.Contains($ydKey)) 'yadore keys report: ready, the same code version, the undo, never the key'
+        Check ((Run-YD @('-Step', 'pause', '-Stores', 'Alpha.gr, https://www.beta.gr/x', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ YADORE ΠΑΥΣΗ')) -eq 0 -and (YDCount 'pause') -eq 13) 'yadore pause: the secret YADORE_PAUSE on the 13 Workers'
+        Check (([System.IO.File]::ReadAllText((Join-Path $ydState 'home-gear-world.bulk'))).Contains('"YADORE_PAUSE":"alpha.gr,beta.gr"')) 'yadore pause: store names cleaned (lower case, no www, no address)'
+        Check ((Run-YD @('-Step', 'pause', '-Stores', '', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ YADORE ΠΑΥΣΗ')) -eq 0 -and (YDCount 'pause') -eq 0) 'yadore pause with no stores: the pause secret is deleted'
+        Write-Utf8 (Join-Path $ydState 'fail-bulk-mens-gear-world.flag') 'x'
+        Remove-Item -LiteralPath (Join-Path $ydState 'mens-gear-world.key') -Force
+        Check ((Run-YD @('-Step', 'keys', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ YADORE ΚΛΕΙΔΙ')) -eq 7) 'yadore keys: a failing Worker stops the run (exit 7)'
+        Check ((YDLast 'YADORE_KEYS_*.txt').Contains('Έγιναν ήδη: CGW, GGW, HGW, KGW')) 'yadore keys: the report says which Workers were done before the failure'
+        Remove-Item -LiteralPath (Join-Path $ydState 'fail-bulk-mens-gear-world.flag') -Force
+        Check ((Run-YD @('-Step', 'off', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ YADORE OFF')) -eq 0 -and (YDCount 'key') -eq 0) 'yadore off: the key deleted from every Worker that had it'
+        Check ((YDLog).Contains('secret delete YADORE_API_KEY --name pets-gear-world') -and (YDLast 'YADORE_OFF_*.txt').Contains('mens-gear-world: δεν είχε το secret')) 'yadore off: through wrangler secret delete; a Worker without it is left alone'
+        Check ((Run-YD @('-Step', 'keys', '-Sites', 'tgw,pgw', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ YADORE ΚΛΕΙΔΙ')) -eq 0 -and (YDCount 'key') -eq 2) 'yadore keys -Sites: only those sites'
+        Check ((Run-YD @('-Step', 'keys', '-Sites', 'xyz')) -eq 2) 'yadore: unknown site letters refused'
+        $env:GW_T_YADORE_API_KEY = ''
+        Check ((Run-YD @('-Step', 'report')) -eq 1) 'yadore report without a key on this PC: stops (exit 1), asks for -Step plan first'
+        Check ((Run-YD @('-Step', 'keys', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ YADORE ΚΛΕΙΔΙ')) -eq 1) 'yadore keys without a key on this PC: nothing changes'
+    } finally {
+        $env:PATH = $ydOldPath
+        foreach ($n in @('GW_FAKE_STATE', 'GW_T_YADORE_API_KEY', 'GW_TEST_YADORE_API', 'GW_TEST_YADORE_VERSION')) { Remove-Item ('Env:\' + $n) -ErrorAction SilentlyContinue }
+    }
+}
+
 Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue
 
 Write-Host ''

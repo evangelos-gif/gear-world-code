@@ -18,7 +18,7 @@ export default {
   lang: 'en-GB',
   locale: 'en-GB',
   currency: 'GBP',
-  assetVersion: '2026-11-23-wgw-app-1',
+  assetVersion: '2026-12-02-wgw-yadore-1',
   promos: promosFor('WGW'),
   // Buying guides (/guides/, lessons L82): words in guides.js, prices and stock live from the database.
   guides,

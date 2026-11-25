@@ -26,6 +26,7 @@ import { deliveryCountries } from './lib/delivery.js';
 import { remindProbe, REMIND_UNTIL, REMIND_URL, REMIND_PATH } from './lib/remind.js';
 import { noAlerts } from './lib/retailer-terms.js';
 import { COUNTRY_LANGUAGES, MULTI_LANGUAGE_COUNTRIES } from './lib/country-language.js';
+import { yadoreMarket, yadoreBox, yadoreClick, YADORE_MAX_OWN } from './lib/yadore.js';
 
 // Gear World Hub keeps the one list of members; sites reach it only through a service binding (lessons L92).
 // The address is not public: requests from the internet never carry this host name.
@@ -219,6 +220,9 @@ export function createWorker(site) {
     if (m) {
       const cat = categories.get(m[1]);
       if (!cat) return notFound(path, method, shown);
+      // Yadore (lessons L232): the visitor's own country (never the Group's ?for= browsing), a Yadore market of ours, the
+      // key set and the day come. Its page copy is kept apart (one per market), so no other country ever gets the box.
+      const ydMarket = yadoreMarket(site, env, cat, browsing ? '' : requestCountry(request, url), at);
       return cached(request, env, ctx, async () => {
         const p = readListingParams(url);
         // ?sub= only for a subcategory the site config lists for this category (ZGW birds); anything else is ignored.
@@ -233,8 +237,12 @@ export function createWorker(site) {
         ]);
         if (p.page > 1 && p.page > result.pages && !hasFilters(p)) return notFound(path, method, shown);
         marked(view, result.products);
-        return htmlResponse(categoryPage(shown, cat, p, result, facets, subCounts), { method });
-      }, view);
+        // The box of offers from other stores: page 1, no filter, at most YADORE_MAX_OWN own products in this view.
+        const yd = ydMarket && p.page === 1 && !hasFilters(p) && result.total <= YADORE_MAX_OWN
+          ? await yadoreBox(env, ctx, { site, cat, market: ydMarket, own: result.products, at, origin: url.origin })
+          : null;
+        return htmlResponse(categoryPage(shown, cat, p, result, facets, subCounts, yd), { method });
+      }, view, ydMarket ? `yd-${ydMarket}` : '');
     }
 
     m = path.match(/^\/product\/([a-z0-9-]*)-(\d+)\/$/);
@@ -344,6 +352,9 @@ export function createWorker(site) {
     m = path.match(/^\/go\/([a-z0-9-]{1,60})\/?$/);
     if (m) return promoOut(request, env, ctx, url, m[1], view, shown);
 
+    // A click in the box of offers from other stores (Yadore, lessons L232): the signed link of that box.
+    m = path.match(/^\/out\/y\/([A-Za-z0-9_.-]{40,3100})\/?$/);
+    if (m) return yadoreOut(request, env, url, m[1], at);
     m = path.match(/^\/out\/(\d+)\/?$/);
     if (m) return outbound(request, env, ctx, url, Number(m[1]), view);
 
@@ -409,8 +420,15 @@ export function createWorker(site) {
   }
 
   // One cached copy per page AND country group (lessons L107), so a visitor never gets another country's page.
-  function cached(request, env, ctx, produce, view) {
+  // extra: a part of the page that only some countries of the group get (the Yadore box of one market, L232).
+  function cached(request, env, ctx, produce, view, extra = '') {
+    if (extra) return withEdgeCache(request, ctx, produce, env, withExtra(cacheKeyUrl(request.url, view), extra));
     return withEdgeCache(request, ctx, produce, env, cacheKeyUrl(request.url, view));
+  }
+  function withExtra(keyUrl, extra) {
+    const key = new URL(keyUrl);
+    key.searchParams.set('gw-extra', extra);
+    return key.toString();
   }
 
   function notFound(path, method, pageSite = site) {
@@ -456,6 +474,29 @@ export function createWorker(site) {
       if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(write); else await write;
     }
     return redirect(target.toString(), 302, { 'X-Robots-Tag': 'noindex, nofollow' });
+  }
+
+  // /out/y/<token>: a click in the Yadore box (lessons L232). To the store through Yadore only for a person in that
+  // market's country on the real domain, with a fresh link of a store still on the list and clicks of the day left;
+  // anything else goes back to the category page, with nothing recorded. The click is recorded before the redirect, so
+  // the count of the day is right for the next one.
+  async function yadoreOut(request, env, url, token, at) {
+    const r = await yadoreClick({
+      env, site, token, at, categories,
+      country: String((request.cf && request.cf.country) || ''),
+      bot: request.method !== 'GET' || isBot(request),
+      preview: isPreviewHost(url.hostname, site.domain) || env.CLICK_LOG === 'off'
+    });
+    if (!r.log) return redirect(new URL(r.to, url.origin).toString(), 302, { 'X-Robots-Tag': 'noindex, nofollow' });
+    let pagePath = '';
+    try {
+      const ref = new URL(request.headers.get('referer') || '');
+      if (ref.hostname === url.hostname) pagePath = ref.pathname.slice(0, 300);
+    } catch { /* no referer */ }
+    try {
+      await db.logClick(env.DB, { ...r.log, page_path: pagePath, country_code: String((request.cf && request.cf.country) || '').slice(0, 2).toUpperCase() });
+    } catch (err) { console.error('yadore click log failed', err); }
+    return redirect(r.to, 302, { 'X-Robots-Tag': 'noindex, nofollow' });
   }
 
   // /go/<promo id>: a discount code or sale goes to the retailer as an Awin deep link with our clickref.
