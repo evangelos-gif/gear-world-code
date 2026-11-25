@@ -49,10 +49,16 @@ export const catalogStores = async (db, now) => (await catalogState(db, now)).st
 // A catalogue to show: loaded (not in the middle of a load), with products, its feed of the last 72 hours (maxAge).
 export const catalogFresh = (entry, now, maxAge = CATALOG_MAX_AGE_MS) => Boolean(entry && !entry.loading && entry.products > 0 && now - entry.t <= maxAge && entry.t - now <= 600000);
 
+// The photo of each category (L231) is in the column `image`; a database made before it has no such column, so the
+// same query is asked again without it (the cards then show no photo), never a failed page.
+const noImageColumn = e => /no such column/i.test(String((e && e.message) || e));
+async function withImage(run) {
+  try { return await run(', image'); } catch (e) { if (noImageColumn(e)) return run(''); throw e; }
+}
 // The top categories of one store, biggest first; null when the database does not answer.
 export async function catalogTop(db, program) {
   try {
-    const r = await withTimeout(db.prepare('SELECT id, name, slug, products FROM categories WHERE program = ? AND parent = 0 ORDER BY products DESC, name LIMIT 300').bind(program).all());
+    const r = await withImage(cols => withTimeout(db.prepare(`SELECT id, name, slug, products${cols} FROM categories WHERE program = ? AND parent = 0 ORDER BY products DESC, name LIMIT 300`).bind(program).all()));
     return (r && r.results) || [];
   } catch { return null; }
 }
@@ -71,7 +77,7 @@ export async function catalogCategory(db, program, id, after = 0) {
     trail.unshift(p);
     up = Number(p.parent);
   }
-  const children = await all('SELECT id, name, slug, products FROM categories WHERE program = ? AND parent = ? ORDER BY products DESC, name LIMIT 300', program, id);
+  const children = await withImage(cols => all(`SELECT id, name, slug, products${cols} FROM categories WHERE program = ? AND parent = ? ORDER BY products DESC, name LIMIT 300`, program, id));
   const col = ['c1', 'c2', 'c3'][Math.min(3, Math.max(1, Number(cat.level))) - 1];
   const list = await all(`SELECT pid, pos, name, brand, page, image, price FROM products WHERE program = ? AND ${col} = ? AND pos > ? ORDER BY pos LIMIT ?`, program, id, after, PAGE_SIZE + 1);
   const next = list.length > PAGE_SIZE ? Number(list[PAGE_SIZE - 1].pos) : 0;

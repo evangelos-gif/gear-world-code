@@ -28,8 +28,9 @@ export function fakeD1(sql = [], { failOn = null } = {}) {
 
 const COLS = ['product_name', 'merchant_deep_link', 'merchant_image_url', 'search_price', 'currency', 'in_stock', 'merchant_product_id', 'brand_name', 'merchant_category'];
 export const feedCsv = rows => [COLS, ...rows.map(r => COLS.map(c => r[c] ?? ''))].map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n') + '\n';
-// The SQL of a fake catalogue: { <programme>: rows }, feeds read `ago` ms before `now`.
-export async function catalogSql(feeds, now, ago = 3600000) {
+// The SQL of a fake catalogue: { <programme>: rows }, feeds read `ago` ms before `now`. full/stateDir as the PC tool
+// gets them (L231: without full, every store in full); states: the <programme>.state files the run wrote.
+export async function catalogSql(feeds, now, ago = 3600000, { full = null, stateDir = '' } = {}) {
   const dir = mkdtempSync(join(tmpdir(), 'gw-ogw-cat-'));
   const out = join(dir, 'sql');
   try {
@@ -38,9 +39,12 @@ export async function catalogSql(feeds, now, ago = 3600000) {
       writeFileSync(f, gzipSync(feedCsv(rows)));
       utimesSync(f, (now - ago) / 1000, (now - ago) / 1000);
     }
-    const { lines } = await buildCatalog({ archive: dir, out, programs: Object.keys(feeds).map(Number), config: 'sites/ogw/site.config.js', now });
+    const { lines } = await buildCatalog({ archive: dir, out, programs: Object.keys(feeds).map(Number), config: 'sites/ogw/site.config.js', now, full, stateDir });
     const files = lines.filter(l => / OK /.test(l)).length ? readdirSorted(out) : [];
-    return { lines, sql: files.map(f => readFileSync(join(out, f), 'utf8')) };
+    const states = {};
+    for (const f of lines.filter(l => / OK /.test(l)).length ? readdirSync(out).filter(x => x.endsWith('.state')) : []) states[f.replace(/\.state$/, '')] = readFileSync(join(out, f), 'utf8');
+    const left = lines.filter(l => / OK /.test(l)).length ? readdirSync(out).filter(x => x.startsWith('tmp-')) : [];
+    return { lines, sql: files.map(f => readFileSync(join(out, f), 'utf8')), states, left };
   } finally { rmSync(dir, { recursive: true, force: true }); }
 }
 import { readdirSync } from 'node:fs';

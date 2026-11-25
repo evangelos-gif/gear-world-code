@@ -65,8 +65,8 @@ test('L228: the PC tool: the store\'s own pages and photos, in stock, in euros, 
     { product_name: 'Elsewhere', merchant_deep_link: 'https://evil.example/p', merchant_image_url: 'https://assets.kotsovolos.gr/e.jpg', search_price: '5', currency: 'EUR', in_stock: '1', merchant_product_id: 'e' }
   ];
   const { lines, sql } = await catalogSql({ 138: rows, 469: [] }, NOW);
-  assert.match(lines[0], /^CATALOG kotsovolos-gr 138 OK 8 \d+ 5 2026-11-24T18:00:00.000Z 1$/);
-  assert.equal(lines[1], 'CATALOG public-gr 469 NONE 0 0 0 2026-11-24T18:00:00.000Z 0');
+  assert.match(lines[0], /^CATALOG kotsovolos-gr 138 OK 8 \d+ 5 2026-11-24T18:00:00.000Z 1 full 8 -1$/);
+  assert.equal(lines[1], 'CATALOG public-gr 469 NONE 0 0 0 2026-11-24T18:00:00.000Z 0 full 0 -1');
   const db = fakeD1(sql).sqlite;
   const pids = db.prepare('SELECT pid FROM products ORDER BY pid').all().map(r => r.pid);
   assert.deepEqual(pids, ['100001', '100002', '100003', '273143', '900001', 'h', 'q', 's1'], 'one product per page, only when its rows agree on the price');
@@ -126,7 +126,7 @@ test('L228: the store page of /gr/ lists the store\'s own categories, the sets f
   const env = await catalogEnv();
   const { r, text } = await get('/gr/stores/kotsovolos-gr/', env);
   assert.equal(r.status, 200);
-  assert.ok(text.includes('<ul class="cat-list"><li><a href="#sets-h">Σετ</a></li>'), 'the sets are the first category');
+  assert.ok(/<ul class="cat-grid"><li><a class="cat-tile" href="#sets-h"><img src="https:\/\/assets\.kotsovolos\.gr\/[^"]+"[^>]*><span class="cat-text"><span class="cat-name">Σετ<\/span><\/span><\/a><\/li>/.test(text), 'the sets are the first category card, with the photo of a product of the first set (L231)');
   const v = visible(text);
   assert.ok(v.includes('Κατηγορίες του καταστήματος Κωτσόβολος'));
   assert.ok(v.includes('Μικροσυσκευές') && v.includes('Εικόνα &amp; Ήχος') && v.includes('61 προϊόντα'), 'the store\'s own names and counts');
@@ -134,10 +134,10 @@ test('L228: the store page of /gr/ lists the store\'s own categories, the sets f
   // Without the code, without the database, from the UK address: no catalogue.
   for (const [path, e] of [['/gr/stores/kotsovolos-gr/', { CATALOG: env.CATALOG }], ['/gr/stores/kotsovolos-gr/', { LINKWISE_CODE: CODE }]]) {
     const x = await get(path, e);
-    assert.ok(!x.text.includes('cat-list'), `${path}: no catalogue`);
+    assert.ok(!x.text.includes('cat-grid'), `${path}: no catalogue`);
   }
   const uk = await get('/stores/kotsovolos-gr/', env);
-  assert.ok(!uk.text.includes('cat-list'), 'the UK address: no catalogue');
+  assert.ok(!uk.text.includes('cat-grid'), 'the UK address: no catalogue');
 });
 
 test('L228: a category: its products with the store\'s price and time, our Linkwise link to its page, the next page, nothing compared', async () => {
@@ -159,7 +159,7 @@ test('L228: a category: its products with the store\'s price and time, our Linkw
   assert.ok(v.includes('Οι τιμές προέρχονται από το product feed του καταστήματος Κωτσόβολος στη Linkwise'), 'the note of the prices');
   assert.ok(!/σύγκρι|φθηνότερ|έκπτωσ|προσφορ|\d+\s*%/i.test(v), 'no comparison, discount or % words');
   assert.ok(!/amazon|gearworld\.com\/(out|go)\//i.test(text), 'no Amazon and no Gear World /out/ link');
-  assert.ok(text.includes('class="cat-list"') && v.includes('Καφές'), 'the categories below it');
+  assert.ok(text.includes('class="cat-grid"') && v.includes('Καφές'), 'the categories below it');
   // The next page: the rest, then no next link; a page after the first is noindex.
   const next = hrefs(text).find(h => h.includes('?after='));
   assert.ok(next, 'a next page');
@@ -181,13 +181,13 @@ test('L228: an old feed: no prices after 24 hours, no catalogue after 72; a busy
   assert.ok(!/€/.test(visible(text)) && !text.includes('sc-price'), 'without prices');
   assert.ok(!visible(text).includes('Οι τιμές προέρχονται'));
   const old = await catalogEnv({ ago: CATALOG_MAX_AGE_MS + 3600000 });
-  assert.ok(!(await get('/gr/stores/kotsovolos-gr/', old)).text.includes('cat-list'), 'no catalogue after 72 hours');
+  assert.ok(!(await get('/gr/stores/kotsovolos-gr/', old)).text.includes('cat-grid'), 'no catalogue after 72 hours');
   assert.equal((await get(link, old)).r.status, 404);
   // The database busy with an import: the store page keeps its sets, a category says to try again (503).
   const busy = await catalogEnv({ failOn: /FROM (categories|products)/ });
   const b1 = await get('/gr/stores/kotsovolos-gr/', busy);
   assert.equal(b1.r.status, 200);
-  assert.ok(!b1.text.includes('cat-list') && b1.text.includes('sets-h'));
+  assert.ok(!b1.text.includes('cat-grid') && b1.text.includes('sets-h'));
   const b2 = await get(link, busy);
   assert.equal(b2.r.status, 503);
   assert.equal(b2.r.headers.get('Retry-After'), '300');
@@ -206,11 +206,11 @@ test('L228: an old feed: no prices after 24 hours, no catalogue after 72; a busy
   assert.equal((await get(link, down)).r.status, 503);
   const d1 = await get('/gr/stores/kotsovolos-gr/', down);
   assert.equal(d1.r.status, 200);
-  assert.ok(!d1.text.includes('cat-list'));
+  assert.ok(!d1.text.includes('cat-grid'));
   const loading = await catalogEnv();
   loading.CATALOG.sqlite.prepare('UPDATE stores SET loading = 1').run();
   assert.equal((await get(link, loading)).r.status, 503);
-  assert.ok(!(await get('/gr/stores/kotsovolos-gr/', loading)).text.includes('cat-list'));
+  assert.ok(!(await get('/gr/stores/kotsovolos-gr/', loading)).text.includes('cat-grid'));
 });
 
 test('L228: the prices of the sets come from the catalogue when its feed is newer than the deploy\'s', async () => {

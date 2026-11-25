@@ -231,6 +231,18 @@ p { margin: 0 0 1em; }
 .cat-list li { padding: 10px 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
 .cat-list a { font-weight: 600; }
 .cat-n { display: block; font-size: .8rem; color: var(--text-2); }
+/* L231: the categories of a store as photo cards, like the other Gear World sites (the photo is one of its products) */
+.cat-grid { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (min-width: 720px) { .cat-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; } }
+@media (min-width: 1100px) { .cat-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.cat-tile { display: flex; flex-direction: column; height: 100%; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; color: var(--text); text-decoration: none; transition: border-color .15s ease, transform .15s ease; }
+.cat-tile img, .cat-tile .cat-noimg { display: block; width: 100%; height: auto; aspect-ratio: 3 / 2; object-fit: contain; background: #fff; padding: 10px; box-sizing: border-box; }
+.cat-tile .cat-noimg { background: linear-gradient(135deg, #13243f, #0a1222); padding: 0; }
+.cat-text { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px 12px; min-width: 0; }
+.cat-name { font-weight: 700; line-height: 1.2; color: var(--gold); overflow-wrap: anywhere; }
+.cat-count { color: var(--text-2); font-size: .85rem; }
+.cat-tile:hover { border-color: var(--gold); }
+@media (prefers-reduced-motion: no-preference) { .cat-tile:hover { transform: translateY(-2px); } }
 .cat-items { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 @media (min-width: 760px) { .cat-items { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 .cat-item { display: flex; flex-direction: column; gap: 6px; padding: 10px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; }

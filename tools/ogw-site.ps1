@@ -54,18 +54,25 @@
   update, 9 the deploy failed, 11 Cloudflare did not say whether the live Worker exists, 12 wrong test Worker name,
   13 this version lacks the live one (L156), 14 no catalogue database yet (L228), 23 -AfterPreview without a clean preview report of this version.
   -Archive <folder>     where chat 3's Linkwise feeds are (default <home>\Downloads\GW_AWIN_BULK_ARCHIVE), L227.
-  The catalogue of the big Linkwise stores (owner, 24 Nov 2026, lessons L228): all the products of Kotsovolos (138),
-  Public (469), Sephora (13026) and e-shop.gr (11754) in their own categories, in Mega Stores' OWN D1 database
-  "mega-stores-gear-world-catalog" (never a database of the 13 sites, the Hub or the app).
+  The catalogue of the big Linkwise stores (owner, 24 Nov 2026, lessons L228, L231): all the products of Kotsovolos
+  (138), Public (469), Sephora (13026), e-shop.gr (11754) and AB Vasilopoulos (12158, its categories from the address of
+  each product) in their own categories, each category with a photo of one of its products, in Mega Stores' OWN D1
+  database "mega-stores-gear-world-catalog" (never a database of the 13 sites, the Hub or the app).
   -Step catalog-db      CHANGES CLOUDFLARE (a new database, about $1-2 a month), one approval: ΕΓΚΡΙΝΩ OGW ΒΑΣΗ.
                         Makes the database if it is missing and its tables (sites/ogw/catalog-schema.sql, IF NOT
-                        EXISTS: nothing already there changes). Nothing to do when everything is there.
+                        EXISTS: nothing already there changes), and the photo column of the categories when a database
+                        made before it lacks it (L231). Nothing to do when everything is there.
   -Step catalog         CHANGES THE CATALOGUE DATABASE ONLY, one approval: ΕΓΚΡΙΝΩ OGW ΚΑΤΑΛΟΓΟΣ. -Program <ids>
-                        (default 138,469,13026,11754): reads (only reads) each store's Linkwise feed (of the last 23
-                        hours) with tools/ogw-catalog.mjs, takes a Time Travel restore point, then loads the store
-                        again in full (its old rows go, every product in stock comes in, its categories, the time of
-                        the feed). The database is busy for a few minutes: the category pages say "is being updated".
-                        The site is not deployed again: it reads the database at once. Exit 14: no database yet.
+                        (default 138,469,13026,11754,12158): reads (only reads) each store's Linkwise feed (of the
+                        last 23 hours) with tools/ogw-catalog.mjs, takes a Time Travel restore point, then (L231) a
+                        store already in the catalogue is only REFRESHED: the products that are new or changed since
+                        its last good load (<WorkDir>\catalog-state\<programme>.tsv), the ones gone from the feed out,
+                        its categories and the time of the feed; it stays on the site the whole time. A new store, one
+                        whose last load stopped half-way, or -Reload: loaded in FULL (its old rows go, every product
+                        comes in; meanwhile its category pages say "is being updated"). D1 bills every row written:
+                        a refresh writes only the changes. The photo column of the categories is added first when
+                        it is missing. The site is not deployed again: it reads the database at once. Exit 14: no
+                        database yet; 12: a file failed (the same step again finishes it).
   Preview and live give the Worker the database (binding CATALOG) when it exists; without it the store pages keep
   only their sets and ideas.
   Report: <home>\gear-world-reports\OGW_SITE_<STEP>_<time>.txt (also copied to the clipboard)
@@ -84,7 +91,7 @@ param(
     [switch]$AmazonOff,
     [string]$SecretFile = '',
     [string]$Archive = '',
-    [string]$Program = '138,469,13026,11754',
+    [string]$Program = '138,469,13026,11754,12158',
     [switch]$Reload,
     [string]$Chat = '1 · Gear World Manager' # the chat that gave the command, named in the clipboard line (L116, L208)
 )
@@ -105,9 +112,12 @@ $PhraseRemovePreview = 'ΕΓΚΡΙΝΩ OGW REMOVE PREVIEW'
 $PhraseDb = 'ΕΓΚΡΙΝΩ OGW ΒΑΣΗ'
 $PhraseCatalog = 'ΕΓΚΡΙΝΩ OGW ΚΑΤΑΛΟΓΟΣ'
 $CatalogDb = 'mega-stores-gear-world-catalog'   # L228: the catalogue's own D1 database
-$CatalogPrograms = @('138', '469', '13026', '11754')   # Kotsovolos, Public, Sephora, e-shop.gr (AB has no feed)
+$CatalogPrograms = @('138', '469', '13026', '11754', '12158')   # Kotsovolos, Public, Sephora, e-shop.gr, AB Vasilopoulos (L231)
 $Ok = 'Green'; $Warn = 'Yellow'; $Bad = 'Magenta'
 if (-not $WorkDir) { $WorkDir = Join-Path $HOME 'mega-stores-gear-world' }
+# L231: the id and hash of every product as the last good load of each store sent it (<programme>.tsv): the refresh
+# sends only what changed. Without it (deleted, or a load that stopped) the next run checks every product.
+$StateDir = Join-Path $WorkDir 'catalog-state'
 if (-not $OutDir) { $OutDir = Join-Path $HOME 'gear-world-reports' }
 if (-not $SecretFile) { $SecretFile = Join-Path (Join-Path $HOME 'gear-world-secrets') 'linkwise-code.dat' }
 if (-not $Archive) { $Archive = Join-Path (Join-Path $HOME 'Downloads') 'GW_AWIN_BULK_ARCHIVE' }
@@ -677,6 +687,33 @@ function Find-CatalogDb([string]$folder) {
     }
     return @{ ok = $true; found = $false; id = ''; text = '' }
 }
+# L231: does the table of the categories have its photo column? $true / $false, $null when the database does not answer.
+function Test-CategoryImage([string]$folder) {
+    $qc = Invoke-Wrangler $folder ('d1 execute {0} --remote --json --command "SELECT sql FROM sqlite_master WHERE name = ''categories''"' -f $CatalogDb) -NonInteractive -Retry
+    $cs = Get-JsonArray $qc.text
+    if ($null -eq $cs) { return $null }
+    foreach ($block in @($cs)) { foreach ($row in @($block.results)) { if ($row -and ([string]$row.sql) -match '\bimage\b') { return $true } } }
+    return $false
+}
+# L231: the photo column, added to a database made before it (ALTER TABLE: no row changes, nothing else).
+function Add-CategoryImage([string]$folder) {
+    $a = Invoke-Wrangler $folder ('d1 execute {0} --remote --command "ALTER TABLE categories ADD COLUMN image TEXT NOT NULL DEFAULT ''''"' -f $CatalogDb) -NonInteractive -Retry
+    if ($a.code -ne 0 -and $a.text -notmatch '(?i)duplicate column') {
+        Say 'Η νέα στήλη των φωτογραφιών δεν μπήκε: ΠΡΟΒΛΗΜΑ. Δεν φόρτωσα τίποτα. Έξοδος:' $Bad
+        foreach ($l2 in @($a.text -split "`n" | Select-Object -Last 15)) { Say ('  ' + $l2) }
+        return $false
+    }
+    Say 'Μπήκε η στήλη «image» στις κατηγορίες (για τις φωτογραφίες τους).' $Ok
+    return $true
+}
+# L231: the rows D1 wrote for one file, from wrangler's own line ("... rows read, N rows written"); -1 when it does not say.
+function Get-RowsWritten([string]$text) {
+    $m = [regex]::Matches($text, '(?i)(\d[\d,]*)\s+rows written')
+    if ($m.Count -eq 0) { return [long]-1 }
+    $sum = [long]0
+    foreach ($x in $m) { $sum += [long]($x.Groups[1].Value -replace ',', '') }
+    return $sum
+}
 # Before a deploy: the catalogue's database for the Worker ('' = none yet); no answer from Cloudflare stops (exit 11),
 # so a deploy never drops a catalogue that is live.
 function Get-CatalogId([string]$folder) {
@@ -770,10 +807,18 @@ if ($Step -eq 'catalog-db') {
         $rows = Get-JsonArray $q.text
         if ($rows -and $rows[0].results) { $have = [int]@($rows[0].results)[0].n }
     }
+    # L231: a database made before the photos of the categories gets their column (nothing else changes).
+    $needImage = $false
+    if ($f.found -and $have -eq 3) {
+        $hasImage = Test-CategoryImage $ogw
+        if ($null -eq $hasImage) { Say 'Η βάση του καταλόγου δεν απάντησε (μπορεί να φορτώνει): δεν άλλαξε τίποτα. Ξανατρέξε σε λίγα λεπτά.' $Bad; Finish 11 }
+        $needImage = -not $hasImage
+    }
     Say ''
     Say 'Τι θα γίνει:'
-    if ($f.found -and $have -eq 3) { Say ('  - Η βάση "{0}" υπάρχει ήδη με τους πίνακές της: δεν χρειάζεται τίποτα.' -f $CatalogDb) $Ok; Finish 0 }
-    if ($f.found) { Say ('  - Η βάση "{0}" υπάρχει: φτιάχνονται οι πίνακες που λείπουν (κανένα δεδομένο δεν αλλάζει).' -f $CatalogDb) }
+    if ($f.found -and $have -eq 3 -and -not $needImage) { Say ('  - Η βάση "{0}" υπάρχει ήδη με τους πίνακές της: δεν χρειάζεται τίποτα.' -f $CatalogDb) $Ok; Finish 0 }
+    if ($needImage) { Say ('  - Η βάση "{0}" υπάρχει: μπαίνει μόνο η νέα στήλη «image» στον πίνακα των κατηγοριών, για τις φωτογραφίες τους (κανένα δεδομένο δεν αλλάζει).' -f $CatalogDb) }
+    elseif ($f.found) { Say ('  - Η βάση "{0}" υπάρχει: φτιάχνονται οι πίνακες που λείπουν (κανένα δεδομένο δεν αλλάζει).' -f $CatalogDb) }
     else {
         Say ('  - Νέα βάση D1 "{0}" στην Cloudflare, μόνο για τον κατάλογο του Mega Stores (ποτέ για τα 13 sites, το Hub ή την εφαρμογή).' -f $CatalogDb)
         Say '  - Κόστος: στο Workers Paid περιλαμβάνονται 5 GB και 50 εκατ. εγγραφές τον μήνα (μετά $0,75/GB και $1 ανά εκατ.). Ο κατάλογος (~1 GB) πιθανότατα δεν κοστίζει αποθήκευση· η πρώτη φόρτωση των 4 είναι ~4,3 εκατ. εγγραφές. Κάθε ΠΛΗΡΗΣ επαναφόρτωση ενός καταστήματος γράφει ~8 φορές τα προϊόντα του, γι'' αυτό γίνεται μόνο με -Reload.'
@@ -781,6 +826,11 @@ if ($Step -eq 'catalog-db') {
     Say ('  - Το {0}, τα Gear World sites, το Hub και οι βάσεις τους ΔΕΝ αλλάζουν.' -f $Domain)
     if (-not $Apply) { Say ''; Say 'Δοκιμή μόνο (χωρίς -Apply): δεν άλλαξε τίποτα.' $Ok; Finish 0 }
     if (-not (Confirm-Approval $PhraseDb)) { Say 'Δεν δόθηκε η έγκριση για τη βάση: σταμάτησα χωρίς αλλαγές.' $Warn; Finish 1 }
+    if ($needImage) {
+        if (-not (Add-CategoryImage $ogw)) { Finish 9 }
+        Say ('ΕΤΟΙΜΟ: η βάση "{0}" έχει τη στήλη των φωτογραφιών.' -f $CatalogDb) $Ok
+        Finish 0
+    }
     if (-not $f.found) {
         $c = Invoke-Wrangler $ogw ('d1 create {0}' -f $CatalogDb) -NonInteractive -Retry
         if ($c.code -ne 0) { Say 'Η δημιουργία της βάσης απέτυχε: ΠΡΟΒΛΗΜΑ. Έξοδος:' $Bad; Say $c.text; Finish 9 }
@@ -793,13 +843,33 @@ if ($Step -eq 'catalog-db') {
     Finish 0
 }
 
-# ---------------- catalog: the stores' products into it (L228) ----------------
+# ---------------- catalog: the stores' products into it (L228, L231) ----------------
 if ($Step -eq 'catalog') {
     $progs = @($Program -split '[,\s]+' | Where-Object { $_ })
     foreach ($pg in $progs) { if ($CatalogPrograms -notcontains $pg) { Say ('Λάθος πρόγραμμα για τον κατάλογο: {0} (μόνο {1}).' -f $pg, ($CatalogPrograms -join ', ')) $Bad; Finish 2 } }
     $f = Find-CatalogDb $ogw
     if (-not $f.ok) { Say 'Η Cloudflare δεν απάντησε για τις βάσεις D1. Δεν άλλαξε τίποτα. Ξανατρέξε σε λίγα λεπτά.' $Bad; Finish 11 }
     if (-not $f.found) { Say ('Η βάση "{0}" δεν υπάρχει ακόμα: πρώτα το βήμα catalog-db. Δεν άλλαξε τίποτα.' -f $CatalogDb) $Bad; Finish 14 }
+    # What the database has now, before the feeds are read (L231): a store with products whose last load ended well is
+    # only refreshed (what changed); a new one, one that stopped half-way (loading = 1) or -Reload is loaded in full.
+    $q0 = Invoke-Wrangler $ogw ('d1 execute {0} --remote --json --command "SELECT program, products, loading FROM stores"' -f $CatalogDb) -NonInteractive -Retry
+    $have = Get-JsonArray $q0.text
+    if ($null -eq $have) { Say 'Η βάση του καταλόγου δεν απάντησε (μπορεί να φορτώνει ήδη): δεν άλλαξε τίποτα. Ξανατρέξε σε λίγα λεπτά.' $Bad; Finish 11 }
+    $loaded = @{}
+    $was = @{}
+    foreach ($block in @($have)) {
+        foreach ($row in @($block.results)) {
+            if (-not $row) { continue }
+            $was[[string]$row.program] = [int]$row.products
+            if ([int]$row.products -gt 0 -and [int]$row.loading -eq 0) { $loaded[[string]$row.program] = [int]$row.products }
+        }
+    }
+    $hasImage = Test-CategoryImage $ogw
+    if ($null -eq $hasImage) { Say 'Η βάση του καταλόγου δεν απάντησε (μπορεί να φορτώνει ήδη): δεν άλλαξε τίποτα. Ξανατρέξε σε λίγα λεπτά.' $Bad; Finish 11 }
+    $full = @($progs | Where-Object { $Reload -or -not $loaded.ContainsKey($_) })
+    $fullArg = '0'
+    if ($full.Count -gt 0) { $fullArg = $full -join ',' }
+    if (-not (Test-Path -LiteralPath $StateDir)) { New-Item -ItemType Directory -Path $StateDir -Force | Out-Null }
     $out = Join-Path $WorkDir ('catalog-' + $stamp)
     Say ''
     Say ('Διαβάζω τα feeds της Linkwise ({0}) και γράφω τα αρχεία SQL (μόνο ανάγνωση των feeds, λίγα λεπτά για τα μεγάλα)...' -f ($progs -join ', '))
@@ -808,34 +878,41 @@ if ($Step -eq 'catalog') {
     $old = $ErrorActionPreference
     try {
         $ErrorActionPreference = 'Continue'
-        $lines = @(& node $tool --archive $Archive --out $out --program ($progs -join ',') 2>$null)
+        $lines = @(& node $tool --archive $Archive --out $out --program ($progs -join ',') --full $fullArg --state $StateDir 2>$null)
     } catch { $lines = @('CATALOG-ERROR node') }
     finally { $ErrorActionPreference = $old }
-    # The stores already in the database: a full load again writes ~8 rows a product (D1 bills them), only with -Reload.
-    # A store whose last load stopped half-way (loading = 1) is loaded again without -Reload.
-    $q0 = Invoke-Wrangler $ogw ('d1 execute {0} --remote --json --command "SELECT program, products, loading FROM stores"' -f $CatalogDb) -NonInteractive -Retry
-    $have = Get-JsonArray $q0.text
-    if ($null -eq $have) { Say 'Η βάση του καταλόγου δεν απάντησε (μπορεί να φορτώνει ήδη): δεν άλλαξε τίποτα. Ξανατρέξε σε λίγα λεπτά.' $Bad; Remove-Item -LiteralPath $out -Recurse -Force -ErrorAction SilentlyContinue; Finish 11 }
-    $loaded = @{}
-    foreach ($block in @($have)) {
-        foreach ($row in @($block.results)) { if ($row -and [int]$row.products -gt 0 -and [int]$row.loading -eq 0) { $loaded[[string]$row.program] = [int]$row.products } }
-    }
     $ready = @()
+    $names = @{}
+    $anyFull = $false
+    $anyRefresh = $false
     Say ''
     Say 'Τι θα γίνει:'
     foreach ($line in $lines) {
         $p = ([string]$line).Trim().Split(' ')
-        if ($p[0] -ne 'CATALOG' -or $p.Count -lt 9) { continue }
+        if ($p[0] -ne 'CATALOG' -or $p.Count -lt 12) { continue }
+        $names[$p[2]] = $p[1]
         $when = $p[7]
         if ($p[7] -ne '-') { try { $when = ([datetime]::Parse($p[7], [System.Globalization.CultureInfo]::InvariantCulture, [System.Globalization.DateTimeStyles]::RoundtripKind)).ToLocalTime().ToString('dd/MM HH:mm') } catch { $when = $p[7] } }
-        if ($p[3] -eq 'OK' -and $loaded.ContainsKey($p[2]) -and -not $Reload) {
-            Say ('  - {0}: ΠΡΟΣΟΧΗ - έχει ήδη {1} προϊόντα στη βάση: δεν ξαναφορτώνεται (μια πλήρης επαναφόρτωση γράφει ~{2} εκατ. εγγραφές D1· μόνο με -Reload).' -f $p[1], $loaded[$p[2]], [math]::Round(([int]$p[4] + $loaded[$p[2]]) * 4 / 1000000, 1)) $Warn
-        }
-        elseif ($p[3] -eq 'OK') {
+        if ($p[3] -eq 'OK') {
             $ready += $p[2]
-            $was = 0
-            if ($loaded.ContainsKey($p[2])) { $was = $loaded[$p[2]] }
-            Say ('  - {0}: μπαίνουν {1} προϊόντα σε {2} κατηγορίες, από το feed της Linkwise της {3} (ώρα υπολογιστή)· {4} έμειναν έξω (εξαντλημένα, χωρίς φωτογραφία ή σίγουρη τιμή) · {5} αρχεία SQL · ~{6} εκατ. εγγραφές D1' -f $p[1], $p[4], $p[5], $when, $p[6], $p[8], [math]::Round(([int]$p[4] + $was) * 4 / 1000000, 1))
+            $prev = 0
+            if ($was.ContainsKey($p[2])) { $prev = $was[$p[2]] }
+            $feed = ('από το feed της Linkwise της {0} (ώρα υπολογιστή)· {1} έμειναν έξω (εξαντλημένα, χωρίς φωτογραφία ή σίγουρη τιμή) · {2} αρχεία SQL' -f $when, $p[6], $p[8])
+            if ($p[9] -eq 'full') {
+                $anyFull = $true
+                $why = 'νέο κατάστημα στον κατάλογο'
+                if ($Reload -and $loaded.ContainsKey($p[2])) { $why = 'με -Reload' }
+                elseif ($prev -gt 0) { $why = 'η προηγούμενη φόρτωσή του σταμάτησε στη μέση' }
+                Say ('  - {0}: ΠΛΗΡΗΣ φόρτωση ({1}): μπαίνουν {2} προϊόντα σε {3} κατηγορίες, {4} · ~{5} εκατ. εγγραφές D1' -f $p[1], $why, $p[4], $p[5], $feed, [math]::Round(([int]$p[4] + $prev) * 4 / 1000000, 1))
+            }
+            elseif ($p[9] -eq 'refresh') {
+                $anyRefresh = $true
+                Say ('  - {0}: ανανέωση μόνο με ό,τι άλλαξε: {1} προϊόντα στο feed, αλλάζουν ή μπαίνουν {2}, φεύγουν {3}, σε {4} κατηγορίες, {5} · ~{6} εκατ. εγγραφές D1' -f $p[1], $p[4], $p[10], $p[11], $p[5], $feed, [math]::Round(([int]$p[10] + [int]$p[11]) * 4 / 1000000 + 0.005, 2))
+            }
+            else {
+                $anyRefresh = $true
+                Say ('  - {0}: ανανέωση: {1} προϊόντα στο feed· ελέγχονται όλα, γιατί δεν υπάρχει αρχείο από την προηγούμενη φόρτωση (πρώτη ανανέωση ή η προηγούμενη δεν τελείωσε)· γράφονται μόνο όσα άλλαξαν, το πολύ ~{2} εκατ. εγγραφές D1 · {3} κατηγορίες, {4}' -f $p[1], $p[4], [math]::Round(([int]$p[4]) * 4 / 1000000, 1), $p[5], $feed)
+            }
         }
         elseif ($p[3] -eq 'OLD') { Say ('  - {0}: ΠΡΟΣΟΧΗ - το feed είναι της {1}, παλιότερο από 23 ώρες: δεν φορτώνεται (κατέβασε νέα feeds).' -f $p[1], $when) $Warn }
         elseif ($p[3] -eq 'MISSING') { Say ('  - {0}: ΠΡΟΣΟΧΗ - δεν βρήκα το feed LINKWISE_{1}.csv.gz στο {2}: δεν φορτώνεται.' -f $p[1], $p[2], $Archive) $Warn }
@@ -843,8 +920,10 @@ if ($Step -eq 'catalog') {
         else { Say ('  - {0}: ΠΡΟΣΟΧΗ - το feed δεν διαβάστηκε: δεν φορτώνεται.' -f $p[1]) $Warn }
     }
     if ($ready.Count -eq 0) { Say ''; Say 'Τίποτα για φόρτωση: δεν άλλαξε τίποτα.' $Warn; if (Test-Path -LiteralPath $out) { Remove-Item -LiteralPath $out -Recurse -Force -ErrorAction SilentlyContinue }; Finish 0 }
+    if (-not $hasImage) { Say '  - Πρώτα: νέα στήλη «image» στον πίνακα των κατηγοριών, για τις φωτογραφίες τους (L231· κανένα δεδομένο δεν αλλάζει).' }
     Say ('  - Αλλάζει ΜΟΝΟ η βάση "{0}" του Mega Stores· το site δεν ξανανεβαίνει (τη διαβάζει αμέσως).' -f $CatalogDb)
-    Say '  - Όσο φορτώνει (λίγα λεπτά ανά κατάστημα), οι σελίδες των κατηγοριών λένε «ενημερώνεται» και οι σελίδες των καταστημάτων μένουν με τα σετ και τις ιδέες.'
+    if ($anyRefresh) { Say '  - Τα καταστήματα που ανανεώνονται μένουν στο site όλη την ώρα· η νέα ώρα ελέγχου των τιμών φαίνεται μόλις τελειώσει το καθένα.' }
+    if ($anyFull) { Say '  - Όσο φορτώνει από την αρχή ένα κατάστημα (λίγα λεπτά), οι σελίδες των κατηγοριών του λένε «ενημερώνεται» και η σελίδα του μένει με τα σετ και τις ιδέες.' }
     Say '  - Πριν από όλα: σημείο επαναφοράς της βάσης (Cloudflare Time Travel).'
     if (-not $Apply) { Say ''; Say 'Δοκιμή μόνο (χωρίς -Apply): δεν άλλαξε τίποτα.' $Ok; Remove-Item -LiteralPath $out -Recurse -Force -ErrorAction SilentlyContinue; Finish 0 }
     if (-not (Confirm-Approval $PhraseCatalog)) { Say 'Δεν δόθηκε η έγκριση για τον κατάλογο: σταμάτησα χωρίς αλλαγές.' $Warn; Remove-Item -LiteralPath $out -Recurse -Force -ErrorAction SilentlyContinue; Finish 1 }
@@ -854,33 +933,51 @@ if ($Step -eq 'catalog') {
     $restoreCmd = 'npx wrangler d1 time-travel restore {0} --bookmark={1}' -f $CatalogDb, $bm.Value
     $bdir = Join-Path $WorkDir 'backups'
     if (-not (Test-Path -LiteralPath $bdir)) { New-Item -ItemType Directory -Path $bdir -Force | Out-Null }
-    $note = @(('Mega Stores catalogue restore point before import, {0}' -f (Get-Date -Format 'yyyy-MM-dd HH:mm')), ('bookmark: {0}' -f $bm.Value), 'To go back (only with approval), in PowerShell:', ('  cd "{0}"' -f $ogw), ('  {0}' -f $restoreCmd)) -join "`r`n"
+    $note = @(('Mega Stores catalogue restore point before import, {0}' -f (Get-Date -Format 'yyyy-MM-dd HH:mm')), ('bookmark: {0}' -f $bm.Value), 'To go back (only with approval), in PowerShell:', ('  cd "{0}"' -f $ogw), ('  {0}' -f $restoreCmd), ('After a restore, delete the folder {0} (the next run then checks every product).' -f $StateDir)) -join "`r`n"
     $backup = Join-Path $bdir ('ogw-catalog-restore-point-' + $stamp + '.txt')
     [System.IO.File]::WriteAllText($backup, $note, (New-Object System.Text.UTF8Encoding($false)))
     Say ('Σημείο επαναφοράς: {0}' -f $backup) $Ok
-    # Only the files of the stores above (review 24/11/2026: never a file of a store that was not OK or is skipped).
-    $files = @(Get-ChildItem -LiteralPath $out -Filter '*.sql' -File | Where-Object { $ready -contains ($_.Name -split '-')[0] } | Sort-Object Name)
+    if (-not $hasImage) {
+        if (-not (Add-CategoryImage $ogw)) { Remove-Item -LiteralPath $out -Recurse -Force -ErrorAction SilentlyContinue; Finish 12 }
+    }
+    # Store by store (L231): its last good state file goes before its first file and the new one comes after its last,
+    # so a store that stops half-way is checked product by product next time. Only the files of the stores above
+    # (review 24/11/2026: never a file of a store that was not OK).
+    $written = [long]0
+    $known = $true
     $n = 0
-    foreach ($file in $files) {
-        $x = Invoke-Wrangler $ogw ('d1 execute {0} --remote --file "{1}"' -f $CatalogDb, $file.FullName) -NonInteractive -Retry
-        if ($x.code -ne 0) {
-            Say ('Λάθος στο {0}: ΠΡΟΒΛΗΜΑ. Σταμάτησα· τα προηγούμενα αρχεία φορτώθηκαν.' -f $file.Name) $Bad
-            foreach ($l2 in @($x.text -split "`n" | Select-Object -Last 15)) { Say ('  ' + $l2) }
-            Say ('Επαναφορά (μόνο με έγκριση): {0}' -f $restoreCmd)
-            Say 'Το κατάστημα που φόρτωνε δείχνει «ενημερώνεται» μέχρι να ξανατρέξει το βήμα catalog (ξαναφορτώνεται χωρίς -Reload).'
-            Remove-Item -LiteralPath $out -Recurse -Force -ErrorAction SilentlyContinue
-            Finish 12
+    $all = @(Get-ChildItem -LiteralPath $out -Filter '*.sql' -File).Count
+    foreach ($pg in $ready) {
+        $files = @(Get-ChildItem -LiteralPath $out -Filter ('{0}-*.sql' -f $pg) -File | Sort-Object Name)
+        $stateNow = Join-Path $StateDir ('{0}.tsv' -f $pg)
+        if (Test-Path -LiteralPath $stateNow) { Remove-Item -LiteralPath $stateNow -Force }
+        foreach ($file in $files) {
+            $x = Invoke-Wrangler $ogw ('d1 execute {0} --remote --file "{1}"' -f $CatalogDb, $file.FullName) -NonInteractive -Retry
+            if ($x.code -ne 0) {
+                Say ('Λάθος στο {0}: ΠΡΟΒΛΗΜΑ. Σταμάτησα· τα προηγούμενα αρχεία φορτώθηκαν.' -f $file.Name) $Bad
+                foreach ($l2 in @($x.text -split "`n" | Select-Object -Last 15)) { Say ('  ' + $l2) }
+                Say ('Επαναφορά (μόνο με έγκριση): {0}' -f $restoreCmd)
+                Say ('Το {0} ξαναγίνεται σωστά με το ίδιο βήμα catalog (χωρίς -Reload): όσα ήδη πέρασαν δεν γράφονται ξανά.' -f $names[$pg])
+                Remove-Item -LiteralPath $out -Recurse -Force -ErrorAction SilentlyContinue
+                Finish 12
+            }
+            $w = Get-RowsWritten $x.text
+            if ($w -lt 0) { $known = $false } else { $written += $w }
+            $n++
+            Write-Host ('  {0} ({1}/{2}) OK' -f $file.Name, $n, $all)
         }
-        $n++
-        Write-Host ('  {0} ({1}/{2}) OK' -f $file.Name, $n, $files.Count)
+        $newState = Join-Path $out ('{0}.state' -f $pg)
+        if (Test-Path -LiteralPath $newState) { Move-Item -LiteralPath $newState -Destination $stateNow -Force }
+        Say ('  {0}: ΟΚ' -f $names[$pg]) $Ok
     }
     Say ('Φορτώθηκαν {0} αρχεία SQL.' -f $n) $Ok
+    if ($known) { Say ('Εγγραφές D1 αυτής της εκτέλεσης (όπως τις μέτρησε η Cloudflare): {0}' -f $written.ToString('N0', [System.Globalization.CultureInfo]::GetCultureInfo('el-GR'))) }
     Remove-Item -LiteralPath $out -Recurse -Force -ErrorAction SilentlyContinue
     $q = Invoke-Wrangler $ogw ('d1 execute {0} --remote --json --command "SELECT slug, products, checked_at FROM stores ORDER BY slug"' -f $CatalogDb) -NonInteractive -Retry
     $rows = Get-JsonArray $q.text
     foreach ($block in @($rows)) { foreach ($r in @($block.results)) { if ($r) { Say ('  {0}: {1} προϊόντα, feed {2}' -f $r.slug, $r.products, $r.checked_at) } } }
     Say ''
-    Say 'ΕΤΟΙΜΟ: ο κατάλογος φορτώθηκε στη βάση του Mega Stores.' $Ok
+    Say 'ΕΤΟΙΜΟ: ο κατάλογος ενημερώθηκε στη βάση του Mega Stores.' $Ok
     Say ('Αν χρειαστεί επαναφορά (μόνο με έγκριση): {0}' -f $restoreCmd)
     Finish 0
 }

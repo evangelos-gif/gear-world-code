@@ -1427,12 +1427,22 @@ function directIdea(c, store, idea, broken) {
 // on the store's site through our Linkwise link. Only on the pages of /gr/.
 const catalogHref = (c, store, cat) => c.href(`/stores/${store.slug}/c/${cat.id}-${cat.slug}/`);
 const catalogCount = (c, n) => c.t('{0} products', new Intl.NumberFormat(c.lang).format(Number(n) || 0));
-function catalogSection(c, store, top, hasSets) {
+// One card of a category (L231), like the category cards of the other Gear World sites: the photo of one of its own
+// products (from the store's own image server, left out when it did not open at the last check, L211), its name and
+// how many products it has. A card without a photo keeps its place.
+const tilePhoto = (image, broken) => (image && /^https:\/\/[^/\s"'<>]+\//.test(String(image)) && !broken.has(image) ? String(image) : '');
+function catalogTile(c, store, cat, broken) {
+  const img = tilePhoto(cat.image, broken);
+  return html`<li><a class="cat-tile" href="${catalogHref(c, store, cat)}">${img ? html`<img src="${img}" alt="" width="300" height="200" loading="lazy" decoding="async" referrerpolicy="no-referrer">` : html`<span class="cat-noimg" aria-hidden="true"></span>`}<span class="cat-text"><span class="cat-name" translate="no">${cat.name}</span><span class="cat-count">${catalogCount(c, cat.products)}</span></span></a></li>`;
+}
+// setsImage: the photo of the first product of our first set ('' without one), null when the page has no sets.
+function catalogSection(c, store, top, setsImage = null, broken = new Set()) {
   if (!top || !top.length) return '';
+  const si = setsImage === null ? '' : tilePhoto(setsImage, broken);
   return html`<section class="wrap section" aria-labelledby="cats-h">
   <h2 id="cats-h">${c.t('Categories of {0}', keep(store.name))}</h2>
   <p class="section-lede">${c.t('All the products of {0}, in its own categories. Each one opens its page on {0}, which shows the price, the stock and the delivery.', keep(store.name))}</p>
-  <ul class="cat-list">${hasSets ? html`<li><a href="#sets-h">${c.t('Sets')}</a></li>` : ''}${top.map(cat => html`<li><a href="${catalogHref(c, store, cat)}"><span translate="no">${cat.name}</span></a> <span class="cat-n">${catalogCount(c, cat.products)}</span></li>`)}</ul>
+  <ul class="cat-grid">${setsImage !== null ? html`<li><a class="cat-tile" href="#sets-h">${si ? html`<img src="${si}" alt="" width="300" height="200" loading="lazy" decoding="async" referrerpolicy="no-referrer">` : html`<span class="cat-noimg" aria-hidden="true"></span>`}<span class="cat-text"><span class="cat-name">${c.t('Sets')}</span></span></a></li>` : ''}${top.map(cat => catalogTile(c, store, cat, broken))}</ul>
 </section>`;
 }
 function catalogProduct(c, store, p, shownAt, broken) {
@@ -1468,7 +1478,7 @@ export function catalogPage(c, store, data, entry, broken = new Set(), after = 0
 </div></section>
 <section class="wrap section">${directDisclosure(c, store, items.length && shownAt ? shownAt : 0)}</section>
 ${data.children.length ? html`<section class="wrap section" aria-label="${tx('Categories of {0}', store.name)}">
-  <ul class="cat-list">${data.children.map(k => html`<li><a href="${catalogHref(c, store, k)}"><span translate="no">${k.name}</span></a> <span class="cat-n">${catalogCount(c, k.products)}</span></li>`)}</ul>
+  <ul class="cat-grid">${data.children.map(k => catalogTile(c, store, k, broken))}</ul>
 </section>` : ''}
 <section class="wrap section">
   <ul class="cat-items">${items}</ul>
@@ -1501,7 +1511,8 @@ function directDisclosure(c, store, shownAt = 0) {
 </div>`;
 }
 // broken: the photos that did not open (directPhotos): their products are left out, and a set needs 2 products (L221).
-export function directStorePage(c, store, broken = new Set(), top = null) {
+// catBroken: the photos of the category cards that did not open (L231).
+export function directStorePage(c, store, broken = new Set(), top = null, catBroken = new Set()) {
   const { site, t, tx } = c;
   const d = store.direct || {};
   // Each set and idea keeps the times of its own prices: only those that stay on the page count for the note (a set of
@@ -1524,7 +1535,7 @@ export function directStorePage(c, store, broken = new Set(), top = null) {
   <p class="lede">${t(store.line)} ${t('Each idea opens its page on {0}, which shows the price, the stock and the delivery.', keep(store.name))}</p>
 </div></section>
 <section class="wrap section">${directDisclosure(c, store, shownAt)}</section>
-${catalogSection(c, store, top, sets.length > 0)}
+${catalogSection(c, store, top, sets.length ? ((sets[0].set.items || []).map(p => p && p.image).find(i => i && !broken.has(i)) || '') : null, catBroken)}
 ${sets.length ? html`<section class="wrap section showcase" aria-labelledby="sets-h">
   <h2 id="sets-h">${t('Sets from {0}', keep(store.name))}</h2>
   <p class="section-lede">${t('Products of {0} that go together, chosen by us. Each one opens its page on {0}, which shows the price and the stock.', keep(store.name))}</p>
@@ -2011,7 +2022,8 @@ export function createGuidesWorker(site, deps = {}) {
           }
           // The photos of the page (L211), checked after it is sent, and not for crawlers (48 checks a page).
           let broken = new Set();
-          if (!crawler) { try { broken = await catalogPhotos(site, cStore, data.products.map(p => p.image), runtime(), ctx); } catch { broken = new Set(); } }
+          // The photos of its category cards too (L231), in the same check.
+          if (!crawler) { try { broken = await catalogPhotos(site, cStore, [...data.products.map(p => p.image), ...data.children.map(k => k.image).filter(Boolean)], runtime(), ctx); } catch { broken = new Set(); } }
           return page(catalogPage(edCtx(`/stores/${cStore.slug}/c/${data.cat.id}-${data.cat.slug}/`), cStore, data, entry, broken, after), 200, edLang);
         }
         const em = rest.match(/^\/stores\/([a-z0-9-]+)\/?$/);
@@ -2025,7 +2037,10 @@ export function createGuidesWorker(site, deps = {}) {
             // Its catalogue (L228): the top categories, when the database answers and its feed is of the last 72 hours.
             let top = null;
             if (catalogFresh(catStores.get(String(edStore.direct.program)), nowMs())) top = await catalogTop(env.CATALOG, edStore.direct.program);
-            return page(directStorePage(edCtx(`/stores/${edStore.slug}/`), edStore, broken, top), 200, edLang);
+            // The photos of the category cards (L231, L211): checked after the page is sent, never for crawlers.
+            let catBroken = new Set();
+            if (top && top.length && !crawler) { try { catBroken = await catalogPhotos(site, edStore, top.map(t => t.image).filter(Boolean), runtime(), ctx); } catch { catBroken = new Set(); } }
+            return page(directStorePage(edCtx(`/stores/${edStore.slug}/`), edStore, broken, top, catBroken), 200, edLang);
           }
           // The store's list first, then its showcase: never both at once on the same site's database (L221).
           const rt = runtime();

@@ -26,7 +26,7 @@ export default {
   operatorName: 'Evangelos Kalogerakis, United Kingdom',
   // An address that receives mail (the Hub's; megastoresgearworld.com has no email).
   contactEmail: 'contact@gearworldhub.com',
-  assetVersion: '2026-11-24-ogw-13',
+  assetVersion: '2026-11-25-ogw-14',
   // The name of the stores part on every page, never translated (owner, 21 Nov 2026, lessons L208).
   storesLabel: 'Mega Stores',
   // The 12 languages of the 13 Gear World sites, the same codes and the same order as their menu (lessons L162, L195).
@@ -99,6 +99,8 @@ export default {
     // in stock), or for AB, which has no product feed, one of its own categories (no photo). The Linkwise link needs
     // our affiliate code, which is never in this repository: it is the Worker secret LINKWISE_CODE (tools/ogw-site.ps1
     // puts it from the PC); without it these five stores are not shown anywhere. Greece only.
+    // AB's product feed came on 24 Nov 2026 (chat 3): since L231 its catalogue (categories from the address of each
+    // product, tools/ogw-catalog-paths.mjs) is on its page like the other four; its ideas below stay as they are.
     { slug: 'kotsovolos-gr', network: 'linkwise', name: 'Κωτσόβολος', deliversTo: ['GR'], line: 'Electrical appliances, phones, computers and games.', logo: 'logos/kotsovolos-gr.png', logoSize: [120, 60],
       direct: {
         program: 138, hosts: ['www.kotsovolos.gr'],
