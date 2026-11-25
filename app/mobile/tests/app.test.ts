@@ -12,7 +12,7 @@ import {
 } from '../src/lib/api.ts';
 import {
   clientHeaders, setClientVersion, isShown, parseAppConfig, setHiddenRetailers, setDeliveryCountry, deliveryCountry, DELIVERY_COUNTRIES,
-  COUNTRY_NAMES, MEGA_STORES_URL
+  COUNTRY_NAMES, MEGA_STORES_URL, megaStoresUrl
 } from '../src/lib/client.ts';
 import { daysBetween, isFresh, setAlert, checkAlerts, keepSaved, parseAlerts, MAX_ALERTS } from '../src/lib/alerts.ts';
 import { RELEASE_KEYS, RELEASE_STRINGS } from '../src/i18n/release-strings.ts';
@@ -674,10 +674,20 @@ test('Mega Stores and Amazon: Mega Stores opens in the phone browser, and no Ama
   const read = (f: string) => readFileSync(new URL(f, import.meta.url), 'utf8');
   for (const f of ['../src/app/(tabs)/settings.tsx', '../src/components/footer.tsx']) {
     const src = read(f);
-    assert.match(src, /openInBrowser\(MEGA_STORES_URL\)/, `${f}: Mega Stores opens in the phone's browser`);
-    assert.ok(!/openSheet\(MEGA_STORES_URL\)/.test(src), `${f}: never in a sheet inside the app`);
+    assert.match(src, /openInBrowser\(megaStoresUrl\(country, phoneRegion\(\)\)\)/, `${f}: Mega Stores opens in the phone's browser`);
+    assert.ok(!/openSheet\((MEGA_STORES_URL|megaStoresUrl)/.test(src), `${f}: never in a sheet inside the app`);
   }
   assert.equal(MEGA_STORES_URL, 'https://megastoresgearworld.com/');
+  // The page of the delivery country (Manager 25/11/2026); on "Automatic" the phone's country; else the main page.
+  assert.equal(megaStoresUrl('DE'), 'https://megastoresgearworld.com/de/');
+  assert.equal(megaStoresUrl('US', 'GB'), 'https://megastoresgearworld.com/us/');
+  assert.equal(megaStoresUrl('PL'), 'https://megastoresgearworld.com/pl/');
+  assert.equal(megaStoresUrl('GB', 'DE'), MEGA_STORES_URL, 'a chosen country without a page opens the main page');
+  assert.equal(megaStoresUrl('GR'), MEGA_STORES_URL);
+  assert.equal(megaStoresUrl('CY'), MEGA_STORES_URL);
+  assert.equal(megaStoresUrl('', 'de'), 'https://megastoresgearworld.com/de/', 'Automatic: the phone\'s country');
+  assert.equal(megaStoresUrl('', ''), MEGA_STORES_URL);
+  assert.equal(megaStoresUrl('', null), MEGA_STORES_URL);
   const app = JSON.parse(read('../app.json')).expo;
   assert.equal(JSON.stringify(app).includes('megastoresgearworld'), false, 'no App Links / Universal Links for Mega Stores');
   // No Amazon address anywhere in the app's code or settings.

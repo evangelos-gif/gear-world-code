@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getLocales } from 'expo-localization';
 import Constants from 'expo-constants';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 
@@ -69,4 +70,9 @@ export function useSettings(): Settings {
   const v = useContext(Ctx);
   if (!v) throw new Error('useSettings outside SettingsProvider');
   return v;
+}
+
+/** The country set on the phone (its region, e.g. "DE"), or '' when the phone does not say. */
+export function phoneRegion(): string {
+  try { return getLocales()[0]?.regionCode ?? ''; } catch { return ''; }
 }
