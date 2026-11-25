@@ -7,9 +7,9 @@ import { Txt } from '@/components/ui';
 import { useI18n } from '@/i18n';
 import { LOCALES } from '@/i18n/core';
 import { HUB_URL, LEGAL } from '@/lib/api';
-import { COUNTRY_NAMES, DELIVERY_COUNTRIES, MEGA_STORES_URL } from '@/lib/client';
+import { COUNTRY_NAMES, DELIVERY_COUNTRIES, megaStoresUrl } from '@/lib/client';
 import { openEmail, openInBrowser, openSheet } from '@/lib/open';
-import { useSettings } from '@/lib/settings-context';
+import { phoneRegion, useSettings } from '@/lib/settings-context';
 import { C, MAX_WIDTH, R, S } from '@/theme';
 
 function Row({ label, icon, onPress, selected }: { label: string; icon?: 'chevron-forward' | 'open-outline' | 'mail-outline'; onPress: () => void; selected?: boolean }) {
@@ -63,7 +63,7 @@ export default function Settings() {
             <Txt v="small">{t('runBy', { name: LEGAL.operator })}</Txt>
             <Row label="gearworldhub.com" icon="open-outline" onPress={() => openInBrowser(`${HUB_URL}/`)} />
             {/* Mega Stores opens in the phone's browser, never inside the app (owner's decision «Α», 25/11/2026). */}
-            <Row label="Mega Stores · megastoresgearworld.com" icon="open-outline" onPress={() => openInBrowser(MEGA_STORES_URL)} />
+            <Row label="Mega Stores · megastoresgearworld.com" icon="open-outline" onPress={() => openInBrowser(megaStoresUrl(country, phoneRegion()))} />
             <Txt v="small">{t('version', { version })}</Txt>
           </View>
         </View>

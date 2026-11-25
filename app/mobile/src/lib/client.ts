@@ -4,6 +4,18 @@
 /** Mega Stores opens in the phone's own browser, never inside the app (owner's decision «Α», 25/11/2026). */
 export const MEGA_STORES_URL = 'https://megastoresgearworld.com/';
 
+/**
+ * Mega Stores has a page per country (Manager 25/11/2026: /de/ /at/ /nl/ /be/ /us/ /pl/). Of the app's countries,
+ * Germany, the United States and Poland have one (checked 25/11/2026); the others open the main page.
+ */
+const MEGA_STORES_PAGES: Record<string, string> = { DE: 'de/', US: 'us/', PL: 'pl/' };
+
+/** The chosen delivery country decides; on "Automatic", the country set on the phone. Always opens in the browser. */
+export function megaStoresUrl(country: string, phoneRegion?: string | null): string {
+  const code = (country || phoneRegion || '').trim().toUpperCase();
+  return MEGA_STORES_URL + (MEGA_STORES_PAGES[code] ?? '');
+}
+
 /** The countries the app is published in (Google Play and App Store, 23/11/2026). */
 export const DELIVERY_COUNTRIES = ['GB', 'GR', 'CY', 'PL', 'US', 'DE'] as const;
 export type Country = (typeof DELIVERY_COUNTRIES)[number];

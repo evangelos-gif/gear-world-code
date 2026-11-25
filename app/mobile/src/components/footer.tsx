@@ -2,7 +2,8 @@ import { router } from 'expo-router';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { LEGAL } from '@/lib/api';
-import { MEGA_STORES_URL } from '@/lib/client';
+import { megaStoresUrl } from '@/lib/client';
+import { phoneRegion, useSettings } from '@/lib/settings-context';
 import { openInBrowser, openSheet } from '@/lib/open';
 import { useI18n } from '@/i18n';
 import { C, S } from '@/theme';
@@ -29,11 +30,12 @@ export function LegalLinks() {
 
 export function Footer() {
   const { t } = useI18n();
+  const { country } = useSettings();
   return (
     <View style={s.footer}>
       <LegalLinks />
       {/* Mega Stores opens in the phone's browser, never inside the app (owner's decision «Α», 25/11/2026). */}
-      <Pressable accessibilityRole="link" accessibilityHint={t('opensBrowser')} onPress={() => openInBrowser(MEGA_STORES_URL)} style={s.link}>
+      <Pressable accessibilityRole="link" accessibilityHint={t('opensBrowser')} onPress={() => openInBrowser(megaStoresUrl(country, phoneRegion()))} style={s.link}>
         <Txt v="small" style={s.linkText}>Mega Stores · megastoresgearworld.com</Txt>
       </Pressable>
       <Pressable accessibilityRole="link" onPress={() => router.navigate('/settings')} style={s.link}>
