@@ -132,6 +132,17 @@ const deliveryOf = entry => {
 export function productCountry(store) {
   return deliveryOf(store).filter(c => c !== 'WORLD')[0] || VIEW_BASE;
 }
+// A store listed for several countries (owner, 25 Nov 2026: Mega Stores in Germany, Austria, the Netherlands, Belgium,
+// the US and Poland, lessons L232), as a page for one of them shows it: its products are read for that country (the
+// sites' ?deliver_to=) and kept apart from the other countries' (storeCacheKey). Only for the country of an edition
+// (EDITIONS): Cyprus keeps the Greek stores' products read for Greece, as before. A country it is not listed for, or one
+// it reaches only through WORLD, leaves the store as it is (its first country).
+export function storeIn(store, country) {
+  const cc = String(country || '').toUpperCase();
+  const to = deliveryOf(store);
+  if (!store || store.amazon || !to.includes(cc) || productCountry(store) === cc || !EDITIONS.some(e => e.country === cc)) return store;
+  return { ...store, deliversTo: [cc, ...to.filter(c => c !== cc)] };
+}
 export function deliversHere(entry, country = VIEW_BASE) {
   if (country === ANY_COUNTRY) return true;
   const to = deliveryOf(entry);
@@ -152,7 +163,24 @@ export function viewMode(site, mode, country = VIEW_BASE) {
 // page for Greece: its own address, in Greek, the Greek stores, for every visitor and for Google too, with hreflang
 // el-GR next to the UK page's en-GB (Google's way for one site in several countries: a folder per country). Only the
 // home page and the store pages have an edition address; the guides and the legal pages stay where they are.
-export const EDITIONS = [{ prefix: '/gr', country: 'GR', lang: 'el-GR' }];
+// Owner, 25 Nov 2026 (lessons L232): «να έχουν το δικό τους megastore και οι καινούριες και η Πολωνία» - Germany,
+// Austria, the Netherlands, Belgium, the US and Poland have their own edition too, each in the language of the country
+// (src/lib/country-language.js; Belgium in Dutch, its first language, the US in English). `lang` is the dictionary of
+// its pages, `hreflang` what Google is told (one per edition: Austria is de-AT next to Germany's de-DE). A new edition
+// (`minStores`) is open only with at least that many stores listed for its country (owner, 25 Nov 2026: «ανοίγει με
+// τουλάχιστον 3 καταστήματα»); with fewer its addresses go to the international page and it is on no sitemap or
+// hreflang. Greece has no minimum: its addresses stay as L214 and L215 made them, whatever is hidden. Ireland is not one
+// yet (chat 7, 25 Nov 2026: two big stores for now).
+export const MIN_EDITION_STORES = 3;
+export const EDITIONS = [
+  { prefix: '/gr', country: 'GR', lang: 'el-GR', hreflang: 'el-GR' },
+  { prefix: '/de', country: 'DE', lang: 'de-DE', hreflang: 'de-DE', minStores: MIN_EDITION_STORES },
+  { prefix: '/at', country: 'AT', lang: 'de-DE', hreflang: 'de-AT', minStores: MIN_EDITION_STORES },
+  { prefix: '/nl', country: 'NL', lang: 'nl-NL', hreflang: 'nl-NL', minStores: MIN_EDITION_STORES },
+  { prefix: '/be', country: 'BE', lang: 'nl-NL', hreflang: 'nl-BE', minStores: MIN_EDITION_STORES },
+  { prefix: '/us', country: 'US', lang: 'en-GB', hreflang: 'en-US', minStores: MIN_EDITION_STORES },
+  { prefix: '/pl', country: 'PL', lang: 'pl-PL', hreflang: 'pl-PL', minStores: MIN_EDITION_STORES }
+];
 export function editionFor(pathname) {
   return EDITIONS.find(e => pathname === e.prefix || String(pathname || '').startsWith(`${e.prefix}/`)) || null;
 }
@@ -164,6 +192,13 @@ export function editionStores(site, edition, lw = '') {
     : !s.amazon && Array.isArray(s.sites) && s.sites.length && deliversHere(s, edition.country) && storeListed(site, s)));
 }
 // The country's own name in the page's language ("Ελλάδα"), from the browser's and the Worker's Intl.
+// Is the edition open (L232): Greece always; a new edition with at least its minStores stores listed for its country.
+export function editionOpen(site, edition, lw = '') {
+  return Boolean(edition) && (!edition.minStores || editionStores(site, edition, lw).length >= edition.minStores);
+}
+export function openEditions(site, lw = '') {
+  return EDITIONS.filter(e => editionOpen(site, e, lw));
+}
 export function regionName(lang, cc) {
   try { return new Intl.DisplayNames([lang], { type: 'region' }).of(cc) || cc; } catch { return cc; }
 }
@@ -399,13 +434,13 @@ function shell(c, { title, description, path, body, robots = '' }) {
   // The home page in each edition, so Google shows the Greek one in Greece (L214); x-default is the UK page.
   const alternates = path === '/' && !robots
     ? html`<link rel="alternate" hreflang="${BASE_LANG}" href="https://${site.domain}/">
-${EDITIONS.map(e => html`<link rel="alternate" hreflang="${e.lang}" href="https://${site.domain}${e.prefix}/">
+${openEditions(site, c.lw).map(e => html`<link rel="alternate" hreflang="${e.hreflang || e.lang}" href="https://${site.domain}${e.prefix}/">
 `)}<link rel="alternate" hreflang="x-default" href="https://${site.domain}/">
 ` : '';
   const year = new Date().getUTCFullYear();
   const hubName = (site.hub && site.hub.name) || 'Gear World Hub';
   return toString(html`<!doctype html>
-<html lang="${c.lang}">
+<html lang="${c.edition && c.lang === c.edition.lang ? (c.edition.hreflang || c.lang) : c.lang}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -799,7 +834,9 @@ export function shownStores(site, mode, country = VIEW_BASE, lw = '') {
 }
 
 export function storeCacheKey(site, store) {
-  return `https://${site.domain}/__cache/stores/${store.slug}?v=${encodeURIComponent(site.assetVersion)}`;
+  // The country its products are read for (L232), except the UK's, whose keys stay as they were.
+  const cc = productCountry(store);
+  return `https://${site.domain}/__cache/stores/${store.slug}?v=${encodeURIComponent(site.assetVersion)}${cc === VIEW_BASE ? '' : `&cc=${cc}`}`;
 }
 
 const SITE_HOST = w => new URL(w.url).hostname;
@@ -1898,7 +1935,7 @@ export function pagePaths(site, mode = 'off', lw = '') {
   // ones) would show Google its "not listed for your country" page.
   const stores = (site.stores || []).filter(s => (s.amazon ? mode === 'on' : Array.isArray(s.sites) && s.sites.length && deliversHere(s, VIEW_BASE) && storeListed(site, s))).map(s => `/stores/${s.slug}/`);
   // Each edition's home page and store pages (L214).
-  const editions = EDITIONS.flatMap(e => [`${e.prefix}/`, ...editionStores(site, e, lw).map(s => `${e.prefix}/stores/${s.slug}/`)]);
+  const editions = openEditions(site, lw).flatMap(e => [`${e.prefix}/`, ...editionStores(site, e, lw).map(s => `${e.prefix}/stores/${s.slug}/`)]);
   return ['/', ...stores, ...editions, ...site.guides.map(g => `/guides/${g.slug}/`), `/guides/${site.checks.slug}/`, ...Object.keys(LEGAL)];
 }
 
@@ -1924,7 +1961,7 @@ export function createGuidesWorker(site, deps = {}) {
     const list = awinStores(site).filter(s => deliversHere(s, country));
     // One photo limit for the whole page; the home page never waits for the photo check (L211).
     const rt = { ...runtime(), photoLater: true };
-    const r = await Promise.allSettled(list.map(s => storeProducts(site, s, rt, ctx)));
+    const r = await Promise.allSettled(list.map(s => storeProducts(site, storeIn(s, country), rt, ctx)));
     // The direct stores (L226) after them and with their own photo limit, so their checks never take the places of
     // the other stores' photos (second review 24/11/2026: those would come back late and be read again sooner).
     const direct = directStores(site, country, lw);
@@ -1984,6 +2021,12 @@ export function createGuidesWorker(site, deps = {}) {
       // A country edition (L214): /gr/ and /gr/stores/<store>/, in the edition's language for everyone (Google too) unless
       // the visitor picked another (?lang=), and always for the edition's country.
       const ed = editionFor(url.pathname);
+      // An edition with fewer than MIN_EDITION_STORES stores (L232) is not open: its addresses go to the same page of the
+      // international site (302: it opens by itself once it has its stores).
+      if (ed && !editionOpen(site, ed, lw)) {
+        url.pathname = url.pathname.slice(ed.prefix.length) || '/';
+        return redirect(url.toString(), 302);
+      }
       if (ed) {
         if (url.pathname === ed.prefix) { url.pathname = `${ed.prefix}/`; return redirect(url.toString(), 301); }
         // Google's crawlers without "bot" in their name (Google-InspectionTool, GoogleOther) read the edition's language too.
@@ -2042,12 +2085,14 @@ export function createGuidesWorker(site, deps = {}) {
             if (top && top.length && !crawler) { try { catBroken = await catalogPhotos(site, edStore, top.map(t => t.image).filter(Boolean), runtime(), ctx); } catch { catBroken = new Set(); } }
             return page(directStorePage(edCtx(`/stores/${edStore.slug}/`), edStore, broken, top, catBroken), 200, edLang);
           }
-          // The store's list first, then its showcase: never both at once on the same site's database (L221).
+          // The store's list first, then its showcase: never both at once on the same site's database (L221). Its
+          // products for the edition's country (L232).
           const rt = runtime();
+          const inEd = storeIn(edStore, ed.country);
           let products = [];
-          try { products = (await storeProducts(site, edStore, rt, ctx)).products; } catch { products = []; }
+          try { products = (await storeProducts(site, inEd, rt, ctx)).products; } catch { products = []; }
           let showcase = null;
-          try { showcase = await storeShowcase(site, edStore, rt, ctx); } catch { showcase = null; }
+          try { showcase = await storeShowcase(site, inEd, rt, ctx); } catch { showcase = null; }
           return page(storePage(edCtx(`/stores/${edStore.slug}/`), edStore, products, nowMs(), showcase), 200, edLang);
         }
         return page(notFoundPage(edCtx(url.pathname), url.pathname), 404, edLang);
@@ -2082,12 +2127,14 @@ export function createGuidesWorker(site, deps = {}) {
           return page(directStorePage(rc, store, broken));
         }
         if (shown) {
-          // The store's list first, then its showcase: never both at once on the same site's database (L221).
+          // The store's list first, then its showcase: never both at once on the same site's database (L221). Its
+          // products for the visitor's country (L232).
           const rt = runtime();
+          const inHere = storeIn(store, country);
           let products = [];
-          try { products = (await storeProducts(site, store, rt, ctx)).products; } catch { products = []; }
+          try { products = (await storeProducts(site, inHere, rt, ctx)).products; } catch { products = []; }
           let showcase = null;
-          try { showcase = await storeShowcase(site, store, rt, ctx); } catch { showcase = null; }
+          try { showcase = await storeShowcase(site, inHere, rt, ctx); } catch { showcase = null; }
           return page(storePage(ctxFor(`/stores/${store.slug}/`), store, products, nowMs(), showcase));
         }
         // The Amazon page with Amazon links off: 404 without the word Amazon (not even in the canonical address).

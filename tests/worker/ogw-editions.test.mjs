@@ -44,8 +44,9 @@ const GR = EDITIONS.find(e => e.country === 'GR');
 const GR_STORES = awinStores(site).filter(s => deliversHere(s, 'GR'));
 const UK_ONLY = awinStores(site).filter(s => deliversHere(s, 'GB') && !deliversHere(s, 'GR'));
 
-test('L214: one edition, Greece at /gr/ in Greek; its stores are the ones listed for Greece', () => {
-  assert.deepEqual(EDITIONS.map(e => [e.prefix, e.country, e.lang]), [['/gr', 'GR', 'el-GR']]);
+test('L214: Greece at /gr/ in Greek, the first edition (the others since L232); its stores are the ones listed for Greece', () => {
+  assert.deepEqual(EDITIONS.map(e => [e.prefix, e.country, e.lang]).slice(0, 1), [['/gr', 'GR', 'el-GR']]);
+  assert.equal(GR.minStores, undefined, 'Greece has no minimum number of stores (L232)');
   assert.equal(editionFor('/gr/'), GR);
   assert.equal(editionFor('/gr'), GR);
   assert.equal(editionFor('/gr/stores/parex-gr/'), GR);

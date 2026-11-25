@@ -349,12 +349,14 @@ function Test-Site([string]$base, [string]$mode) {
         }
     }
     # L191: the Joybuy store page (product photos read live from the Gear World sites) and the Amazon page. A new
-    # version reads the sites the first time, so up to 3 tries, 20 seconds apart. Read-only (GET), never /out/ or /go/.
+    # version reads the sites the first time, so up to 3 tries. L232 (25 Nov 2026): 65 seconds apart, longer than the
+    # minute the Worker keeps an empty answer (the live check of 25/11 asked 3 times within that minute and saw 0
+    # products, while the page had 24 a few minutes later). Read-only (GET), never /out/ or /go/.
     $sp = $null
     for ($i = 1; $i -le 3; $i++) {
         $sp = Get-Page ($base + '/stores/joybuy/')
         if ($sp.status -eq 200 -and $sp.text.Contains('<li class="pcard">')) { break }
-        if ($i -lt 3) { Start-Sleep -Seconds 20 }
+        if ($i -lt 3) { Start-Sleep -Seconds 65 }
     }
     if ($sp.status -ne 200) { Say ('  /stores/joybuy/ απαντά {0}: ΠΡΟΒΛΗΜΑ' -f $sp.status) $Bad; $all = $false }
     else {
@@ -449,10 +451,11 @@ function Test-Site([string]$base, [string]$mode) {
         else { Say ('  /stores/kouzinika-gr/ (L221): ΠΡΟΣΟΧΗ - το λογότυπο είναι σωστό, αλλά τα σετ ({0}) ή οι ιδέες ({1}) δεν φορτώθηκαν αυτή τη στιγμή (πιθανόν επειδή το Home Gear World ήταν απασχολημένο· φορτώνονται ξανά σε επόμενη επίσκεψη, και τα ελέγχει το Claude μετά το live)' -f $lwSets, $lwIdeas) $Warn }
     }
     else { Say ('  /stores/kouzinika-gr/ (L221): λείπει το λογότυπο (αρχείο {0}) ή φαίνεται /out/ ή τιμή: ΠΡΟΒΛΗΜΑ' -f $lwLogo.status) $Bad; $all = $false }
-    $us = Get-Page ($base + '/') 'US'
+    # A country with no store listed (Japan; the US has its own since L232): the line that says so, nothing of the UK.
+    $us = Get-Page ($base + '/') 'JP'
     $usAny = $us.text.Contains('class="bf-started"') -or $us.text.Contains('class="promo-card"') -or $us.text.Contains('href="/stores/') -or ($us.text -match '(?i)amazon')
-    if ($us.status -eq 200 -and $us.text.Contains('stores-none') -and -not $usAny) { Say '  Από ΗΠΑ: κανένα κατάστημα, με τη γραμμή «δεν εμφανίζεται ακόμα για τη χώρα σας»: ΕΝΤΑΞΕΙ' $Ok }
-    else { Say ('  Από ΗΠΑ ({0}): φαίνονται καταστήματα, κωδικοί ή Amazon: ΠΡΟΒΛΗΜΑ' -f $us.status) $Bad; $all = $false }
+    if ($us.status -eq 200 -and $us.text.Contains('stores-none') -and -not $usAny) { Say '  Από Ιαπωνία: κανένα κατάστημα, με τη γραμμή «δεν εμφανίζεται ακόμα για τη χώρα σας»: ΕΝΤΑΞΕΙ' $Ok }
+    else { Say ('  Από Ιαπωνία ({0}): φαίνονται καταστήματα, κωδικοί ή Amazon: ΠΡΟΒΛΗΜΑ' -f $us.status) $Bad; $all = $false }
     # L211: a store page where the store is not listed (Joybuy from Greece) is never in a search engine (noindex).
     $ge = Get-Page ($base + '/stores/joybuy/') 'GR'
     if ($ge.status -eq 200 -and $ge.text.Contains('store-elsewhere') -and $ge.text.Contains('<meta name="robots" content="noindex">')) { Say '  Joybuy από Ελλάδα: «δεν εμφανίζεται για τη χώρα σας», με noindex (L211): ΕΝΤΑΞΕΙ' $Ok }
@@ -527,6 +530,36 @@ function Test-Site([string]$base, [string]$mode) {
     $edSm = Get-Page ($base + '/sitemap.xml')
     if ($edSm.status -eq 200 -and $edSm.text.Contains('<loc>https://' + $Domain + '/gr/</loc>') -and $edSm.text.Contains('<loc>https://' + $Domain + '/gr/stores/kouzinika-gr/</loc>')) { Say '  sitemap.xml με το /gr/ και τις σελίδες των ελληνικών καταστημάτων (L214): ΕΝΤΑΞΕΙ' $Ok }
     else { Say ('  sitemap.xml χωρίς το /gr/ (L214, απάντηση {0}): ΠΡΟΒΛΗΜΑ' -f $edSm.status) $Bad; $all = $false }
+    # L232 (owner, 25 Nov 2026): Mega Stores of Germany, Austria, the Netherlands, Belgium, the US and Poland, each at its
+    # own address in its language (asked as a UK visitor, as Google reads them): its canonical and hreflang, at least 3
+    # of its stores, nothing of the UK, in the sitemap; one store page with products read for that country (a warning
+    # when the Gear World site is slow: they load again on the next visit). Read-only GETs, never /out/ or /go/.
+    $editions = @(
+        @{ p = 'de'; h = 'de-DE'; s = 'westwing-de'; n = 'Γερμανία' },
+        @{ p = 'at'; h = 'de-AT'; s = 'reidl'; n = 'Αυστρία' },
+        @{ p = 'nl'; h = 'nl-NL'; s = 'refurbed-nl'; n = 'Ολλανδία' },
+        @{ p = 'be'; h = 'nl-BE'; s = 'refurbed-nl'; n = 'Βέλγιο' },
+        @{ p = 'us'; h = 'en-US'; s = 'temu'; n = 'ΗΠΑ' },
+        @{ p = 'pl'; h = 'pl-PL'; s = 'aliexpress-pl'; n = 'Πολωνία' }
+    )
+    foreach ($e in $editions) {
+        $pre = '/' + $e.p + '/'
+        $eh = Get-Page ($base + $pre)
+        $eStores = @([regex]::Matches($eh.text, 'href="' + [regex]::Escape($pre) + 'stores/([a-z0-9-]+)/"') | ForEach-Object { $_.Groups[1].Value } | Select-Object -Unique)
+        $eUk = ($eh.text -match $edUkStore) -or ($eh.text -match '(?i)amazon\.co\.uk|>Amazon<') -or $eh.text.Contains('class="promo-card"')
+        $eOk = ($eh.status -eq 200 -and $eh.text.Contains('<html lang="' + $e.h + '">') -and $eh.text.Contains('<link rel="canonical" href="https://' + $Domain + $pre + '">') -and $eh.text.Contains('<link rel="alternate" hreflang="' + $e.h + '" href="https://' + $Domain + $pre + '">') -and $eh.text.Contains('<link rel="alternate" hreflang="en-GB" href="https://' + $Domain + '/">') -and $eStores.Count -ge 3 -and -not $eUk -and -not $eh.text.Contains('stores-none') -and $edSm.text.Contains('<loc>https://' + $Domain + $pre + '</loc>'))
+        if ($eOk) { Say ('  {0} (Mega Stores για {1}, L232): ΕΝΤΑΞΕΙ - στη γλώσσα της χώρας ({2}), {3} καταστήματα, κανένα του UK ή Amazon, δικό του canonical, hreflang και sitemap' -f $pre, $e.n, $e.h, $eStores.Count) $Ok }
+        else { Say ('  {0} (Mega Stores για {1}, L232): ΠΡΟΒΛΗΜΑ - απάντηση {2}, {3} καταστήματα, κατάστημα ή Amazon του UK: {4}' -f $pre, $e.n, $eh.status, $eStores.Count, $eUk) $Bad; $all = $false }
+        $es2 = Get-Page ($base + $pre + 'stores/' + $e.s + '/')
+        $es2Ok = ($es2.status -eq 200 -and $es2.text.Contains('<html lang="' + $e.h + '">') -and $es2.text.Contains('<link rel="canonical" href="https://' + $Domain + $pre + 'stores/' + $e.s + '/">') -and -not $es2.text.Contains('name="robots"') -and -not ($es2.text -match 'href="[^"]*/(out|go)/'))
+        $es2Cards = ([regex]::Matches($es2.text, '<li class="pcard">')).Count
+        if ($es2Ok -and $es2Cards -gt 0) { Say ('  {0}stores/{1}/ (L232): ΕΝΤΑΞΕΙ - {2} προϊόντα με φωτογραφία, χωρίς /out/ και /go/' -f $pre, $e.s, $es2Cards) $Ok }
+        elseif ($es2Ok) { Say ('  {0}stores/{1}/ (L232): ΠΡΟΣΟΧΗ - η σελίδα είναι σωστή, αλλά τα προϊόντα δεν φορτώθηκαν αυτή τη στιγμή (φορτώνονται ξανά σε επόμενη επίσκεψη· τα ελέγχει το Claude μετά το live)' -f $pre, $e.s) $Warn }
+        else { Say ('  {0}stores/{1}/ (L232): ΠΡΟΒΛΗΜΑ - απάντηση {2}' -f $pre, $e.s, $es2.status) $Bad; $all = $false }
+    }
+    $ieEd = Get-Page ($base + '/ie/')
+    if ($ieEd.status -eq 404) { Say '  /ie/ δεν υπάρχει ακόμα (η Ιρλανδία περιμένει 3 καταστήματα, L232): ΕΝΤΑΞΕΙ' $Ok }
+    else { Say ('  /ie/ απαντά {0} (L232: η Ιρλανδία δεν έχει ακόμα δικό της Mega Stores): ΠΡΟΒΛΗΜΑ' -f $ieEd.status) $Bad; $all = $false }
     $el = Get-Page ($base + '/?lang=el')
     if ($el.status -eq 200 -and $el.text.Contains('<html lang="el-GR"') -and $el.text.Contains('Οδηγοί δώρων')) { Say '  /?lang=el απαντά στα Ελληνικά (Οδηγοί δώρων): ΕΝΤΑΞΕΙ' $Ok }
     else { Say ('  /?lang=el δεν απαντά στα Ελληνικά ({0}): ΠΡΟΒΛΗΜΑ' -f $el.status) $Bad; $all = $false }

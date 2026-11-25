@@ -10,7 +10,7 @@ import defaultWorker from '../../sites/ogw/worker.js';
 import liveSite from '../../sites/ogw/site.config.js';
 import {
   AMAZON_STATEMENT, amazonMode, amazonUrl, gearWorldUrl, countdown, ukDay, legalPaths, pagePaths,
-  createGuidesWorker, storeCacheKey, guideImage, storeUserAgent, awinStores, deliversHere
+  createGuidesWorker, storeCacheKey, guideImage, storeUserAgent, awinStores, deliversHere, EDITIONS, editionStores
 } from '../../src/marketplace-guides.js';
 import { GEAR_WORLDS } from '../../promos/network.js';
 // The Linkwise stores are hidden until Linkwise approves this site (L215, tests/worker/ogw-hidden.test.mjs): these tests
@@ -87,6 +87,8 @@ const UK_STORES = awinStores(site).filter(s => deliversHere(s, 'GB'));
 const UK_STORE_PAGES = UK_STORES.map(s => `/stores/${s.slug}/`);
 // The Greek stores of the Linkwise network (owner, 21 Nov 2026, L210), with the countries of the sites' linkwise-gr.js.
 const GREEK = { 'kouzinika-gr': ['GR'], 'katoikein-gr': ['GR'], 'minipini-gr': ['GR'], 'xxxl-leo-gr': ['GR'], 'casualshoes-gr': ['GR'], 'parex-gr': ['GR', 'CY'], 'tsakiris-mallas-gr': ['GR', 'CY'] };
+// The stores of the editions of Germany, Austria, the Netherlands, Belgium, the US and Poland (L232).
+const NEW_STORES = awinStores(site).filter(s => !deliversHere(s, 'GB') && !GREEK[s.slug]);
 const ALL_PAGES = ['/', ...ALL_GUIDES.map(s => `/guides/${s}/`), ...legalPaths(), ...STORE_PAGES];
 
 test('every page answers 200 with the security headers, no script, no cookie and no price', async () => {
@@ -239,7 +241,10 @@ test('addresses: www, final slash, unknown pages, methods, robots, sitemap and v
   x = await get('/sitemap.xml');
   for (const p of pagePaths(site, 'on')) assert.ok(x.text.includes(`<loc>https://megastoresgearworld.com${p}</loc>`), p);
   // Every page of the UK view and the Amazon page (L210), and the Greek edition: /gr/ and its 7 store pages (L214).
-  assert.equal((x.text.match(/<loc>/g) || []).length, ALL_PAGES.length - Object.keys(GREEK).length + 1 + 1 + Object.keys(GREEK).length, 'the UK view, Amazon and /gr/');
+  // Since L232 the six new editions too: each home page and its store pages (tests/worker/ogw-editions-l232.test.mjs).
+  const newEditions = EDITIONS.filter(e => e.minStores).reduce((n, e) => n + 1 + editionStores(site, e).length, 0);
+  assert.equal(newEditions, 6 + 35);
+  assert.equal((x.text.match(/<loc>/g) || []).length, ALL_PAGES.length - NEW_STORES.length - Object.keys(GREEK).length + 1 + 1 + Object.keys(GREEK).length + newEditions, 'the UK view, Amazon, /gr/ and the editions of L232');
   for (const p of UK_STORE_PAGES) assert.ok(x.text.includes(`<loc>https://megastoresgearworld.com${p}</loc>`), `sitemap: ${p}`);
   for (const slug of Object.keys(GREEK)) {
     assert.ok(!x.text.includes(`<loc>https://megastoresgearworld.com/stores/${slug}/</loc>`), `sitemap: not the UK address of ${slug} (Google reads the UK page, L210)`);
@@ -249,7 +254,7 @@ test('addresses: www, final slash, unknown pages, methods, robots, sitemap and v
   for (const env of [OFF, PRE]) {
     const t = (await get('/sitemap.xml', env)).text;
     assert.ok(!/amazon/i.test(t), 'no Amazon page in the sitemap without the live Amazon links');
-    assert.equal((t.match(/<loc>/g) || []).length, ALL_PAGES.length - Object.keys(GREEK).length + 1 + Object.keys(GREEK).length, 'with /gr/ and its store pages (L214)');
+    assert.equal((t.match(/<loc>/g) || []).length, ALL_PAGES.length - NEW_STORES.length - Object.keys(GREEK).length + 1 + Object.keys(GREEK).length + newEditions, 'with /gr/ and its store pages (L214), and the editions of L232');
   }
   x = await defaultWorker.fetch(new Request(`${LIVE}/api/version`), { GW_COMMIT: 'ab'.repeat(20) });
   assert.deepEqual(await x.json(), { commit: 'ab'.repeat(20) }, 'the version for the live guard (L156)');
@@ -320,14 +325,15 @@ const STORE_BANNED = /£|\$|€|\bGBP\b|\d\s?%|12\.34|99\.99|\bdeals?\b|\bsale\b
 
 test('stores: config, order, logos as the stores give them, the world photos of the Amazon page', () => {
   assert.deepEqual(site.stores.map(s => s.slug), ['amazon', 'joybuy', 'tooled-up', 'my-tool-shed', 'pchub-uk', 'gs-workwear', 'back-to-the-office', 'dhgate',
-    'kotsovolos-gr', 'public-gr', 'sephora-gr', 'e-shop-gr', 'ab-gr', ...Object.keys(GREEK)], 'the 5 direct stores of L226 before the 7 Greek stores (owner, 24 Nov 2026)');
+    'kotsovolos-gr', 'public-gr', 'sephora-gr', 'e-shop-gr', 'ab-gr', ...Object.keys(GREEK), ...NEW_STORES.map(s => s.slug)], 'the 5 direct stores of L226 before the 7 Greek stores (owner, 24 Nov 2026), then the stores of the editions of L232');
   assert.deepEqual(site.stores.map(s => s.name), ['Amazon', 'Joybuy', 'Tooled Up', 'My Tool Shed', 'PCHUB.UK', 'GS Workwear', 'Back to the Office', 'DHgate',
     'Κωτσόβολος', 'Public', 'Sephora', 'e-shop.gr', 'ΑΒ Βασιλόπουλος',
-    'Kouzinika GR', 'Katoikein GR', 'Minipini GR', 'XXXL Leo GR', 'CasualShoes GR', 'Parex GR', 'Tsakiris Mallas GR']);
+    'Kouzinika GR', 'Katoikein GR', 'Minipini GR', 'XXXL Leo GR', 'CasualShoes GR', 'Parex GR', 'Tsakiris Mallas GR', ...NEW_STORES.map(s => s.name)]);
   const codes = new Set(GEAR_WORLDS.map(w => w.code));
   const allowed = readFileSync('sites/ogw/public-allowlist.txt', 'utf8');
   for (const s of awinStores(site)) {
     assert.ok(s.sites.length && s.sites.every(c => codes.has(c)), `${s.slug}: Gear World sites`);
+    if (NEW_STORES.includes(s)) continue;
     assert.deepEqual(s.deliversTo, GREEK[s.slug] || ['GB'], `${s.slug}: ${GREEK[s.slug] ? 'a Greek store, its countries' : 'a UK store'}`);
     assert.ok(s.line && s.line.length < 90, `${s.slug}: one short line`);
     if (s.logo) {

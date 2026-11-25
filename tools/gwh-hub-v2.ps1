@@ -281,7 +281,7 @@ $Bad = 'Magenta'
 
 # What each file of the change does, in the words of the report.
 $About = @{
-    'worker.js' = 'η σειρά των αποτελεσμάτων της αναζήτησης με το rankHubResults: πρώτα τι είναι το προϊόν (κατηγορίες), μετά ολόκληρες λέξεις του ονόματος, αξεσουάρ πιο κάτω (GWH-RANKING-V3, L177)· η αναζήτηση μεταφράζει τις ξένες λέξεις με το μοντέλο της αναζήτησης με φωτογραφία (Gemma 4), γιατί το Cloudflare σταματά το @cf/meta/llama-3.1-8b-instruct-fp8 στις 20/11 (L173)· η αρχική σελίδα παίρνει τη γλώσσα της χώρας του επισκέπτη (<html data-country-lang>, μόνο σε κάθε απάντηση, ποτέ για το Google, L175)· όλα τα άλλα όπως είναι live · L211: η μπάρα Mega Stores και η σελίδα /black-friday/ ανά χώρα (από Ελλάδα τα 7 ελληνικά καταστήματα, όπου δεν υπάρχει κατάστημα καμία μπάρα, στο /black-friday/ μόνο ό,τι παραδίδει στη χώρα) · L214: από Ελλάδα η μπάρα, η κάρτα «Stores» (με τα ονόματα των ελληνικών καταστημάτων) και η γραμμή του /black-friday/ ανοίγουν το megastoresgearworld.com/gr/· από Κύπρο την αρχική του Mega Stores · L215: η Linkwise ενέκρινε το megastoresgearworld.com (23/11): τα 7 ελληνικά καταστήματα ξανά στη μπάρα (από Ελλάδα 7, από Κύπρο 2) · L218: GWH-APP-COUNTRY: η γραμμή «Gear World app» της αρχικής (κουμπί Google Play) μένει μόνο για επισκέπτες από UK, Ελλάδα, Κύπρο, Πολωνία, ΗΠΑ· από άλλες χώρες βγαίνει από τη σελίδα· η σελίδα του UK μένει το ίδιο το αρχείο'
+    'worker.js' = 'η σειρά των αποτελεσμάτων της αναζήτησης με το rankHubResults: πρώτα τι είναι το προϊόν (κατηγορίες), μετά ολόκληρες λέξεις του ονόματος, αξεσουάρ πιο κάτω (GWH-RANKING-V3, L177)· η αναζήτηση μεταφράζει τις ξένες λέξεις με το μοντέλο της αναζήτησης με φωτογραφία (Gemma 4), γιατί το Cloudflare σταματά το @cf/meta/llama-3.1-8b-instruct-fp8 στις 20/11 (L173)· η αρχική σελίδα παίρνει τη γλώσσα της χώρας του επισκέπτη (<html data-country-lang>, μόνο σε κάθε απάντηση, ποτέ για το Google, L175)· όλα τα άλλα όπως είναι live · L211: η μπάρα Mega Stores και η σελίδα /black-friday/ ανά χώρα (από Ελλάδα τα 7 ελληνικά καταστήματα, όπου δεν υπάρχει κατάστημα καμία μπάρα, στο /black-friday/ μόνο ό,τι παραδίδει στη χώρα) · L214: από Ελλάδα η μπάρα, η κάρτα «Stores» (με τα ονόματα των ελληνικών καταστημάτων) και η γραμμή του /black-friday/ ανοίγουν το megastoresgearworld.com/gr/· από Κύπρο την αρχική του Mega Stores · L215: η Linkwise ενέκρινε το megastoresgearworld.com (23/11): τα 7 ελληνικά καταστήματα ξανά στη μπάρα (από Ελλάδα 7, από Κύπρο 2) · L218: GWH-APP-COUNTRY: η γραμμή «Gear World app» της αρχικής (κουμπί Google Play) μένει μόνο για επισκέπτες από UK, Ελλάδα, Κύπρο, Πολωνία, ΗΠΑ· από άλλες χώρες βγαίνει από τη σελίδα· η σελίδα του UK μένει το ίδιο το αρχείο · L232: από Γερμανία, Αυστρία, Ολλανδία, Βέλγιο, ΗΠΑ και Πολωνία η μπάρα Mega Stores δείχνει τα καταστήματα της χώρας και η μπάρα, η κάρτα «Stores» και η γραμμή του /black-friday/ ανοίγουν το megastoresgearworld.com/<χώρα>/ (μόνο όταν αυτό είναι live)'
     'photo-search.js' = 'κρατά το μοντέλο της μετάφρασης της αναζήτησης (ίδιο με της φωτογραφίας) και διαβάζει την απάντησή του σε κάθε μορφή (L173)· η αναζήτηση με φωτογραφία δεν αλλάζει'
     'security.js'           = 'νέο αρχείο: έλεγχος Turnstile, ημερήσια όρια του δικτύου (εγγραφές, μεταφράσεις), headers (L106)'
     'mailerlite.js'         = 'η φόρμα του Hub θέλει το token του Turnstile· ημερήσιο όριο εγγραφών για όλο το δίκτυο, μικρό δικό της για την εφαρμογή (L106)'
@@ -775,10 +775,18 @@ function Test-Site([string]$base, [bool]$isLive) {
     $grOk = ($grHome.status -eq 200 -and $grMissing.Count -eq 0 -and $grUk.Count -eq 0 -and $grOne -and $grHtml.Contains('id="hubSearch"'))
     if ($grOk) { Say '  Μπάρα Mega Stores και κάρτα «Stores» από Ελλάδα (L211, L214, L215): ΕΝΤΑΞΕΙ - τα 7 ελληνικά καταστήματα, κανένα του UK, και τα δύο ανοίγουν το megastoresgearworld.com/gr/' $Ok }
     else { Say ('  Μπάρα Mega Stores και κάρτα «Stores» από Ελλάδα (L211, L214, L215): ΠΡΟΒΛΗΜΑ - απάντηση {0}, λείπουν: {1}, καταστήματα του UK: {2}, links στο /gr/ και ελληνικά ονόματα στην κάρτα: {3}' -f $grHome.status, ($grMissing -join ', '), ($grUk -join ', '), $grOne) $Bad }
+    # A country with no store listed (Japan; the US has its own Mega Stores since L232): no bar, the page as usual.
+    $jpHome = Get-Web ($base + '/?gwcheck=' + $stamp) 'JP'
+    $jpHtml = $enc8.GetString($jpHome.bytes)
+    if ($jpHome.status -eq 200 -and -not $jpHtml.Contains('gwh2-mega-wrap') -and $jpHtml.Contains('id="hubSearch"')) { Say '  Μπάρα Mega Stores από Ιαπωνία (L211): ΕΝΤΑΞΕΙ - δεν φαίνεται (κανένα κατάστημα για την Ιαπωνία), η σελίδα κανονικά' $Ok }
+    else { Say ('  Μπάρα Mega Stores από Ιαπωνία (L211): ΠΡΟΒΛΗΜΑ - απάντηση {0}, μπάρα: {1}' -f $jpHome.status, $jpHtml.Contains('gwh2-mega-wrap')) $Bad }
+    # L232: from the US the bar names the US stores and the bar and the Stores card open Mega Stores /us/.
     $usHome = Get-Web ($base + '/?gwcheck=' + $stamp) 'US'
     $usHtml = $enc8.GetString($usHome.bytes)
-    if ($usHome.status -eq 200 -and -not $usHtml.Contains('gwh2-mega-wrap') -and $usHtml.Contains('id="hubSearch"')) { Say '  Μπάρα Mega Stores από ΗΠΑ (L211): ΕΝΤΑΞΕΙ - δεν φαίνεται (κανένα κατάστημα για τις ΗΠΑ), η σελίδα κανονικά' $Ok }
-    else { Say ('  Μπάρα Mega Stores από ΗΠΑ (L211): ΠΡΟΒΛΗΜΑ - απάντηση {0}, μπάρα: {1}' -f $usHome.status, $usHtml.Contains('gwh2-mega-wrap')) $Bad }
+    $usUk = @($megaStores | Where-Object { $usHtml.Contains('data-store="' + $_ + '"') })
+    $usOk = ($usHome.status -eq 200 -and $usHtml.Contains('gwh2-mega-wrap') -and $usHtml.Contains('data-store="temu"') -and $usUk.Count -eq 0 -and (([regex]::Matches($usHtml, 'href="https://megastoresgearworld\.com/us/"')).Count -eq 2) -and $usHtml.Contains('id="hubSearch"'))
+    if ($usOk) { Say '  Μπάρα Mega Stores και κάρτα «Stores» από ΗΠΑ (L232): ΕΝΤΑΞΕΙ - τα καταστήματα των ΗΠΑ, κανένα του UK, και τα δύο ανοίγουν το megastoresgearworld.com/us/' $Ok }
+    else { Say ('  Μπάρα Mega Stores από ΗΠΑ (L232): ΠΡΟΒΛΗΜΑ - απάντηση {0}, μπάρα: {1}, καταστήματα του UK: {2}' -f $usHome.status, $usHtml.Contains('gwh2-mega-wrap'), ($usUk -join ', ')) $Bad }
     # L218: the row of the Gear World app (Google Play badge) stays for the UK, Greece and the US (it is in the file, hidden
     # until hub-v2.js shows it) and is taken out for Germany, where the app is not on Google Play. Its link is never opened.
     $deHome = Get-Web ($base + '/?gwcheck=' + $stamp) 'DE'
@@ -1315,20 +1323,26 @@ if ($Step -eq 'check') {
     Finish 0
 }
 
-# L214: the new worker.js sends a visitor from Greece to Mega Stores /gr/. The preview and the live step go on only when
-# https://megastoresgearworld.com/gr/ is live (Greek, its own canonical): the Mega Stores release goes first. Without
+# L214: the new worker.js sends a visitor from Greece to Mega Stores /gr/; L232: and from Germany, Austria, the
+# Netherlands, Belgium, the US and Poland to their own edition. The preview and the live step go on only when every
+# edition the worker.js links to is live (its language, its own canonical): the Mega Stores release goes first. Without
 # network (-NoHttpCheck, the tests) or with a worker.js that does not link there, nothing is asked.
 function Assert-MegaStoresGr {
     $workerText = [System.IO.File]::ReadAllText((Join-Path (Join-Path (Join-Path $repo 'sites') 'gwh') 'worker.js'))
-    if ($NoHttpCheck -or -not $workerText.Contains('https://megastoresgearworld.com/gr/')) { return }
-    $ogwGr = Get-Web ('https://megastoresgearworld.com/gr/?gwcheck=' + $stamp)
-    $ogwGrHtml = (New-Object System.Text.UTF8Encoding($false)).GetString($ogwGr.bytes)
-    if ($ogwGr.status -eq 200 -and $ogwGrHtml.Contains('<html lang="el-GR">') -and $ogwGrHtml.Contains('<link rel="canonical" href="https://megastoresgearworld.com/gr/">')) {
-        Say 'Το Mega Stores για την Ελλάδα (megastoresgearworld.com/gr/) είναι live, άρα τα links του Hub ανοίγουν (L214): ΕΝΤΑΞΕΙ' $Ok
-        return
+    if ($NoHttpCheck) { return }
+    $eds = @(@('gr', 'el-GR', 'την Ελλάδα'), @('de', 'de-DE', 'τη Γερμανία'), @('at', 'de-AT', 'την Αυστρία'), @('nl', 'nl-NL', 'την Ολλανδία'), @('be', 'nl-BE', 'το Βέλγιο'), @('us', 'en-US', 'τις ΗΠΑ'), @('pl', 'pl-PL', 'την Πολωνία'))
+    foreach ($ed in $eds) {
+        $edUrl = 'https://megastoresgearworld.com/' + $ed[0] + '/'
+        if (-not $workerText.Contains($edUrl)) { continue }
+        $ogwEd = Get-Web ($edUrl + '?gwcheck=' + $stamp)
+        $ogwEdHtml = (New-Object System.Text.UTF8Encoding($false)).GetString($ogwEd.bytes)
+        if ($ogwEd.status -eq 200 -and $ogwEdHtml.Contains('<html lang="' + $ed[1] + '">') -and $ogwEdHtml.Contains('<link rel="canonical" href="' + $edUrl + '">')) {
+            Say ('Το Mega Stores για {0} ({1}) είναι live, άρα τα links του Hub ανοίγουν (L214, L232): ΕΝΤΑΞΕΙ' -f $ed[2], $edUrl) $Ok
+            continue
+        }
+        Say ('Το {0} δεν είναι ακόμα live (απάντηση {1}): ΔΕΝ ανεβάζω το Hub, γιατί από {2} θα άνοιγε σελίδα που δεν υπάρχει. Πρώτα το Mega Stores (tools/ogw-site.ps1). ΔΕΝ άλλαξε τίποτα. Στείλε αυτή την αναφορά στο Claude.' -f $edUrl, $ogwEd.status, $ed[2]) $Bad
+        Finish 25
     }
-    Say ('Το megastoresgearworld.com/gr/ δεν είναι ακόμα live (απάντηση {0}): ΔΕΝ ανεβάζω το Hub, γιατί από Ελλάδα θα άνοιγε σελίδα που δεν υπάρχει. Πρώτα το Mega Stores (tools/ogw-site.ps1). ΔΕΝ άλλαξε τίποτα. Στείλε αυτή την αναφορά στο Claude.' -f $ogwGr.status) $Bad
-    Finish 25
 }
 
 # ---------------- preview ----------------

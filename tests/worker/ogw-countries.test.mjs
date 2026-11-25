@@ -66,9 +66,10 @@ test('L210: where an entry delivers: its deliversTo, the UK when it has none, WO
   assert.equal(deliversHere({ deliversTo: ['gb', 'gr'] }, 'GR'), true, 'any letter case');
   assert.equal(deliversHere({ deliversTo: ['WORLD'] }, 'JP'), true);
   assert.equal(amazonHere(site, 'GB'), true, 'Amazon UK for the UK');
-  const listed = { GR: GR_NAMES.length, CY: CY_NAMES.length };
+  // The editions of L232 (25 Nov 2026): Germany 6, Poland 3 and the US 11 stores of the Gear World sites.
+  const listed = { GR: GR_NAMES.length, CY: CY_NAMES.length, DE: 6, PL: 3, US: 11 };
   assert.deepEqual([GR_NAMES.length, CY_NAMES.length], [7, 2], 'the 7 Greek stores, 2 of them for Cyprus too');
-  for (const cc of ['GR', 'CY', 'US', 'DE', 'PL', 'IE', 'XX', 'T1']) {
+  for (const cc of ['GR', 'CY', 'US', 'DE', 'PL', 'IE', 'JP', 'XX', 'T1']) {
     assert.equal(amazonHere(site, cc), false, `${cc}: no Amazon UK`);
     assert.equal(viewMode(site, 'on', cc), 'off', `${cc}: the pages of AMAZON_LINKS=off`);
     assert.equal(shownStores(site, 'on', cc).length, listed[cc] || 0, `${cc}: only the stores listed there`);
@@ -121,9 +122,10 @@ test('L210: the UK home page is as before: every store, Amazon, the Black Friday
 });
 
 for (const [cc, lang, none, noneBf] of [
-  ['DE', 'de-DE', `Noch kein Händler von ${MS} ist für Ihr Land aufgeführt.`, null],
-  ['PL', 'pl-PL', `Żaden sklep z ${MS} nie jest jeszcze wyświetlany dla Twojego kraju.`, null],
-  ['US', 'en-GB', `No store of ${MS} is listed for your country yet.`, 'No store with Black Friday codes is listed for your country yet.'],
+  // Germany, Poland and the US have their stores since L232 (their tests: tests/worker/ogw-editions-l232.test.mjs).
+  ['IT', 'it-IT', `Nessun negozio di ${MS} è ancora elencato per il tuo paese.`, null],
+  ['ES', 'es-ES', `Todavía no hay ninguna tienda de ${MS} para tu país.`, null],
+  ['JP', 'en-GB', `No store of ${MS} is listed for your country yet.`, 'No store with Black Friday codes is listed for your country yet.'],
   ['IE', 'en-GB', `No store of ${MS} is listed for your country yet.`, null],
   ['XX', 'en-GB', `No store of ${MS} is listed for your country yet.`, null]
 ]) {
@@ -243,8 +245,8 @@ test('L210: Google from Greece reads the UK page; the QA bot may ask for Greece;
   for (const n of GR_NAMES) assert.ok(!g.text.includes(n), `Google: no ${n}`);
   const qa = await get('/', { ua: QA, headers: { 'X-GW-QA-Country': 'GR' } });
   assert.ok(qa.text.includes('href="/stores/kouzinika-gr/"') && !qa.text.includes('>Joybuy<'), 'the QA check of Greece');
-  const qaUs = await get('/', { ua: QA, headers: { 'X-GW-QA-Country': 'US' } });
-  assert.ok(qaUs.text.includes('stores-none'), 'the QA check of the US');
+  const qaJp = await get('/', { ua: QA, headers: { 'X-GW-QA-Country': 'JP' } });
+  assert.ok(qaJp.text.includes('stores-none'), 'the QA check of Japan (no store listed there)');
   const sm = await get('/sitemap.xml', { cc: 'GR' });
   assert.ok(sm.text.includes('https://megastoresgearworld.com/stores/amazon/'), 'the sitemap is the same for every country');
 });

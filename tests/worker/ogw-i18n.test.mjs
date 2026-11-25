@@ -8,7 +8,7 @@ import liveSite from '../../sites/ogw/site.config.js';
 import {
   AMAZON_STATEMENT, BASE_LANG, HUB_LANGS, I18N_MISSING, createGuidesWorker, legalPaths, awinStores, languageCode,
   countryLanguage as ogwCountryLanguage, readsEnglish as ogwReadsEnglish, QA_BOT as OGW_QA_BOT, OTHER_CRAWLER as OGW_CRAWLER, GOOGLE_CRAWLER as OGW_GOOGLE,
-  earlyBlackFriday, blackFridayParts, storeCodes, shownStores, priceKey
+  earlyBlackFriday, blackFridayParts, storeCodes, shownStores, priceKey, EDITIONS, editionStores
 } from '../../src/marketplace-guides.js';
 import { countryLanguage, readsEnglish, QA_BOT, OTHER_CRAWLER, GOOGLE_CRAWLER } from '../../src/engine.js';
 import { translatableTexts } from './i18n-keys.mjs';
@@ -158,14 +158,25 @@ test('L195: every text the pages use is in every dictionary, and every dictionar
     for (const day of days) {
       for (const fetch of [fakeFetch(), failing]) {
         const w = createGuidesWorker(s, { fetch, cache: null, now: () => at(day) });
-        // The UK page, Greece (its own stores) and a country no store is listed for (L210: their own lines).
-        for (const cc of ['GB', 'GR', 'US']) {
+        // The UK page, Greece (its own stores) and a country no store is listed for (L210: their own lines; Japan since the
+        // US has its stores, L232).
+        for (const cc of ['GB', 'GR', 'JP']) {
           for (const env of [ON, OFF, PRE, LW, pricesAt(at(day)), catalogAt(at(day)), catalogAt(at(day), /FROM (categories|products)/)]) for (const lang of langs) for (const p of (env.CATALOG ? CATALOG_PAGES : paths)) {
             const req = new Request(LIVE + withLang(p, lang));
             Object.defineProperty(req, 'cf', { value: { country: cc } });
             await (await w.fetch(req, env)).text();
           }
         }
+      }
+    }
+    // The editions of L232 and their countries' visitors on the international page: one day, their own stores.
+    const w = createGuidesWorker(s, { fetch: fakeFetch(), cache: null, now: () => at(days[0]) });
+    for (const e of EDITIONS.filter(x => x.minStores)) {
+      const own = [`${e.prefix}/`, '/', ...editionStores(s, e).map(x => `${e.prefix}/stores/${x.slug}/`)];
+      for (const lang of langs) for (const p of own) {
+        const req = new Request(LIVE + withLang(p, lang));
+        Object.defineProperty(req, 'cf', { value: { country: e.country } });
+        await (await w.fetch(req, ON)).text();
       }
     }
   };
@@ -299,7 +310,7 @@ test('L103, L195: names are never translated: stores, products, brands, Gear Wor
     const home = (await get(withLang('/', l))).text;
     assert.ok(home.includes('<span translate="no">Mega Stores Gear World</span>'), `${l}: the site name`);
     for (const w of GEAR_WORLDS) assert.ok(home.includes(`translate="no">${w.name.replace(/'/g, '&#39;')}</a>`), `${l}: ${w.name}`);
-    for (const s of awinStores(site).filter(x => !String(x.slug).endsWith('-gr'))) assert.ok(home.includes(`<a class="store-link" href="/stores/${s.slug}/?lang=${l}"><span translate="no">${s.name}</span></a>`), `${l}: ${s.name} (the UK page)`);
+    for (const s of awinStores(site).filter(x => (x.deliversTo || ['GB']).includes('GB'))) assert.ok(home.includes(`<a class="store-link" href="/stores/${s.slug}/?lang=${l}"><span translate="no">${s.name}</span></a>`), `${l}: ${s.name} (the UK page)`);
     for (const code of ['CLAIMFIFTY', 'CLAIMSEVFY', 'EIN15PCDD']) assert.ok(home.includes(`<strong translate="no">${code}</strong>`), `${l}: ${code}`);
     const joy = (await get(withLang('/stores/joybuy/', l))).text;
     assert.match(joy, /<h2 class="pcard-name" translate="no">Joybuy [a-z]+ item 1<\/h2>/, `${l}: product names`);

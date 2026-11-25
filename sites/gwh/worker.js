@@ -1691,7 +1691,31 @@ export const MEGA_BAR_STORES = [
   { slug: "xxxl-leo-gr", network: "linkwise", name: "XXXL Leo GR", deliversTo: ["GR"] },
   { slug: "casualshoes-gr", network: "linkwise", name: "CasualShoes GR", deliversTo: ["GR"] },
   { slug: "parex-gr", network: "linkwise", name: "Parex GR", deliversTo: ["GR", "CY"] },
-  { slug: "tsakiris-mallas-gr", network: "linkwise", name: "Tsakiris Mallas GR", deliversTo: ["GR", "CY"] }
+  { slug: "tsakiris-mallas-gr", network: "linkwise", name: "Tsakiris Mallas GR", deliversTo: ["GR", "CY"] },
+  // L232 (owner, 25 Nov 2026): the stores of the editions of Germany, Austria, the Netherlands, Belgium, the US and Poland.
+  { slug: "westwing-de", name: "Westwing DE", deliversTo: ["DE"] },
+  { slug: "la-redoute-de", name: "La Redoute DE", deliversTo: ["DE"] },
+  { slug: "reidl", name: "Reidl", deliversTo: ["DE", "AT"] },
+  { slug: "uhrcenter", name: "Uhrcenter", deliversTo: ["DE", "AT"] },
+  { slug: "home-tex", name: "HOME-TEX", deliversTo: ["DE", "AT", "NL", "BE", "PL"] },
+  { slug: "invicta-stores", name: "Invicta Stores", deliversTo: ["DE", "AT", "NL", "BE", "PL"] },
+  { slug: "refurbed-nl", name: "refurbed NL", deliversTo: ["NL", "BE"] },
+  { slug: "westwing-nl", name: "Westwing NL", deliversTo: ["NL"] },
+  { slug: "la-redoute-nl", name: "La Redoute NL", deliversTo: ["NL"] },
+  { slug: "vevor", name: "VEVOR", deliversTo: ["NL", "BE"] },
+  { slug: "dille-kamille-nl", name: "Dille Kamille NL", deliversTo: ["NL"] },
+  { slug: "aliexpress-pl", name: "AliExpress PL", deliversTo: ["PL"] },
+  { slug: "temu", name: "TEMU", deliversTo: ["US"] },
+  { slug: "tameson", name: "Tameson", deliversTo: ["US"] },
+  { slug: "ecosmetics", name: "eCosmetics", deliversTo: ["US"] },
+  { slug: "diecast-models-wholesale", name: "Diecast Models Wholesale", deliversTo: ["US"] },
+  { slug: "garvee", name: "Garvee", deliversTo: ["US"] },
+  { slug: "jeulia", name: "Jeulia", deliversTo: ["US"] },
+  { slug: "fragranceshop-com", name: "FragranceShop.com", deliversTo: ["US"] },
+  { slug: "aosom", name: "Aosom", deliversTo: ["US"] },
+  { slug: "fragrance-outlet", name: "Fragrance Outlet", deliversTo: ["US"] },
+  { slug: "perfumania", name: "Perfumania", deliversTo: ["US"] },
+  { slug: "dream-pairs", name: "Dream Pairs", deliversTo: ["US"] }
 ];
 export function megaCountry(request) {
   const ua = String(request.headers.get("User-Agent") || "");
@@ -1721,9 +1745,15 @@ export function megaStoresFor(country, hidden = MEGA_HIDDEN_NETWORKS) {
 }
 // L214 (owner, 21 Nov 2026): Mega Stores has a page of its own for Greece, megastoresgearworld.com/gr/ (Greek, the Greek
 // stores, the one Google shows in Greece). From Greece the bar, the Stores card and the Black Friday line open it; every
-// other country opens the home page, which follows the visitor's country.
+// other country without one opens the home page, which follows the visitor's country.
 export const MEGA_HOME = "https://megastoresgearworld.com/";
-export const MEGA_EDITION_HOME = { GR: "https://megastoresgearworld.com/gr/" };
+// L232 (owner, 25 Nov 2026): and Germany, Austria, the Netherlands, Belgium, the US and Poland their own (de, at, nl, be,
+// us, pl), each in its language with the stores listed there.
+export const MEGA_EDITION_HOME = {
+  GR: "https://megastoresgearworld.com/gr/", DE: "https://megastoresgearworld.com/de/", AT: "https://megastoresgearworld.com/at/",
+  NL: "https://megastoresgearworld.com/nl/", BE: "https://megastoresgearworld.com/be/", US: "https://megastoresgearworld.com/us/",
+  PL: "https://megastoresgearworld.com/pl/"
+};
 export function megaHomeFor(country) {
   return MEGA_EDITION_HOME[String(country || "").toUpperCase()] || MEGA_HOME;
 }

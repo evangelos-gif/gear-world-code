@@ -295,7 +295,36 @@ export default {
           { site: 'WGW', title: { el: 'Για κάθε μέρα', en: 'For every day' }, line: { el: 'Τσάντα tote.', en: 'A tote bag.' }, pick: ['TOTE'] },
           { site: 'MGW', title: { el: 'Για τα ταξίδια', en: 'For travel' }, line: { el: 'Ανδρική τσάντα χιαστί.', en: 'A men’s cross-body bag.' }, pick: ['CROSS BODY'] }
         ]
-      } }
+      } },
+    // The editions of Germany, Austria, the Netherlands, Belgium, the US and Poland (owner, 25 Nov 2026, lessons L232):
+    // the stores of the Gear World sites listed for those countries, as each site's /api/stats gave them on 25 Nov 2026
+    // (`name` its `retailer` value, `sites` by number of products, `deliversTo` only the countries of these editions).
+    // Their products are read for the country of the page (storeIn). Left out for now: the tyre stores (ReifenDirekt.at,
+    // Autobandenmarkt.nl, Pneus.be, 123pneus.be, Oponytanio PL, Tanie-Opony.pl) and stores with under 1,500 products.
+    // No logo yet: a text badge with the name.
+    { slug: 'westwing-de', name: 'Westwing DE', sites: ['HGW'], deliversTo: ['DE'], line: 'Furniture and home textiles.' },
+    { slug: 'la-redoute-de', name: 'La Redoute DE', sites: ['HGW'], deliversTo: ['DE'], line: 'Clothing, furniture and home decor.' },
+    { slug: 'reidl', name: 'Reidl', sites: ['CGW'], deliversTo: ['DE', 'AT'], line: 'Power tools, hand tools, workshop and garden equipment.' },
+    { slug: 'uhrcenter', name: 'Uhrcenter', sites: ['WGW', 'MGW'], deliversTo: ['DE', 'AT'], line: 'Watches and jewellery.' },
+    { slug: 'home-tex', name: 'HOME-TEX', sites: ['HGW'], deliversTo: ['DE', 'AT', 'NL', 'BE', 'PL'], line: 'Bed linen, towels and home textiles.' },
+    { slug: 'invicta-stores', name: 'Invicta Stores', sites: ['MGW', 'WGW'], deliversTo: ['DE', 'AT', 'NL', 'BE', 'PL'], line: 'Watches for women and men.' },
+    { slug: 'refurbed-nl', name: 'refurbed NL', sites: ['TGW'], deliversTo: ['NL', 'BE'], line: 'Refurbished phones, laptops and tablets.' },
+    { slug: 'westwing-nl', name: 'Westwing NL', sites: ['HGW'], deliversTo: ['NL'], line: 'Furniture and home textiles.' },
+    { slug: 'la-redoute-nl', name: 'La Redoute NL', sites: ['HGW'], deliversTo: ['NL'], line: 'Clothing, furniture and home decor.' },
+    { slug: 'vevor', name: 'VEVOR', sites: ['CGW', 'AGW', 'VGW'], deliversTo: ['NL', 'BE'], line: 'Tools, workshop and outdoor equipment.' },
+    { slug: 'dille-kamille-nl', name: 'Dille Kamille NL', sites: ['HGW'], deliversTo: ['NL'], line: 'Kitchenware, tableware and home items.' },
+    { slug: 'aliexpress-pl', name: 'AliExpress PL', sites: ['AGW', 'TGW', 'HGW', 'CGW', 'KGW', 'SGW'], deliversTo: ['PL'], line: 'Electronics, home, car, toys and sports products.' },
+    { slug: 'temu', name: 'TEMU', sites: ['WGW', 'HGW', 'MGW', 'GGW', 'KGW'], deliversTo: ['US'], line: 'Clothing, home, garden and children’s products.' },
+    { slug: 'tameson', name: 'Tameson', sites: ['CGW'], deliversTo: ['US'], line: 'Valves, fittings and industrial parts.' },
+    { slug: 'ecosmetics', name: 'eCosmetics', sites: ['WGW', 'MGW'], deliversTo: ['US'], line: 'Skincare, hair care and make-up.' },
+    { slug: 'diecast-models-wholesale', name: 'Diecast Models Wholesale', sites: ['KGW'], deliversTo: ['US'], line: 'Diecast model cars and collectibles.' },
+    { slug: 'garvee', name: 'Garvee', sites: ['HGW', 'GGW'], deliversTo: ['US'], line: 'Furniture, home and garden products.' },
+    { slug: 'jeulia', name: 'Jeulia', sites: ['WGW', 'MGW'], deliversTo: ['US'], line: 'Jewellery and rings.' },
+    { slug: 'fragranceshop-com', name: 'FragranceShop.com', sites: ['WGW', 'MGW'], deliversTo: ['US'], line: 'Fragrances for women and men.' },
+    { slug: 'aosom', name: 'Aosom', sites: ['HGW', 'GGW'], deliversTo: ['US'], line: 'Home, garden and outdoor furniture.' },
+    { slug: 'fragrance-outlet', name: 'Fragrance Outlet', sites: ['WGW', 'MGW'], deliversTo: ['US'], line: 'Fragrances for women and men.' },
+    { slug: 'perfumania', name: 'Perfumania', sites: ['WGW', 'MGW'], deliversTo: ['US'], line: 'Fragrances for women and men.' },
+    { slug: 'dream-pairs', name: 'Dream Pairs', sites: ['WGW', 'MGW', 'KGW'], deliversTo: ['US'], line: 'Shoes for women, men and children.' }
   ],
   // Black Friday 2026 (Friday 27 Nov), Cyber Monday (Monday 30 Nov) and Christmas: the countdown line and the Black Friday
   // block of the home page (until the end of Cyber Monday). Never a promise of discounts.
