@@ -45,6 +45,7 @@
 ΝΑΙ · γρ. 60 · HGW · Janine DE · χώρες: DE (Daisycon: χώρες των προϊόντων του feed) · γλώσσα feed: de · feed: Daisycon 21986, EUR
 ΝΑΙ · γρ. 62 · HGW · Kochblume DE · χώρες: DE (Awin: περιοχή του προγράμματος) · γλώσσα feed: de · feed: Awin 78872, feeds 119502, EUR
 ΝΑΙ · γρ. 63 · HGW · LampenConcurrent NL · χώρες: NL (Daisycon: χώρες των προϊόντων του feed) · γλώσσα feed: nl · feed: Daisycon 17145, EUR
+ΝΑΙ · γρ. 64 · HGW · LEDLager DE · χώρες: DE (Daisycon: χώρα του feed (αναφορά 26/11)) · γλώσσα feed: de · feed: Daisycon 20911 · το feed κατεβαίνει πριν την εισαγωγή
 ΝΑΙ · γρ. 65 · HGW · Leuchtmittel Verkauf DE · χώρες: DE (Daisycon: χώρες των προϊόντων του feed) · γλώσσα feed: de · feed: Daisycon 21938, EUR
 ΝΑΙ · γρ. 66 · HGW · Levoit DE · χώρες: DE (Awin: περιοχή του προγράμματος) · γλώσσα feed: de · feed: Awin 112902, feeds 100375, EUR
 ΟΧΙ ακόμα · γρ. 67 · HGW · LTT Versand · χώρες: DE,ES,FR (Daisycon: χώρες των προϊόντων του feed) · γλώσσα feed: de,en,es,fr · feed: Daisycon 21936, EUR · ΓΙΑΤΙ: πολλές γλώσσες στο feed (de,en,es,fr): θέλει κανόνα γλώσσας ανά χώρα από την 3
@@ -74,6 +75,7 @@
 ΟΧΙ ακόμα · γρ. 100 · KGW · Moj-Maly-Slodziak NL · χώρες: NL (Daisycon: χώρες των προϊόντων του feed) · γλώσσα feed: pl · feed: Daisycon 19184, PLN · ΓΙΑΤΙ: το feed λέει γλώσσα pl αλλά χώρα NL: θέλει σελίδα παράδοσης
 ΟΧΙ ακόμα · γρ. 101 · KGW · Petit Bateau · χώρες: DE,FR (Daisycon: χώρες των προϊόντων του feed) · γλώσσα feed: de,fr · feed: Daisycon 23319, EUR · ΓΙΑΤΙ: πολλές γλώσσες στο feed (de,fr): θέλει κανόνα γλώσσας ανά χώρα από την 3
 ΟΧΙ ακόμα · γρ. 102 · KGW · Puzzle Go Puzzle · χώρες: AT,DE,FR (Daisycon: χώρες των προϊόντων του feed) · γλώσσα feed: de,fr · feed: Daisycon 20851 · 21043 · 21471 · 21636 · 21637 · 21638, EUR · ΓΙΑΤΙ: πολλές γλώσσες στο feed (de,fr): θέλει κανόνα γλώσσας ανά χώρα από την 3
+ΝΑΙ · γρ. 103 · KGW · Spelhuis BE · χώρες: BE (Daisycon: χώρα του feed (αναφορά 26/11)) · γλώσσα feed: nl · feed: Daisycon 15618 · το feed κατεβαίνει πριν την εισαγωγή
 ΝΑΙ · γρ. 105 · KGW · Tushbaby US · χώρες: US (νόμισμα του feed (USD)) · γλώσσα feed: en · feed: Rakuten 53904, USD
 ΝΑΙ · γρ. 106 · KGW · Zulily US · χώρες: US (νόμισμα του feed (USD)) · γλώσσα feed: en · feed: Rakuten 54167, USD
 ΝΑΙ · γρ. 107 · KGW · Modellbau-Universe DE · χώρες: DE (Awin: περιοχή του προγράμματος) · γλώσσα feed: de · feed: Awin 17471, feeds 81661, EUR
@@ -89,6 +91,7 @@
 ΝΑΙ · γρ. 119 · MGW · Timeshop24 DE · χώρες: DE (Awin: περιοχή του προγράμματος) · γλώσσα feed: de · feed: Awin 14609, feeds 33677, EUR
 ΝΑΙ · γρ. 121 · MGW · Van Arendonk BE · χώρες: BE (Daisycon: χώρες των προϊόντων του feed) · γλώσσα feed: nl · feed: Daisycon 12502, EUR
 ΝΑΙ · γρ. 122 · MGW · Van Arendonk NL · χώρες: NL (Daisycon: χώρες των προϊόντων του feed) · γλώσσα feed: nl · feed: Daisycon 11852, EUR
+ΝΑΙ · γρ. 126 · ZGW · MaJa Koi NL · χώρες: NL (Daisycon: χώρα του feed (αναφορά 26/11)) · γλώσσα feed: nl · feed: Daisycon 15904 · το feed κατεβαίνει πριν την εισαγωγή
 ΝΑΙ · γρ. 128 · ZGW · Plein.be BE · χώρες: BE (Daisycon: χώρες των προϊόντων του feed) · γλώσσα feed: nl · feed: Daisycon 14720, EUR
 ΝΑΙ · γρ. 129 · ZGW · Plein.nl NL · χώρες: NL (Daisycon: χώρες των προϊόντων του feed) · γλώσσα feed: nl · feed: Daisycon 3366, EUR
 ΟΧΙ ακόμα · γρ. 130 · ZGW · Raw Paws Pet Food US · χώρες: US (νόμισμα του feed (USD)) · γλώσσα feed: en · feed: CJ 7127091, USD · ΓΙΑΤΙ: νέα μηχανή: CJ δεν διαβάζεται ακόμα (L234)
@@ -107,8 +110,10 @@
 ΝΑΙ · γρ. 147 · SGW · Topoutdoorshop.nl NL · χώρες: NL (Daisycon: χώρες των προϊόντων του feed) · γλώσσα feed: nl · feed: Daisycon 13076, EUR
 ΝΑΙ · γρ. 148 · SGW · Topsnowshop.nl NL · χώρες: NL (Daisycon: χώρες των προϊόντων του feed) · γλώσσα feed: nl · feed: Daisycon 5857, EUR
 ΟΧΙ ακόμα · γρ. 149 · SGW · Tradeinn · χώρες: AT,BE,CH,DE,DK,ES,FI,FR,IT,NL,NO,PL,PT,SE,US (Daisycon: χώρες των προϊόντων του feed) · γλώσσα feed: da,de,en,es,fi,fr,it,nl,no,pl,pt,sv · feed: Daisycon 20600 · 20601 · 20602 · 20603 · 20604 · 20605 · 20606 · 20607 · 20608 · 20614 · 20615 · 20616 · 20617 · 20618 · 20619 · 20620, GBP,USD · ΓΙΑΤΙ: πολλές γλώσσες στο feed (da,de,en,es,fi,fr,it,nl,no,pl,pt,sv): θέλει κανόνα γλώσσας ανά χώρα από την 3
+ΝΑΙ · γρ. 150 · SGW · Trail DE · χώρες: DE (Daisycon: χώρα του feed (αναφορά 26/11)) · γλώσσα feed: de · feed: Daisycon 18704 · το feed κατεβαίνει πριν την εισαγωγή
 ΝΑΙ · γρ. 151 · SGW · TT Shop Tischtennis Equipment DE · χώρες: DE (Daisycon: χώρες των προϊόντων του feed) · γλώσσα feed: de · feed: Daisycon 22409, EUR
 ΝΑΙ · γρ. 152 · SGW · Voetbaltafel.nl Tafeltennistafel.nl NL · χώρες: NL (Daisycon: χώρες των προϊόντων του feed) · γλώσσα feed: nl · feed: Daisycon 18007 · 18008, EUR
+ΝΑΙ · γρ. 153 · SGW · Zwemshop.com BE · χώρες: BE (Daisycon: χώρα του feed (αναφορά 26/11)) · γλώσσα feed: nl · feed: Daisycon 14485 · το feed κατεβαίνει πριν την εισαγωγή
 ΝΑΙ · γρ. 154 · TGW · Acculaders.nl NL · χώρες: NL (Daisycon: χώρες των προϊόντων του feed) · γλώσσα feed: nl · feed: Daisycon 12933, EUR
 ΝΑΙ · γρ. 156 · TGW · Akku.net DE · χώρες: DE (Awin: περιοχή του προγράμματος) · γλώσσα feed: de · feed: Awin 22871, feeds 85081, EUR
 ΝΑΙ · γρ. 159 · TGW · Aurzen US · χώρες: US (Awin: περιοχή του προγράμματος) · γλώσσα feed: en · feed: Awin 105387, feeds 105528, USD
@@ -129,6 +134,7 @@
 ΝΑΙ · γρ. 180 · TGW · Paradigit.ie IE · χώρες: IE (Awin: περιοχή του προγράμματος) · γλώσσα feed: en · feed: Awin 8912, feeds 24555, EUR
 ΟΧΙ ακόμα · γρ. 181 · TGW · Phonecases 3D · χώρες: ES,FI,FR,PT (Daisycon: χώρες των προϊόντων του feed) · γλώσσα feed: en,es,fi,fr,no,pt,sv · feed: Daisycon 19662, EUR · ΓΙΑΤΙ: πολλές γλώσσες στο feed (en,es,fi,fr,no,pt,sv): θέλει κανόνα γλώσσας ανά χώρα από την 3
 ΝΑΙ · γρ. 182 · TGW · Plaud DE · χώρες: DE (Daisycon: χώρες των προϊόντων του feed) · γλώσσα feed: en · feed: Daisycon 21213, EUR
+ΝΑΙ · γρ. 183 · TGW · Quadcopter-shop NL · χώρες: NL (Daisycon: χώρα του feed (αναφορά 26/11)) · γλώσσα feed: nl · feed: Daisycon 18088 · το feed κατεβαίνει πριν την εισαγωγή
 ΟΧΙ ακόμα · γρ. 184 · TGW · SharperImage.com US · χώρες: US (νόμισμα του feed (USD)) · γλώσσα feed: en · feed: Rakuten 815, USD · ΓΙΑΤΙ: νέα μηχανή: Rakuten δεν διαβάζεται ακόμα (L234)
 ΟΧΙ ακόμα · γρ. 185 · TGW · Soundcore US · χώρες: US (νόμισμα του feed (USD)) · γλώσσα feed: en · feed: CJ 7382109, USD · ΓΙΑΤΙ: νέα μηχανή: CJ δεν διαβάζεται ακόμα (L234)
 ΝΑΙ · γρ. 186 · TGW · Systemtreff DE · χώρες: DE (Awin: περιοχή του προγράμματος) · γλώσσα feed: de · feed: Awin 29783, feeds 82187, EUR

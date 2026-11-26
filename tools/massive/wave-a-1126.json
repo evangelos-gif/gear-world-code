@@ -937,6 +937,25 @@
    "shop": "LampenConcurrent"
   },
   {
+   "row": 64,
+   "site": "hgw",
+   "retailer": "LEDLager DE",
+   "countries": [
+    "DE"
+   ],
+   "language": "de",
+   "feedLanguages": [
+    "de"
+   ],
+   "network": "Daisycon",
+   "id": "20911",
+   "products": 600,
+   "evidence": "Daisycon: χώρα του feed (αναφορά 26/11)",
+   "note": "το feed κατεβαίνει πριν την εισαγωγή",
+   "import": "ΝΑΙ",
+   "shop": "LEDLager (DE/AT)"
+  },
+  {
    "row": 65,
    "site": "hgw",
    "retailer": "Leuchtmittel Verkauf DE",
@@ -1535,6 +1554,25 @@
    "shop": "Puzzle (BE, DE, AT, FR) · Go Puzzle (FR, DE)"
   },
   {
+   "row": 103,
+   "site": "kgw",
+   "retailer": "Spelhuis BE",
+   "countries": [
+    "BE"
+   ],
+   "language": "nl",
+   "feedLanguages": [
+    "nl"
+   ],
+   "network": "Daisycon",
+   "id": "15618",
+   "products": 7735,
+   "evidence": "Daisycon: χώρα του feed (αναφορά 26/11)",
+   "note": "το feed κατεβαίνει πριν την εισαγωγή",
+   "import": "ΝΑΙ",
+   "shop": "Spelhuis"
+  },
+  {
    "row": 105,
    "site": "kgw",
    "retailer": "Tushbaby US",
@@ -1849,6 +1887,25 @@
    "evidence": "Daisycon: χώρες των προϊόντων του feed",
    "import": "ΝΑΙ",
    "shop": "Van Arendonk (NL)"
+  },
+  {
+   "row": 126,
+   "site": "zgw",
+   "retailer": "MaJa Koi NL",
+   "countries": [
+    "NL"
+   ],
+   "language": "nl",
+   "feedLanguages": [
+    "nl"
+   ],
+   "network": "Daisycon",
+   "id": "15904",
+   "products": 4880,
+   "evidence": "Daisycon: χώρα του feed (αναφορά 26/11)",
+   "note": "το feed κατεβαίνει πριν την εισαγωγή",
+   "import": "ΝΑΙ",
+   "shop": "MaJa Koi"
   },
   {
    "row": 128,
@@ -2260,6 +2317,25 @@
    "shop": "Tradeinn (17 καταστήματα: BikeInn, TrekkInn, TechInn, DiveInn, SnowInn κ.ά.)"
   },
   {
+   "row": 150,
+   "site": "sgw",
+   "retailer": "Trail DE",
+   "countries": [
+    "DE"
+   ],
+   "language": "de",
+   "feedLanguages": [
+    "de"
+   ],
+   "network": "Daisycon",
+   "id": "18704",
+   "products": 5289,
+   "evidence": "Daisycon: χώρα του feed (αναφορά 26/11)",
+   "note": "το feed κατεβαίνει πριν την εισαγωγή",
+   "import": "ΝΑΙ",
+   "shop": "Trail (NL)"
+  },
+  {
    "row": 151,
    "site": "sgw",
    "retailer": "TT Shop Tischtennis Equipment DE",
@@ -2296,6 +2372,25 @@
    "evidence": "Daisycon: χώρες των προϊόντων του feed",
    "import": "ΝΑΙ",
    "shop": "Voetbaltafel.nl · Tafeltennistafel.nl"
+  },
+  {
+   "row": 153,
+   "site": "sgw",
+   "retailer": "Zwemshop.com BE",
+   "countries": [
+    "BE"
+   ],
+   "language": "nl",
+   "feedLanguages": [
+    "nl"
+   ],
+   "network": "Daisycon",
+   "id": "14485",
+   "products": 7463,
+   "evidence": "Daisycon: χώρα του feed (αναφορά 26/11)",
+   "note": "το feed κατεβαίνει πριν την εισαγωγή",
+   "import": "ΝΑΙ",
+   "shop": "Zwemshop.com"
   },
   {
    "row": 154,
@@ -2782,6 +2877,25 @@
    "evidence": "Daisycon: χώρες των προϊόντων του feed",
    "import": "ΝΑΙ",
    "shop": "Plaud (EU)"
+  },
+  {
+   "row": 183,
+   "site": "tgw",
+   "retailer": "Quadcopter-shop NL",
+   "countries": [
+    "NL"
+   ],
+   "language": "nl",
+   "feedLanguages": [
+    "nl"
+   ],
+   "network": "Daisycon",
+   "id": "18088",
+   "products": 348,
+   "evidence": "Daisycon: χώρα του feed (αναφορά 26/11)",
+   "note": "το feed κατεβαίνει πριν την εισαγωγή",
+   "import": "ΝΑΙ",
+   "shop": "Quadcopter-shop (NL)"
   },
   {
    "row": 184,
