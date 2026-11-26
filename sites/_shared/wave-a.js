@@ -11,7 +11,8 @@
 //   { site: 'hgw', retailer: 'Kochblume DE', countries: ['DE'], language: 'de', row: 62, source: 'chat 3, 26 Nov 2026' }
 // - retailer: exactly the name the import writes (its rules file or sources.json), which the cards show. On the six
 //   older sites (CGW GGW HGW KGW MGW WGW) only [A-Za-z0-9 .-] (tools/legacy-import.ps1).
-// - countries: from the shop's own delivery page (chat 3), never guessed, never GB or WORLD (Priority A is outside the UK).
+// - countries: from the shop's own delivery page (chat 3), never guessed, never GB or WORLD (Priority A is outside the
+// UK).
 //   A shop may be shown in fewer countries than it delivers to, never in more: where a country would make a new page
 //   group (at most 10 a site, L199, L202), it is left out, as Baobab Collection (France only) and bol.com on HGW (the
 //   Netherlands only) are.
@@ -33,13 +34,23 @@ export const LEGACY_NAME = /^[A-Za-z0-9 .-]{2,40}$/;
 // 11th to 13th page group. Left out by chat 4 for the same reason (L199): on WGW Vanilla Copenhagen DK (row 228,
 // Danish) and ZadigandVoltaire FR (row 230, French) would make the 11th and 12th group; both sell outside the Priority A
 // countries.
+// Left out on the new-engine sites (AGW BGW PGW SGW TGW VGW ZGW) until their import can read the language (chat 4, after
+// Cyber Monday: a section map for German, Dutch, Danish and Polish feeds, like bol-nl and linkwise-gr): their category
+// rules read English, so a German or Dutch name is turned away ("not sport", "not tech"). The 31 of them: AGW Fussmatten-Welt
+// DE, PGW Kelz0r DK, PGW Ubisoft DE, PGW Ubisoft NL, ZGW MaJa Koi NL, ZGW Plein.be BE, ZGW Plein.nl NL, SGW 365Rider
+// DE, SGW Donnay.nl NL, SGW leguano DE, SGW Merrell PL, SGW Shokz DE, SGW Sinner NL, SGW Topoutdoorshop.nl NL, SGW
+// Topsnowshop.nl NL, SGW Trail DE, SGW TT Shop Tischtennis Equipment DE, SGW Voetbaltafel.nl Tafeltennistafel.nl NL,
+// SGW Zwemshop.com BE, TGW Acculaders.nl NL, TGW Akku.net DE, TGW BlazeVideo DE, TGW Coolblue NL, TGW HIFI-REGLER DE,
+// TGW hm-sat.de DE, TGW iRepairshop BE, TGW Quadcopter-shop NL, TGW Systemtreff DE, TGW Teufel NL, TGW TroniTechnik DE,
+// VGW Koffer.de DE.
+// Also left out: SGW OpticsPlanet Dvor US (row 142: 586,090 products, rifle scopes and other weapon accessories, which
+// Google Ads does not allow; it needs a filter first).
 const SRC = 'chat 3, 26 Nov 2026 (tools/massive/wave-a-1126.json)';
 
 export const WAVE_A = Object.freeze([
   // AGW
   { site: 'agw', retailer: 'AstroAI US', countries: ['US'], row: 4, source: SRC },
   { site: 'agw', retailer: 'Eonon US', countries: ['US'], row: 5, source: SRC },
-  { site: 'agw', retailer: 'Fussmatten-Welt DE', countries: ['DE'], language: 'de', row: 6, source: SRC },
   { site: 'agw', retailer: 'Lectron US', countries: ['US'], row: 7, source: SRC },
   { site: 'agw', retailer: 'Rexing US', countries: ['US'], row: 11, source: SRC },
   { site: 'agw', retailer: 'SEALIGHT US', countries: ['US'], row: 12, source: SRC },
@@ -107,46 +118,17 @@ export const WAVE_A = Object.freeze([
   { site: 'mgw', retailer: 'Van Arendonk NL', countries: ['NL'], language: 'nl', row: 122, source: SRC },
   // PGW
   { site: 'pgw', retailer: 'Dowinx US', countries: ['US'], row: 22, source: SRC },
-  { site: 'pgw', retailer: 'Kelz0r DK', countries: ['DK'], language: 'da', row: 24, source: SRC },
-  { site: 'pgw', retailer: 'Ubisoft DE', countries: ['DE'], language: 'de', row: 27, source: SRC },
-  { site: 'pgw', retailer: 'Ubisoft NL', countries: ['NL'], language: 'nl', row: 29, source: SRC },
   // SGW
-  { site: 'sgw', retailer: '365Rider DE', countries: ['DE'], language: 'de', row: 131, source: SRC },
   { site: 'sgw', retailer: 'Anta Sports America US', countries: ['US'], row: 134, source: SRC },
-  { site: 'sgw', retailer: 'Donnay.nl NL', countries: ['NL'], language: 'nl', row: 135, source: SRC },
   { site: 'sgw', retailer: 'House of Scuba US', countries: ['US'], row: 138, source: SRC },
-  { site: 'sgw', retailer: 'leguano DE', countries: ['DE'], language: 'de', row: 139, source: SRC },
-  { site: 'sgw', retailer: 'Merrell PL', countries: ['PL'], language: 'pl', row: 140, source: SRC },
-  { site: 'sgw', retailer: 'OpticsPlanet Dvor US', countries: ['US'], row: 142, source: SRC },
-  { site: 'sgw', retailer: 'Shokz DE', countries: ['DE'], language: 'de', row: 145, source: SRC },
-  { site: 'sgw', retailer: 'Sinner NL', countries: ['NL'], language: 'nl', row: 146, source: SRC },
-  { site: 'sgw', retailer: 'Topoutdoorshop.nl NL', countries: ['NL'], language: 'nl', row: 147, source: SRC },
-  { site: 'sgw', retailer: 'Topsnowshop.nl NL', countries: ['NL'], language: 'nl', row: 148, source: SRC },
-  { site: 'sgw', retailer: 'Trail DE', countries: ['DE'], language: 'de', row: 150, source: SRC },
-  { site: 'sgw', retailer: 'TT Shop Tischtennis Equipment DE', countries: ['DE'], language: 'de', row: 151, source: SRC },
-  { site: 'sgw', retailer: 'Voetbaltafel.nl Tafeltennistafel.nl NL', countries: ['NL'], language: 'nl', row: 152, source: SRC },
-  { site: 'sgw', retailer: 'Zwemshop.com BE', countries: ['BE'], language: 'nl', row: 153, source: SRC },
   // TGW
-  { site: 'tgw', retailer: 'Acculaders.nl NL', countries: ['NL'], language: 'nl', row: 154, source: SRC },
-  { site: 'tgw', retailer: 'Akku.net DE', countries: ['DE'], language: 'de', row: 156, source: SRC },
   { site: 'tgw', retailer: 'Aurzen US', countries: ['US'], row: 159, source: SRC },
-  { site: 'tgw', retailer: 'BlazeVideo DE', countries: ['DE'], language: 'de', row: 160, source: SRC },
   { site: 'tgw', retailer: 'BLUETTI US', countries: ['US'], row: 161, source: SRC },
-  { site: 'tgw', retailer: 'Coolblue NL', countries: ['NL'], language: 'nl', row: 163, source: SRC },
   { site: 'tgw', retailer: 'EcoFlow US', countries: ['US'], row: 165, source: SRC },
-  { site: 'tgw', retailer: 'HIFI-REGLER DE', countries: ['DE'], language: 'de', row: 171, source: SRC },
-  { site: 'tgw', retailer: 'hm-sat.de DE', countries: ['DE'], language: 'de', row: 172, source: SRC },
-  { site: 'tgw', retailer: 'iRepairshop BE', countries: ['BE'], language: 'nl', row: 173, source: SRC },
   { site: 'tgw', retailer: 'MUNBYN LLC US', countries: ['US'], row: 176, source: SRC },
   { site: 'tgw', retailer: 'NIIMBOTS US', countries: ['US'], row: 177, source: SRC },
   { site: 'tgw', retailer: 'Paradigit.ie IE', countries: ['IE'], row: 180, source: SRC },
   { site: 'tgw', retailer: 'Plaud DE', countries: ['DE'], row: 182, source: SRC },
-  { site: 'tgw', retailer: 'Quadcopter-shop NL', countries: ['NL'], language: 'nl', row: 183, source: SRC },
-  { site: 'tgw', retailer: 'Systemtreff DE', countries: ['DE'], language: 'de', row: 186, source: SRC },
-  { site: 'tgw', retailer: 'Teufel NL', countries: ['NL'], language: 'nl', row: 189, source: SRC },
-  { site: 'tgw', retailer: 'TroniTechnik DE', countries: ['DE'], language: 'de', row: 190, source: SRC },
-  // VGW
-  { site: 'vgw', retailer: 'Koffer.de DE', countries: ['DE'], language: 'de', row: 193, source: SRC },
   // WGW
   { site: 'wgw', retailer: 'AMIclubwear US', countries: ['US'], row: 196, source: SRC },
   { site: 'wgw', retailer: 'Avocadostore DE', countries: ['DE'], language: 'de', row: 199, source: SRC },
@@ -168,10 +150,6 @@ export const WAVE_A = Object.freeze([
   { site: 'wgw', retailer: 'Sachin and Babi US', countries: ['US'], row: 223, source: SRC },
   { site: 'wgw', retailer: 'Salontopper.nl NL', countries: ['NL'], language: 'nl', row: 224, source: SRC },
   { site: 'wgw', retailer: 'Stilettoschuhe.com DE', countries: ['DE'], language: 'de', row: 225, source: SRC },
-  // ZGW
-  { site: 'zgw', retailer: 'MaJa Koi NL', countries: ['NL'], language: 'nl', row: 126, source: SRC },
-  { site: 'zgw', retailer: 'Plein.be BE', countries: ['BE'], language: 'nl', row: 128, source: SRC },
-  { site: 'zgw', retailer: 'Plein.nl NL', countries: ['NL'], language: 'nl', row: 129, source: SRC },
 ].map(e => Object.freeze({ ...e, countries: Object.freeze([...e.countries]) })));
 
 // { retailers, languages } of one site, spread into its deliversTo.

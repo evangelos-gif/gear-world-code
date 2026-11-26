@@ -57,9 +57,9 @@ const SHOWN = { CGW: seeing(['US', 'PL']), AGW: seeing(['US', 'PL']), BGW: seein
 // refurbed NL; BGW and PGW one more (the Netherlands and Belgium in Dutch).
 // AGW, BGW and TGW +2 since 21 Nov 2026 (L209): the Greek Linkwise shops, one view for Greece and one for Cyprus.
 // Priority A since 26 Nov 2026 (L234, sites/_shared/wave-a.js): shops of the US only on AGW (so the US has a view of its own
-// there too), German feeds for Germany only (AGW, GGW, KGW, WGW, TGW, PGW), Dutch ones for the Netherlands or Belgium only
-// (CGW, KGW, TGW, PGW split the two), Danish for Denmark (PGW): CGW 7, AGW 8, GGW 8, KGW 9, WGW 10, TGW 9, PGW 8.
-const GROUPS = { CGW: 7, AGW: 8, BGW: 6, GGW: 8, HGW: 10, KGW: 9, WGW: 10, TGW: 9, PGW: 8 };
+// there too), German feeds for Germany only (GGW, KGW, WGW), Dutch ones for the Netherlands or Belgium only (CGW and KGW
+// split the two): CGW 7, AGW 7, GGW 8, KGW 9, WGW 10 (TGW and PGW: English shops only, no new group).
+const GROUPS = { CGW: 7, AGW: 7, BGW: 6, GGW: 8, HGW: 10, KGW: 9, WGW: 10, TGW: 7, PGW: 5 };
 // What the bar says in the UK view while the codes of the config run (promos/promos.js, 10 Nov 2026).
 // BGW 6 since 19 Nov 2026: Tooled Up's 2 and iHoverboard's 4 (BF8%, 12%H1Q4, 15%iK1S, F7Ultra100, lessons L196).
 const WORDS = {
