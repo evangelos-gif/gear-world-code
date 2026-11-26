@@ -1,0 +1,3500 @@
+{
+ "_comment": "Priority A of the sheet «Λείπουν 25-11» (chat 7, 25 Nov 2026) with a product feed, from the massive inventory of 26 Nov 2026 (chat 3, lessons L234). One entry per shop and site for sites/_shared/wave-a.js (chat 4): retailer is the name the import will write (older sites only [A-Za-z0-9 .-]); countries never GB; language only when not English. countries come from the feed (Awin programme region, the countries of a Daisycon feed's products, USD/CAD/AUD of a CJ or Rakuten feed), so a shop is shown in at most the countries it sells to, never more; only rows 7, 12 and 47 are from the shop's own delivery page so far. import 'ΟΧΙ ακόμα' = no line yet, 'why' says what is missing.",
+ "entries": [
+  {
+   "row": 3,
+   "site": "bgw",
+   "retailer": "MKC Moto",
+   "countries": [
+    "AT",
+    "DE",
+    "NL"
+   ],
+   "feedLanguages": [
+    "de",
+    "fr",
+    "nl"
+   ],
+   "network": "Daisycon",
+   "id": "19448",
+   "currency": "EUR",
+   "products": 29400,
+   "evidence": "Daisycon: χώρες των προϊόντων του feed",
+   "import": "ΟΧΙ ακόμα",
+   "why": [
+    "πολλές γλώσσες στο feed (de,fr,nl): θέλει κανόνα γλώσσας ανά χώρα από την 3"
+   ],
+   "shop": "MKC Moto (NL/BE/LU)"
+  },
+  {
+   "row": 4,
+   "site": "agw",
+   "retailer": "AstroAI US",
+   "countries": [
+    "US"
+   ],
+   "feedLanguages": [
+    "en"
+   ],
+   "network": "Awin",
+   "id": "43671",
+   "feedIds": [
+    102754,
+    103925,
+    104669
+   ],
+   "currency": "USD",
+   "products": 167,
+   "evidence": "Awin: περιοχή του προγράμματος",
+   "import": "ΝΑΙ",
+   "shop": "AstroAI"
+  },
+  {
+   "row": 5,
+   "site": "agw",
+   "retailer": "Eonon US",
+   "countries": [
+    "US"
+   ],
+   "feedLanguages": [
+    "en"
+   ],
+   "network": "Awin",
+   "id": "32471",
+   "feedIds": [
+    99237
+   ],
+   "currency": "USD",
+   "products": 42,
+   "evidence": "Awin: περιοχή του προγράμματος",
+   "import": "ΝΑΙ",
+   "shop": "Eonon"
+  },
+  {
+   "row": 6,
+   "site": "agw",
+   "retailer": "Fussmatten-Welt DE",
+   "countries": [
+    "DE"
+   ],
+   "language": "de",
+   "feedLanguages": [
+    "en"
+   ],
+   "network": "Awin",
+   "id": "23468",
+   "feedIds": [
+    92190
+   ],
+   "currency": "EUR",
+   "products": 72974,
+   "evidence": "Awin: περιοχή του προγράμματος · γλώσσα: τα ονόματα του feed είναι γερμανικά («Fussmatte …»), όχι αγγλικά όπως γράφει το Awin",
+   "import": "ΝΑΙ",
+   "shop": "Fußmatten-Welt DE"
+  },
+  {
+   "row": 7,
+   "site": "agw",
+   "retailer": "Lectron US",
+   "countries": [
+    "US"
+   ],
+   "feedLanguages": [
+    "en"
+   ],
+   "network": "Awin",
+   "id": "91891",
+   "feedIds": [
+    110358
+   ],
+   "currency": "USD",
+   "products": 66,
+   "evidence": "σελίδα παράδοσης («Shipping Policy», 25/11): ΗΠΑ",
+   "import": "ΝΑΙ",
+   "shop": "Lectron"
+  },
+  {
+   "row": 8,
+   "site": "agw",
+   "retailer": "OEDRO US",
+   "countries": [
+    "US"
+   ],
+   "feedLanguages": [
+    "en"
+   ],
+   "network": "CJ",
+   "id": "7455332",
+   "currency": "USD",
+   "products": 1172,
+   "evidence": "νόμισμα του feed (USD)",
+   "import": "ΟΧΙ ακόμα",
+   "why": [
+    "νέα μηχανή: CJ δεν διαβάζεται ακόμα (L234)"
+   ],
+   "shop": "OEDRO"
+  },
+  {
+   "row": 10,
+   "site": "agw",
+   "retailer": "Rexing US",
+   "countries": [
+    "US"
+   ],
+   "feedLanguages": [
+    "en"
+   ],
+   "network": "CJ",
+   "id": "5357356",
+   "currency": "USD",
+   "products": 183,
+   "evidence": "νόμισμα του feed (USD)",
+   "import": "ΟΧΙ ακόμα",
+   "why": [
+    "νέα μηχανή: CJ δεν διαβάζεται ακόμα (L234)"
+   ],
+   "shop": "Rexing"
+  },
+  {
+   "row": 11,
+   "site": "agw",
+   "retailer": "Rexing US",
+   "countries": [
+    "US"
+   ],
+   "feedLanguages": [
+    "en"
+   ],
+   "network": "Awin",
+   "id": "104895",
+   "feedIds": [
+    111286
+   ],
+   "currency": "USD",
+   "products": 183,
+   "evidence": "Awin: περιοχή του προγράμματος",
+   "import": "ΝΑΙ",
+   "shop": "Rexing"
+  },
+  {
+   "row": 12,
+   "site": "agw",
+   "retailer": "SEALIGHT US",
+   "countries": [
+    "US"
+   ],
+   "feedLanguages": [
+    "en"
+   ],
+   "network": "Awin",
+   "id": "70817",
+   "feedIds": [
+    109348
+   ],
+   "currency": "USD",
+   "products": 1,
+   "evidence": "σελίδα παράδοσης («Shipping Policy», 25/11): μόνο ΗΠΑ (48 πολιτείες)",
+   "import": "ΝΑΙ",
+   "shop": "SEALIGHT"
+  },
+  {
+   "row": 14,
+   "site": "agw",
+   "retailer": "Tirendo BE",
+   "countries": [
+    "BE",
+    "ES"
+   ],
+   "feedLanguages": [
+    "es",
+    "nl"
+   ],
+   "network": "Awin",
+   "id": "8700 · 10726",
+   "feedIds": [
+    23001,
+    23013
+   ],
+   "currency": "EUR",
+   "products": "20000+",
+   "evidence": "Awin: περιοχή του προγράμματος",
+   "import": "ΟΧΙ ακόμα",
+   "why": [
+    "πολλές γλώσσες στο feed (es,nl): θέλει κανόνα γλώσσας ανά χώρα από την 3"
+   ],
+   "shop": "Tirendo BE"
+  },
+  {
+   "row": 18,
+   "site": "cgw",
+   "retailer": "Gereedschapspecialist NL",
+   "countries": [
+    "NL"
+   ],
+   "language": "nl",
+   "feedLanguages": [
+    "nl"
+   ],
+   "network": "Daisycon",
+   "id": "13231",
+   "currency": "EUR",
+   "products": 7517,
+   "evidence": "Daisycon: χώρες των προϊόντων του feed",
+   "import": "ΝΑΙ",
+   "shop": "Gereedschapspecialist"
+  },
+  {
+   "row": 19,
+   "site": "cgw",
+   "retailer": "ssimder welding equipment inc US",
+   "countries": [
+    "US"
+   ],
+   "feedLanguages": [
+    "en"
+   ],
+   "network": "Awin",
+   "id": "41930",
+   "feedIds": [
+    118048
+   ],
+   "currency": "USD",
+   "products": 18,
+   "evidence": "Awin: περιοχή του προγράμματος",
+   "import": "ΝΑΙ",
+   "shop": "ssimder welding equipment inc."
+  },
+  {
+   "row": 20,
+   "site": "cgw",
+   "retailer": "Verfuitverkoop.nl Wixx Coatings",
+   "countries": [
+    "BE",
+    "DE",
+    "FR",
+    "NL"
+   ],
+   "feedLanguages": [
+    "de",
+    "fr",
+    "nl"
+   ],
+   "network": "Daisycon",
+   "id": "21219 · 21467",
+   "currency": "EUR",
+   "products": 6095,
+   "evidence": "Daisycon: χώρες των προϊόντων του feed",
+   "import": "ΟΧΙ ακόμα",
+   "why": [
+    "πολλές γλώσσες στο feed (de,fr,nl): θέλει κανόνα γλώσσας ανά χώρα από την 3"
+   ],
+   "shop": "Verfuitverkoop.nl · Wixx Coatings"
+  },
+  {
+   "row": 22,
+   "site": "pgw",
+   "retailer": "Dowinx US",
+   "countries": [
+    "US"
+   ],
+   "feedLanguages": [
+    "en"
+   ],
+   "network": "Awin",
+   "id": "107524",
+   "feedIds": [
+    112471,
+    112536
+   ],
+   "currency": "USD",
+   "products": 183,
+   "evidence": "Awin: περιοχή του προγράμματος",
+   "import": "ΝΑΙ",
+   "shop": "Dowinx (EU)"
+  },
+  {
+   "row": 24,
+   "site": "pgw",
+   "retailer": "Kelz0r DK",
+   "countries": [
+    "DK"
+   ],
+   "language": "da",
+   "feedLanguages": [
+    "da"
+   ],
+   "network": "Daisycon",
+   "id": "17407",
+   "currency": "DKK",
+   "products": 13231,
+   "evidence": "Daisycon: χώρες των προϊόντων του feed",
+   "import": "ΝΑΙ",
+   "shop": "Kelz0r (EU)"
+  },
+  {
+   "row": 25,
+   "site": "pgw",
+   "retailer": "PREMIUM BANDAI USA",
+   "countries": [
+    "US"
+   ],
+   "feedLanguages": [
+    "en"
+   ],
+   "network": "Rakuten",
+   "id": "45848",
+   "currency": "USD",
+   "products": 1138,
+   "evidence": "νόμισμα του feed (USD)",
+   "import": "ΟΧΙ ακόμα",
+   "why": [
+    "νέα μηχανή: Rakuten δεν διαβάζεται ακόμα (L234)"
+   ],
+   "shop": "PREMIUM BANDAI USA"
+  },
+  {
+   "row": 27,
+   "site": "pgw",
+   "retailer": "Ubisoft DE",
+   "countries": [
+    "DE"
+   ],
+   "language": "de",
+   "feedLanguages": [
+    "de"
+   ],
+   "network": "Daisycon",
+   "id": "14378",
+   "currency": "EUR",
+   "products": 749,
+   "evidence": "Daisycon: χώρες των προϊόντων του feed",
+   "import": "ΝΑΙ",
+   "shop": "Ubisoft (DE/AT)"
+  },
+  {
+   "row": 29,
+   "site": "pgw",
+   "retailer": "Ubisoft NL",
+   "countries": [
+    "NL"
+   ],
+   "language": "nl",
+   "feedLanguages": [
+    "nl"
+   ],
+   "network": "Daisycon",
+   "id": "12734",
+   "currency": "EUR",
+   "products": 780,
+   "evidence": "Daisycon: χώρες των προϊόντων του feed",
+   "import": "ΝΑΙ",
+   "shop": "Ubisoft (NL/BE/LU)"
+  },
+  {
+   "row": 30,
+   "site": "ggw",
+   "retailer": "Gabiona",
+   "countries": [
+    "AT",
+    "BE",
+    "DE",
+    "DK",
+    "ES",
+    "IT",
+    "NL",
+    "PT",
+    "SE"
+   ],
+   "feedLanguages": [
+    "da",
+    "de",
+    "es",
+    "fr",
+    "it",
+    "nl",
+    "pt",
+    "sv"
+   ],
+   "network": "Daisycon",
+   "id": "19568",
+   "currency": "EUR",
+   "products": 3962,
+   "evidence": "Daisycon: χώρες των προϊόντων του feed",
+   "import": "ΟΧΙ ακόμα",
+   "why": [
+    "πολλές γλώσσες στο feed (da,de,es,fr,it,nl,pt,sv): θέλει κανόνα γλώσσας ανά χώρα από την 3"
+   ],
+   "shop": "Gabiona (EU)"
+  },
+  {
+   "row": 31,
+   "site": "ggw",
+   "retailer": "InterGard Heim und Garten DE",
+   "countries": [
+    "DE"
+   ],
+   "language": "de",
+   "feedLanguages": [
+    "de"
+   ],
+   "network": "Awin",
+   "id": "24966",
+   "feedIds": [
+    60713
+   ],
+   "currency": "EUR",
+   "products": 3650,
+   "evidence": "Awin: περιοχή του προγράμματος",
+   "import": "ΝΑΙ",
+   "shop": "InterGard Heim und Garten DE"
+  },
+  {
+   "row": 33,
+   "site": "ggw",
+   "retailer": "Orchideen Klusmann DE",
+   "countries": [
+    "DE"
+   ],
+   "language": "de",
+   "feedLanguages": [
+    "de"
+   ],
+   "network": "Awin",
+   "id": "23139",
+   "feedIds": [
+    54677
+   ],
+   "currency": "EUR",
+   "products": 151,
+   "evidence": "Awin: περιοχή του προγράμματος",
+   "import": "ΝΑΙ",
+   "shop": "Orchideen Klusmann DE"
+  },
+  {
+   "row": 34,
+   "site": "ggw",
+   "retailer": "Rasendoktor DE",
+   "countries": [
+    "DE"
+   ],
+   "language": "de",
+   "feedLanguages": [
+    "de"
+   ],
+   "network": "Awin",
+   "id": "26999",
+   "feedIds": [
+    116756
+   ],
+   "currency": "EUR",
+   "products": 87,
+   "evidence": "Awin: περιοχή του προγράμματος",
+   "import": "ΝΑΙ",
+   "shop": "Rasendoktor DE"
+  },
+  {
+   "row": 37,
+   "site": "ggw",
+   "retailer": "WILDGUARDER US",
+   "countries": [
+    "US"
+   ],
+   "feedLanguages": [
+    "en"
+   ],
+   "network": "Awin",
+   "id": "126831",
+   "feedIds": [
+    118382
+   ],
+   "currency": "USD",
+   "products": 56,
+   "evidence": "Awin: περιοχή του προγράμματος",
+   "import": "ΝΑΙ",
+   "shop": "WILDGUARDER"
+  },
+  {
+   "row": 38,
+   "site": "hgw",
+   "retailer": "1-800Lighting US",
+   "countries": [
+    "US"
+   ],
+   "feedLanguages": [
+    "en"
+   ],
+   "network": "Rakuten",
+   "id": "47259",
+   "currency": "USD",
+   "products": "20000+",
+   "evidence": "νόμισμα του feed (USD)",
+   "import": "ΝΑΙ",
+   "shop": "1-800Lighting"
+  },
+  {
+   "row": 39,
+   "site": "hgw",
+   "retailer": "ARIEL Bath US",
+   "countries": [
+    "US"
+   ],
+   "feedLanguages": [
+    "en"
+   ],
+   "network": "Rakuten",
+   "id": "54126",
+   "currency": "USD",
+   "products": 4372,
+   "evidence": "νόμισμα του feed (USD)",
+   "import": "ΝΑΙ",
+   "shop": "ARIEL Bath"
+  },
+  {
+   "row": 40,
+   "site": "hgw",
+   "retailer": "Bioethanol-haard BE",
+   "countries": [
+    "BE"
+   ],
+   "language": "nl",
+   "feedLanguages": [
+    "nl"
+   ],
+   "network": "Daisycon",
+   "id": "20106",
+   "currency": "EUR",
+   "products": 1365,
+   "evidence": "Daisycon: χώρες των προϊόντων του feed",
+   "import": "ΝΑΙ",
+   "shop": "Bioethanol-haard (BE)"
+  },
+  {
+   "row": 41,
+   "site": "hgw",
+   "retailer": "Bioethanol-Kamin-Shop DE",
+   "countries": [
+    "DE"
+   ],
+   "language": "de",
+   "feedLanguages": [
+    "de"
+   ],
+   "network": "Daisycon",
+   "id": "15516",
+   "currency": "EUR",
+   "products": 1831,
+   "evidence": "Daisycon: χώρες των προϊόντων του feed",
+   "import": "ΝΑΙ",
+   "shop": "Bioethanol-Kamin-Shop (DE)"
+  },
+  {
+   "row": 42,
+   "site": "hgw",
+   "retailer": "Bioethanolhaard-Shop NL",
+   "countries": [
+    "NL"
+   ],
+   "language": "nl",
+   "feedLanguages": [
+    "nl"
+   ],
+   "network": "Daisycon",
+   "id": "15518",
+   "currency": "EUR",
+   "products": 2014,
+   "evidence": "Daisycon: χώρες των προϊόντων του feed",
+   "import": "ΝΑΙ",
+   "shop": "Bioethanolhaard-Shop (NL)"
+  },
+  {
+   "row": 43,
+   "site": "hgw",
+   "retailer": "Biokominek-Shop PL",
+   "countries": [
+    "PL"
+   ],
+   "language": "pl",
+   "feedLanguages": [
+    "pl"
+   ],
+   "network": "Daisycon",
+   "id": "15520",
+   "currency": "PLN",
+   "products": 1866,
+   "evidence": "Daisycon: χώρες των προϊόντων του feed",
+   "import": "ΝΑΙ",
+   "shop": "Biokominek-Shop (PL)"
+  },
+  {
+   "row": 45,
+   "site": "hgw",
+   "retailer": "Colchones Aznar",
+   "countries": [
+    "ES",
+    "PT"
+   ],
+   "feedLanguages": [
+    "es",
+    "pt"
+   ],
+   "network": "Daisycon",
+   "id": "21353",
+   "currency": "EUR",
+   "products": 4461,
+   "evidence": "Daisycon: χώρες των προϊόντων του feed",
+   "import": "ΟΧΙ ακόμα",
+   "why": [
+    "πολλές γλώσσες στο feed (es,pt): θέλει κανόνα γλώσσας ανά χώρα από την 3"
+   ],
+   "shop": "Colchones Aznar (INT)"
+  },
+  {
+   "row": 46,
+   "site": "hgw",
+   "retailer": "COSORI DE",
+   "countries": [
+    "DE"
+   ],
+   "language": "de",
+   "feedLanguages": [
+    "de"
+   ],
+   "network": "Awin",
+   "id": "112896",
+   "feedIds": [
+    100376,
+    102904
+   ],
+   "currency": "EUR",
+   "products": 31,
+   "evidence": "Awin: περιοχή του προγράμματος",
+   "import": "ΝΑΙ",
+   "shop": "COSORI DE"
+  },
+  {
+   "row": 47,
+   "site": "hgw",
+   "retailer": "CUCKOO Electronics America",
+   "countries": [
+    "US",
+    "CA",
+    "MX"
+   ],
+   "feedLanguages": [
+    "en"
+   ],
+   "network": "Awin",
+   "id": "61971",
+   "feedIds": [
+    104832
+   ],
+   "currency": "USD",
+   "products": 167,
+   "evidence": "σελίδα παράδοσης (Help Center, 25/11): ΗΠΑ, Καναδάς, Μεξικό, Π. Ρίκο, Γκουάμ",
+   "import": "ΝΑΙ",
+   "shop": "CUCKOO Electronics America"
+  },
+  {
+   "row": 49,
+   "site": "hgw",
+   "retailer": "Dekotopia DE",
+   "countries": [
+    "DE"
+   ],
+   "language": "de",
+   "feedLanguages": [
+    "de"
+   ],
+   "network": "Daisycon",
+   "id": "21939",
+   "currency": "EUR",
+   "products": 467,
+   "evidence": "Daisycon: χώρες των προϊόντων του feed",
+   "import": "ΝΑΙ",
+   "shop": "Dekotopia (INT)"
+  },
+  {
+   "row": 50,
+   "site": "hgw",
+   "retailer": "DirectWonen.nl NL",
+   "countries": [
+    "NL"
+   ],
+   "language": "nl",
+   "feedLanguages": [
+    "nl"
+   ],
+   "network": "Daisycon",
+   "id": "15320",
+   "currency": "EUR",
+   "products": 950,
+   "evidence": "Daisycon: χώρες των προϊόντων του feed",
+   "import": "ΝΑΙ",
+   "shop": "DirectWonen.nl"
+  },
+  {
+   "row": 51,
+   "site": "hgw",
+   "retailer": "Enjoy The Wood US",
+   "countries": [
+    "US"
+   ],
+   "feedLanguages": [
+    "en"
+   ],
+   "network": "Awin",
+   "id": "80363",
+   "feedIds": [
+    105341
+   ],
+   "currency": "USD",
+   "products": 25,
+   "evidence": "Awin: περιοχή του προγράμματος",
+   "import": "ΝΑΙ",
+   "shop": "Enjoy The Wood"
+  },
+  {
+   "row": 52,
+   "site": "hgw",
+   "retailer": "Ethanolkamin-shop AT",
+   "countries": [
+    "AT"
+   ],
+   "language": "de",
+   "feedLanguages": [
+    "de"
+   ],
+   "network": "Daisycon",
+   "id": "20105",
+   "currency": "EUR",
+   "products": 1071,
+   "evidence": "Daisycon: χώρες των προϊόντων του feed",
+   "import": "ΝΑΙ",
+   "shop": "Ethanolkamin-shop (AT)"
+  },
+  {
+   "row": 54,
+   "site": "hgw",
+   "retailer": "FUFUandGAGA US",
+   "countries": [
+    "US"
+   ],
+   "feedLanguages": [
+    "en"
+   ],
+   "network": "CJ",
+   "id": "8004940",
+   "currency": "USD",
+   "products": 1196,
+   "evidence": "νόμισμα του feed (USD)",
+   "import": "ΝΑΙ",
+   "shop": "FUFU&GAGA"
+  },
+  {
+   "row": 55,
+   "site": "hgw",
+   "retailer": "Guzzini",
+   "countries": [
+    "DE",
+    "FR",
+    "IT"
+   ],
+   "feedLanguages": [
+    "de",
+    "en",
+    "fr",
+    "it"
+   ],
+   "network": "Daisycon",
+   "id": "21196",
+   "currency": "EUR",
+   "products": 1457,
+   "evidence": "Daisycon: χώρες των προϊόντων του feed",
+   "import": "ΟΧΙ ακόμα",
+   "why": [
+    "πολλές γλώσσες στο feed (de,en,fr,it): θέλει κανόνα γλώσσας ανά χώρα από την 3"
+   ],
+   "shop": "Guzzini (EU)"
+  },
+  {
+   "row": 57,
+   "site": "hgw",
+   "retailer": "HOMELEADER INC US",
+   "countries": [
+    "US"
+   ],
+   "feedLanguages": [
+    "en"
+   ],
+   "network": "Awin",
+   "id": "113628",
+   "feedIds": [
+    107806
+   ],
+   "currency": "USD",
+   "products": 767,
+   "evidence": "Awin: περιοχή του προγράμματος",
+   "import": "ΝΑΙ",
+   "shop": "HOMELEADER INC"
+  },
+  {
+   "row": 58,
+   "site": "hgw",
+   "retailer": "HOMSEE US",
+   "countries": [
+    "US"
+   ],
+   "feedLanguages": [
+    "en"
+   ],
+   "network": "CJ",
+   "id": "8027729",
+   "currency": "USD",
+   "products": 358,
+   "evidence": "νόμισμα του feed (USD)",
+   "import": "ΝΑΙ",
+   "shop": "HOMSEE"
+  },
+  {
+   "row": 59,
+   "site": "hgw",
+   "retailer": "House of Lamps US",
+   "countries": [
+    "US"
+   ],
+   "feedLanguages": [
+    "en"
+   ],
+   "network": "Awin",
+   "id": "130277",
+   "feedIds": [
+    117745
+   ],
+   "currency": "USD",
+   "products": 476,
+   "evidence": "Awin: περιοχή του προγράμματος",
+   "import": "ΝΑΙ",
+   "shop": "House of Lamps"
+  },
+  {
+   "row": 60,
+   "site": "hgw",
+   "retailer": "Janine DE",
+   "countries": [
+    "DE"
+   ],
+   "language": "de",
+   "feedLanguages": [
+    "de"
+   ],
+   "network": "Daisycon",
+   "id": "21986",
+   "currency": "EUR",
+   "products": 2505,
+   "evidence": "Daisycon: χώρες των προϊόντων του feed",
+   "import": "ΝΑΙ",
+   "shop": "Janine (DACH)"
+  },
+  {
+   "row": 62,
+   "site": "hgw",
+   "retailer": "Kochblume DE",
+   "countries": [
+    "DE"
+   ],
+   "language": "de",
+   "feedLanguages": [
+    "de"
+   ],
+   "network": "Awin",
+   "id": "78872",
+   "feedIds": [
+    119502
+   ],
+   "currency": "EUR",
+   "products": 1421,
+   "evidence": "Awin: περιοχή του προγράμματος",
+   "import": "ΝΑΙ",
+   "shop": "Kochblume DE"
+  },
+  {
+   "row": 63,
+   "site": "hgw",
+   "retailer": "LampenConcurrent NL",
+   "countries": [
+    "NL"
+   ],
+   "language": "nl",
+   "feedLanguages": [
+    "nl"
+   ],
+   "network": "Daisycon",
+   "id": "17145",
+   "currency": "EUR",
+   "products": 2309,
+   "evidence": "Daisycon: χώρες των προϊόντων του feed",
+   "import": "ΝΑΙ",
+   "shop": "LampenConcurrent"
+  },
+  {
+   "row": 65,
+   "site": "hgw",
+   "retailer": "Leuchtmittel Verkauf DE",
+   "countries": [
+    "DE"
+   ],
+   "language": "de",
+   "feedLanguages": [
+    "de"
+   ],
+   "network": "Daisycon",
+   "id": "21938",
+   "currency": "EUR",
+   "products": 9870,
+   "evidence": "Daisycon: χώρες των προϊόντων του feed",
+   "import": "ΝΑΙ",
+   "shop": "Leuchtmittel Verkauf (INT)"
+  },
+  {
+   "row": 66,
+   "site": "hgw",
+   "retailer": "Levoit DE",
+   "countries": [
+    "DE"
+   ],
+   "language": "de",
+   "feedLanguages": [
+    "de"
+   ],
+   "network": "Awin",
+   "id": "112902",
+   "feedIds": [
+    100375
+   ],
+   "currency": "EUR",
+   "products": 72,
+   "evidence": "Awin: περιοχή του προγράμματος",
+   "import": "ΝΑΙ",
+   "shop": "Levoit DE"
+  },
+  {
+   "row": 67,
+   "site": "hgw",
+   "retailer": "LTT Versand",
+   "countries": [
+    "DE",
+    "ES",
+    "FR"
+   ],
+   "feedLanguages": [
+    "de",
+    "en",
+    "es",
+    "fr"
+   ],
+   "network": "Daisycon",
+   "id": "21936",
+   "currency": "EUR",
+   "products": 31694,
+   "evidence": "Daisycon: χώρες των προϊόντων του feed",
+   "import": "ΟΧΙ ακόμα",
+   "why": [
+    "πολλές γλώσσες στο feed (de,en,es,fr): θέλει κανόνα γλώσσας ανά χώρα από την 3"
+   ],
+   "shop": "LTT Versand (INT)"
+  },
+  {
+   "row": 69,
+   "site": "hgw",
+   "retailer": "Matten Welt DE",
+   "countries": [
+    "DE"
+   ],
+   "language": "de",
+   "feedLanguages": [
+    "en"
+   ],
+   "network": "Awin",
+   "id": "22158",
+   "feedIds": [
+    92237
+   ],
+   "currency": "EUR",
+   "products": 90111,
+   "evidence": "Awin: περιοχή του προγράμματος · γλώσσα: τα ονόματα του feed είναι γερμανικά («Fussmatte …»), όχι αγγλικά όπως γράφει το Awin",
+   "import": "ΝΑΙ",
+   "shop": "Matten Welt DE"
+  },
+  {
+   "row": 70,
+   "site": "hgw",
+   "retailer": "Maytag US",
+   "countries": [
+    "US"
+   ],
+   "feedLanguages": [
+    "en"
+   ],
+   "network": "Rakuten",
+   "id": "53708",
+   "currency": "USD",
+   "products": 88,
+   "evidence": "νόμισμα του feed (USD)",
+   "import": "ΝΑΙ",
+   "shop": "Maytag"
+  },
+  {
+   "row": 71,
+   "site": "hgw",
+   "retailer": "meubelo.nl NL",
+   "countries": [
+    "NL"
+   ],
+   "language": "nl",
+   "feedLanguages": [
+    "nl"
+   ],
+   "network": "Daisycon",
+   "id": "21258",
+   "currency": "EUR",
+   "products": 1435736,
+   "evidence": "Daisycon: χώρες των προϊόντων του feed",
+   "import": "ΝΑΙ",
+   "shop": "meubelo.nl (NL)"
+  },
+  {
+   "row": 72,
+   "site": "hgw",
+   "retailer": "moebel.de DE",
+   "countries": [
+    "DE"
+   ],
+   "language": "de",
+   "feedLanguages": [
+    "de"
+   ],
+   "network": "Daisycon",
+   "id": "20557",
+   "currency": "EUR",
+   "products": 750126,
+   "evidence": "Daisycon: χώρες των προϊόντων του feed",
+   "import": "ΝΑΙ",
+   "shop": "moebel.de (DE)"
+  },
+  {
+   "row": 73,
+   "site": "hgw",
+   "retailer": "moebel24.at AT",
+   "countries": [
+    "AT"
+   ],
+   "language": "de",
+   "feedLanguages": [
+    "de"
+   ],
+   "network": "Daisycon",
+   "id": "21256",
+   "currency": "EUR",
+   "products": 211491,
+   "evidence": "Daisycon: χώρες των προϊόντων του feed",
+   "import": "ΝΑΙ",
+   "shop": "moebel24.at (AT)"
+  },
+  {
+   "row": 74,
+   "site": "hgw",
+   "retailer": "NORMA24 DE",
+   "countries": [
+    "DE"
+   ],
+   "language": "de",
+   "feedLanguages": [
+    "de"
+   ],
+   "network": "Awin",
+   "id": "30917",
+   "feedIds": [
+    72537
+   ],
+   "currency": "EUR",
+   "products": 19467,
+   "evidence": "Awin: περιοχή του προγράμματος",
+   "import": "ΝΑΙ",
+   "shop": "NORMA24 DE"
+  },
+  {
+   "row": 75,
+   "site": "hgw",
+   "retailer": "Profichemie.com DE",
+   "countries": [
+    "DE"
+   ],
+   "language": "de",
+   "feedLanguages": [
+    "de"
+   ],
+   "network": "Awin",
+   "id": "17412",
+   "feedIds": [
+    38189
+   ],
+   "currency": "EUR",
+   "products": 78,
+   "evidence": "Awin: περιοχή του προγράμματος",
+   "import": "ΝΑΙ",
+   "shop": "Profichemie.com DE"
+  },
+  {
+   "row": 76,
+   "site": "hgw",
+   "retailer": "Prydligt",
+   "countries": [
+    "DK",
+    "SE"
+   ],
+   "feedLanguages": [
+    "de",
+    "en",
+    "fi",
+    "nl",
+    "sv"
+   ],
+   "network": "Daisycon",
+   "id": "18472 · 18473 · 18474 · 18475 · 18476",
+   "currency": "EUR,SEK",
+   "products": 1829,
+   "evidence": "Daisycon: χώρες των προϊόντων του feed",
+   "import": "ΟΧΙ ακόμα",
+   "why": [
+    "πολλές γλώσσες στο feed (de,en,fi,nl,sv): θέλει κανόνα γλώσσας ανά χώρα από την 3"
+   ],
+   "shop": "Prydligt (SE, FI, DE, NL, EU)"
+  },
+  {
+   "row": 77,
+   "site": "hgw",
+   "retailer": "Puredown.Inc US",
+   "countries": [
+    "US"
+   ],
+   "feedLanguages": [
+    "en"
+   ],
+   "network": "Awin",
+   "id": "91133",
+   "feedIds": [
+    103217
+   ],
+   "currency": "USD",
+   "products": 8,
+   "evidence": "Awin: περιοχή του προγράμματος",
+   "import": "ΝΑΙ",
+   "shop": "Puredown.Inc"
+  },
+  {
+   "row": 78,
+   "site": "hgw",
+   "retailer": "Sanifun - Online-sanitair.com BE",
+   "countries": [
+    "BE"
+   ],
+   "language": "nl",
+   "feedLanguages": [
+    "nl"
+   ],
+   "network": "Daisycon",
+   "id": "14262",
+   "currency": "EUR",
+   "products": 4580,
+   "evidence": "Daisycon: χώρες των προϊόντων του feed",
+   "import": "ΝΑΙ",
+   "shop": "Sanifun - Online-sanitair.com (BE)"
+  },
+  {
+   "row": 79,
+   "site": "hgw",
+   "retailer": "Sanifun - Online-sanitairkopen.nl NL",
+   "countries": [
+    "NL"
+   ],
+   "language": "nl",
+   "feedLanguages": [
+    "nl"
+   ],
+   "network": "Daisycon",
+   "id": "7400",
+   "currency": "EUR",
+   "products": 4580,
+   "evidence": "Daisycon: χώρες των προϊόντων του feed",
+   "import": "ΝΑΙ",
+   "shop": "Sanifun - Online-sanitairkopen.nl"
+  },
+  {
+   "row": 80,
+   "site": "hgw",
+   "retailer": "Sanifun - Salledebain-Online.be BE",
+   "countries": [
+    "BE"
+   ],
+   "language": "fr",
+   "feedLanguages": [
+    "fr"
+   ],
+   "network": "Daisycon",
+   "id": "14259",
+   "currency": "EUR",
+   "products": 4580,
+   "evidence": "Daisycon: χώρες των προϊόντων του feed",
+   "import": "ΝΑΙ",
+   "shop": "Sanifun - Salledebain-Online.be"
+  },
+  {
+   "row": 82,
+   "site": "hgw",
+   "retailer": "sheepworld DE",
+   "countries": [
+    "DE"
+   ],
+   "language": "de",
+   "feedLanguages": [
+    "de"
+   ],
+   "network": "Awin",
+   "id": "130165",
+   "feedIds": [
+    117598
+   ],
+   "currency": "EUR",
+   "products": 2801,
+   "evidence": "Awin: περιοχή του προγράμματος",
+   "import": "ΝΑΙ",
+   "shop": "sheepworld DE"
+  },
+  {
+   "row": 83,
+   "site": "hgw",
+   "retailer": "Silicon Valley Air Expert Inc US",
+   "countries": [
+    "US"
+   ],
+   "feedLanguages": [
+    "en"
+   ],
+   "network": "Awin",
+   "id": "54965",
+   "feedIds": [
+    104351
+   ],
+   "currency": "USD",
+   "products": 82,
+   "evidence": "Awin: περιοχή του προγράμματος",
+   "import": "ΝΑΙ",
+   "shop": "Silicon Valley Air Expert Inc."
+  },
+  {
+   "row": 86,
+   "site": "hgw",
+   "retailer": "Vincasa DE",
+   "countries": [
+    "DE"
+   ],
+   "language": "de",
+   "feedLanguages": [
+    "de"
+   ],
+   "network": "Daisycon",
+   "id": "20840",
+   "currency": "EUR",
+   "products": 169,
+   "evidence": "Daisycon: χώρες των προϊόντων του feed",
+   "import": "ΝΑΙ",
+   "shop": "Vincasa (DE)"
+  },
+  {
+   "row": 87,
+   "site": "hgw",
+   "retailer": "Vincasa",
+   "feedLanguages": [
+    "en"
+   ],
+   "network": "Daisycon",
+   "id": "20839",
+   "currency": "GBP",
+   "products": 126,
+   "evidence": "Daisycon: χώρες των προϊόντων του feed",
+   "import": "ΟΧΙ ακόμα",
+   "why": [
+    "μόνο GB/άγνωστη χώρα στο feed"
+   ],
+   "shop": "Vincasa (EU)"
+  },
+  {
+   "row": 89,
+   "site": "hgw",
+   "retailer": "Whirlpool USA",
+   "countries": [
+    "US"
+   ],
+   "feedLanguages": [
+    "en"
+   ],
+   "network": "Rakuten",
+   "id": "53707",
+   "currency": "USD",
+   "products": 652,
+   "evidence": "νόμισμα του feed (USD)",
+   "import": "ΝΑΙ",
+   "shop": "Whirlpool USA"
+  },
+  {
+   "row": 90,
+   "site": "hgw",
+   "retailer": "YouCustomizeIt US",
+   "countries": [
+    "US"
+   ],
+   "feedLanguages": [
+    "en"
+   ],
+   "network": "Awin",
+   "id": "65088",
+   "feedIds": [
+    105843
+   ],
+   "currency": "USD",
+   "products": 514,
+   "evidence": "Awin: περιοχή του προγράμματος",
+   "import": "ΝΑΙ",
+   "shop": "YouCustomizeIt"
+  },
+  {
+   "row": 91,
+   "site": "kgw",
+   "retailer": "Baker Ross IE",
+   "countries": [
+    "IE"
+   ],
+   "feedLanguages": [
+    "en"
+   ],
+   "network": "Awin",
+   "id": "6154",
+   "feedIds": [
+    13573
+   ],
+   "currency": "EUR",
+   "products": 3772,
+   "evidence": "Awin: περιοχή του προγράμματος",
+   "import": "ΝΑΙ",
+   "shop": "Baker Ross IE"
+  },
+  {
+   "row": 93,
+   "site": "kgw",
+   "retailer": "Goally US",
+   "countries": [
+    "US"
+   ],
+   "feedLanguages": [
+    "en"
+   ],
+   "network": "Awin",
+   "id": "79880",
+   "feedIds": [
+    105328
+   ],
+   "currency": "USD",
+   "products": 2,
+   "evidence": "Awin: περιοχή του προγράμματος",
+   "import": "ΝΑΙ",
+   "shop": "Goally"
+  },
+  {
+   "row": 97,
+   "site": "kgw",
+   "retailer": "Mein kleines Baby DE",
+   "countries": [
+    "DE"
+   ],
+   "language": "de",
+   "feedLanguages": [
+    "de"
+   ],
+   "network": "Daisycon",
+   "id": "16824",
+   "currency": "EUR",
+   "products": 22097,
+   "evidence": "Daisycon: χώρες των προϊόντων του feed",
+   "import": "ΝΑΙ",
+   "shop": "Mein kleines Baby (DE)"
+  },
+  {
+   "row": 98,
+   "site": "kgw",
+   "retailer": "MEL Science",
+   "feedLanguages": [
+    "en"
+   ],
+   "network": "Daisycon",
+   "id": "18073",
+   "currency": "EUR",
+   "products": 50,
+   "evidence": "Daisycon: χώρες των προϊόντων του feed",
+   "import": "ΟΧΙ ακόμα",
+   "why": [
+    "μόνο GB/άγνωστη χώρα στο feed"
+   ],
+   "shop": "MEL Science (INT)"
+  },
+  {
+   "row": 99,
+   "site": "kgw",
+   "retailer": "Mijn Hummeltje NL",
+   "countries": [
+    "NL"
+   ],
+   "language": "nl",
+   "feedLanguages": [
+    "nl"
+   ],
+   "network": "Daisycon",
+   "id": "16616",
+   "currency": "EUR",
+   "products": 23484,
+   "evidence": "Daisycon: χώρες των προϊόντων του feed",
+   "import": "ΝΑΙ",
+   "shop": "Mijn Hummeltje (NL)"
+  },
+  {
+   "row": 100,
+   "site": "kgw",
+   "retailer": "Moj-Maly-Slodziak NL",
+   "countries": [
+    "NL"
+   ],
+   "language": "pl",
+   "feedLanguages": [
+    "pl"
+   ],
+   "network": "Daisycon",
+   "id": "19184",
+   "currency": "PLN",
+   "products": 22119,
+   "evidence": "Daisycon: χώρες των προϊόντων του feed",
+   "import": "ΟΧΙ ακόμα",
+   "why": [
+    "το feed λέει γλώσσα pl αλλά χώρα NL: θέλει σελίδα παράδοσης"
+   ],
+   "shop": "Moj-Maly-Slodziak (PL)"
+  },
+  {
+   "row": 101,
+   "site": "kgw",
+   "retailer": "Petit Bateau",
+   "countries": [
+    "DE",
+    "FR"
+   ],
+   "feedLanguages": [
+    "de",
+    "fr"
+   ],
+   "network": "Daisycon",
+   "id": "23319",
+   "currency": "EUR",
+   "products": 10760,
+   "evidence": "Daisycon: χώρες των προϊόντων του feed",
+   "import": "ΟΧΙ ακόμα",
+   "why": [
+    "πολλές γλώσσες στο feed (de,fr): θέλει κανόνα γλώσσας ανά χώρα από την 3"
+   ],
+   "shop": "Petit Bateau (EU)"
+  },
+  {
+   "row": 102,
+   "site": "kgw",
+   "retailer": "Puzzle Go Puzzle",
+   "countries": [
+    "AT",
+    "DE",
+    "FR"
+   ],
+   "feedLanguages": [
+    "de",
+    "fr"
+   ],
+   "network": "Daisycon",
+   "id": "20851 · 21043 · 21471 · 21636 · 21637 · 21638",
+   "currency": "EUR",
+   "products": 5670,
+   "evidence": "Daisycon: χώρες των προϊόντων του feed",
+   "import": "ΟΧΙ ακόμα",
+   "why": [
+    "πολλές γλώσσες στο feed (de,fr): θέλει κανόνα γλώσσας ανά χώρα από την 3"
+   ],
+   "shop": "Puzzle (BE, DE, AT, FR) · Go Puzzle (FR, DE)"
+  },
+  {
+   "row": 105,
+   "site": "kgw",
+   "retailer": "Tushbaby US",
+   "countries": [
+    "US"
+   ],
+   "feedLanguages": [
+    "en"
+   ],
+   "network": "Rakuten",
+   "id": "53904",
+   "currency": "USD",
+   "products": 509,
+   "evidence": "νόμισμα του feed (USD)",
+   "import": "ΝΑΙ",
+   "shop": "Tushbaby"
+  },
+  {
+   "row": 106,
+   "site": "kgw",
+   "retailer": "Zulily US",
+   "countries": [
+    "US"
+   ],
+   "feedLanguages": [
+    "en"
+   ],
+   "network": "Rakuten",
+   "id": "54167",
+   "currency": "USD",
+   "products": "20000+",
+   "evidence": "νόμισμα του feed (USD)",
+   "import": "ΝΑΙ",
+   "shop": "Zulily"
+  },
+  {
+   "row": 107,
+   "site": "kgw",
+   "retailer": "Modellbau-Universe DE",
+   "countries": [
+    "DE"
+   ],
+   "language": "de",
+   "feedLanguages": [
+    "de"
+   ],
+   "network": "Awin",
+   "id": "17471",
+   "feedIds": [
+    81661
+   ],
+   "currency": "EUR",
+   "products": 49526,
+   "evidence": "Awin: περιοχή του προγράμματος",
+   "import": "ΝΑΙ",
+   "shop": "Modellbau-Universe"
+  },
+  {
+   "row": 108,
+   "site": "mgw",
+   "retailer": "Bamboo Basics BE",
+   "countries": [
+    "BE"
+   ],
+   "language": "nl",
+   "feedLanguages": [
+    "nl"
+   ],
+   "network": "Daisycon",
+   "id": "16649",
+   "currency": "EUR",
+   "products": 980,
+   "evidence": "Daisycon: χώρες των προϊόντων του feed",
+   "import": "ΝΑΙ",
+   "shop": "Bamboo Basics (INT)"
+  },
+  {
+   "row": 109,
+   "site": "mgw",
+   "retailer": "Bruno Marc US",
+   "countries": [
+    "US"
+   ],
+   "feedLanguages": [
+    "en"
+   ],
+   "network": "Awin",
+   "id": "76024",
+   "feedIds": [
+    104758
+   ],
+   "currency": "USD",
+   "products": 7036,
+   "evidence": "Awin: περιοχή του προγράμματος",
+   "import": "ΝΑΙ",
+   "shop": "Bruno Marc"
+  },
+  {
+   "row": 110,
+   "site": "mgw",
+   "retailer": "Dr. Martens",
+   "countries": [
+    "DE",
+    "FR",
+    "IT",
+    "NL"
+   ],
+   "feedLanguages": [
+    "de",
+    "fr",
+    "it",
+    "nl"
+   ],
+   "network": "Daisycon",
+   "id": "15138",
+   "currency": "EUR",
+   "products": 3961,
+   "evidence": "Daisycon: χώρες των προϊόντων του feed",
+   "import": "ΟΧΙ ακόμα",
+   "why": [
+    "πολλές γλώσσες στο feed (de,fr,it,nl): θέλει κανόνα γλώσσας ανά χώρα από την 3"
+   ],
+   "shop": "Dr. Martens (EU)"
+  },
+  {
+   "row": 111,
+   "site": "mgw",
+   "retailer": "ECKO UNLTD US",
+   "countries": [
+    "US"
+   ],
+   "feedLanguages": [
+    "en"
+   ],
+   "network": "Rakuten",
+   "id": "50006",
+   "currency": "USD",
+   "products": 1011,
+   "evidence": "νόμισμα του feed (USD)",
+   "import": "ΝΑΙ",
+   "shop": "ECKO UNLTD."
+  },
+  {
+   "row": 112,
+   "site": "mgw",
+   "retailer": "EFE Glasses US",
+   "countries": [
+    "US"
+   ],
+   "feedLanguages": [
+    "en"
+   ],
+   "network": "Awin",
+   "id": "52103",
+   "feedIds": [
+    109642,
+    111724
+   ],
+   "currency": "USD",
+   "products": 127,
+   "evidence": "Awin: περιοχή του προγράμματος",
+   "import": "ΝΑΙ",
+   "shop": "EFE Glasses"
+  },
+  {
+   "row": 114,
+   "site": "mgw",
+   "retailer": "Hanes.com US",
+   "countries": [
+    "US"
+   ],
+   "feedLanguages": [
+    "en"
+   ],
+   "network": "Rakuten",
+   "id": "24366",
+   "currency": "USD",
+   "products": 11035,
+   "evidence": "νόμισμα του feed (USD)",
+   "import": "ΝΑΙ",
+   "shop": "Hanes.com"
+  },
+  {
+   "row": 116,
+   "site": "mgw",
+   "retailer": "Sebastian Cruz Couture US",
+   "countries": [
+    "US"
+   ],
+   "feedLanguages": [
+    "en"
+   ],
+   "network": "Awin",
+   "id": "88999",
+   "feedIds": [
+    105547
+   ],
+   "currency": "USD",
+   "products": 12248,
+   "evidence": "Awin: περιοχή του προγράμματος",
+   "import": "ΝΑΙ",
+   "shop": "Sebastian Cruz Couture"
+  },
+  {
+   "row": 117,
+   "site": "mgw",
+   "retailer": "Shoes4Gentlemen DE",
+   "countries": [
+    "DE"
+   ],
+   "language": "de",
+   "feedLanguages": [
+    "de"
+   ],
+   "network": "Daisycon",
+   "id": "20915",
+   "currency": "EUR",
+   "products": 524,
+   "evidence": "Daisycon: χώρες των προϊόντων του feed",
+   "import": "ΝΑΙ",
+   "shop": "Shoes4Gentlemen (DACH)"
+  },
+  {
+   "row": 118,
+   "site": "mgw",
+   "retailer": "Superdry",
+   "countries": [
+    "DE",
+    "DK",
+    "ES",
+    "FR",
+    "NL",
+    "NO",
+    "SE"
+   ],
+   "feedLanguages": [
+    "da",
+    "de",
+    "es",
+    "fr",
+    "nl",
+    "no",
+    "sv"
+   ],
+   "network": "Daisycon",
+   "id": "14965",
+   "currency": "DKK",
+   "products": 31327,
+   "evidence": "Daisycon: χώρες των προϊόντων του feed",
+   "import": "ΟΧΙ ακόμα",
+   "why": [
+    "πολλές γλώσσες στο feed (da,de,es,fr,nl,no,sv): θέλει κανόνα γλώσσας ανά χώρα από την 3"
+   ],
+   "shop": "Superdry (EU)"
+  },
+  {
+   "row": 119,
+   "site": "mgw",
+   "retailer": "Timeshop24 DE",
+   "countries": [
+    "DE"
+   ],
+   "language": "de",
+   "feedLanguages": [
+    "de"
+   ],
+   "network": "Awin",
+   "id": "14609",
+   "feedIds": [
+    33677
+   ],
+   "currency": "EUR",
+   "products": 8418,
+   "evidence": "Awin: περιοχή του προγράμματος",
+   "import": "ΝΑΙ",
+   "shop": "Timeshop24 DE"
+  },
+  {
+   "row": 121,
+   "site": "mgw",
+   "retailer": "Van Arendonk BE",
+   "countries": [
+    "BE"
+   ],
+   "language": "nl",
+   "feedLanguages": [
+    "nl"
+   ],
+   "network": "Daisycon",
+   "id": "12502",
+   "currency": "EUR",
+   "products": 21122,
+   "evidence": "Daisycon: χώρες των προϊόντων του feed",
+   "import": "ΝΑΙ",
+   "shop": "Van Arendonk (BE)"
+  },
+  {
+   "row": 122,
+   "site": "mgw",
+   "retailer": "Van Arendonk NL",
+   "countries": [
+    "NL"
+   ],
+   "language": "nl",
+   "feedLanguages": [
+    "nl"
+   ],
+   "network": "Daisycon",
+   "id": "11852",
+   "currency": "EUR",
+   "products": 21173,
+   "evidence": "Daisycon: χώρες των προϊόντων του feed",
+   "import": "ΝΑΙ",
+   "shop": "Van Arendonk (NL)"
+  },
+  {
+   "row": 128,
+   "site": "zgw",
+   "retailer": "Plein.be BE",
+   "countries": [
+    "BE"
+   ],
+   "language": "nl",
+   "feedLanguages": [
+    "nl"
+   ],
+   "network": "Daisycon",
+   "id": "14720",
+   "currency": "EUR",
+   "products": 34536,
+   "evidence": "Daisycon: χώρες των προϊόντων του feed",
+   "import": "ΝΑΙ",
+   "shop": "Plein.be"
+  },
+  {
+   "row": 129,
+   "site": "zgw",
+   "retailer": "Plein.nl NL",
+   "countries": [
+    "NL"
+   ],
+   "language": "nl",
+   "feedLanguages": [
+    "nl"
+   ],
+   "network": "Daisycon",
+   "id": "3366",
+   "currency": "EUR",
+   "products": 41378,
+   "evidence": "Daisycon: χώρες των προϊόντων του feed",
+   "import": "ΝΑΙ",
+   "shop": "Plein.nl"
+  },
+  {
+   "row": 130,
+   "site": "zgw",
+   "retailer": "Raw Paws Pet Food US",
+   "countries": [
+    "US"
+   ],
+   "feedLanguages": [
+    "en"
+   ],
+   "network": "CJ",
+   "id": "7127091",
+   "currency": "USD",
+   "products": 165,
+   "evidence": "νόμισμα του feed (USD)",
+   "import": "ΟΧΙ ακόμα",
+   "why": [
+    "νέα μηχανή: CJ δεν διαβάζεται ακόμα (L234)"
+   ],
+   "shop": "Raw Paws Pet Food"
+  },
+  {
+   "row": 131,
+   "site": "sgw",
+   "retailer": "365Rider DE",
+   "countries": [
+    "DE"
+   ],
+   "language": "de",
+   "feedLanguages": [
+    "de"
+   ],
+   "network": "Awin",
+   "id": "30677",
+   "feedIds": [
+    72221,
+    114135,
+    115588
+   ],
+   "currency": "EUR",
+   "products": 22887,
+   "evidence": "Awin: περιοχή του προγράμματος",
+   "import": "ΝΑΙ",
+   "shop": "365Rider DE"
+  },
+  {
+   "row": 132,
+   "site": "sgw",
+   "retailer": "Alpenhaus US",
+   "countries": [
+    "US"
+   ],
+   "feedLanguages": [
+    "en"
+   ],
+   "network": "CJ",
+   "id": "7973154",
+   "currency": "USD",
+   "products": 3766,
+   "evidence": "νόμισμα του feed (USD)",
+   "import": "ΟΧΙ ακόμα",
+   "why": [
+    "νέα μηχανή: CJ δεν διαβάζεται ακόμα (L234)"
+   ],
+   "shop": "Alpenhaus"
+  },
+  {
+   "row": 134,
+   "site": "sgw",
+   "retailer": "Anta Sports America US",
+   "countries": [
+    "US"
+   ],
+   "feedLanguages": [
+    "en"
+   ],
+   "network": "Awin",
+   "id": "100515",
+   "feedIds": [
+    104523
+   ],
+   "currency": "USD",
+   "products": 1654,
+   "evidence": "Awin: περιοχή του προγράμματος",
+   "import": "ΝΑΙ",
+   "shop": "Anta Sports America"
+  },
+  {
+   "row": 135,
+   "site": "sgw",
+   "retailer": "Donnay.nl NL",
+   "countries": [
+    "NL"
+   ],
+   "language": "nl",
+   "feedLanguages": [
+    "nl"
+   ],
+   "network": "Daisycon",
+   "id": "14372",
+   "currency": "EUR",
+   "products": 2874,
+   "evidence": "Daisycon: χώρες των προϊόντων του feed",
+   "import": "ΝΑΙ",
+   "shop": "Donnay.nl"
+  },
+  {
+   "row": 138,
+   "site": "sgw",
+   "retailer": "House of Scuba US",
+   "countries": [
+    "US"
+   ],
+   "feedLanguages": [
+    "en"
+   ],
+   "network": "Awin",
+   "id": "88507",
+   "feedIds": [
+    105545
+   ],
+   "currency": "USD",
+   "products": 9800,
+   "evidence": "Awin: περιοχή του προγράμματος",
+   "import": "ΝΑΙ",
+   "shop": "House of Scuba"
+  },
+  {
+   "row": 139,
+   "site": "sgw",
+   "retailer": "leguano DE",
+   "countries": [
+    "DE"
+   ],
+   "language": "de",
+   "feedLanguages": [
+    "de"
+   ],
+   "network": "Awin",
+   "id": "15155",
+   "feedIds": [
+    33735
+   ],
+   "currency": "EUR",
+   "products": 1274,
+   "evidence": "Awin: περιοχή του προγράμματος",
+   "import": "ΝΑΙ",
+   "shop": "leguano DE"
+  },
+  {
+   "row": 140,
+   "site": "sgw",
+   "retailer": "Merrell PL",
+   "countries": [
+    "PL"
+   ],
+   "language": "pl",
+   "feedLanguages": [
+    "pl"
+   ],
+   "network": "Awin",
+   "id": "24986",
+   "feedIds": [
+    74973
+   ],
+   "currency": "PLN",
+   "products": 172,
+   "evidence": "Awin: περιοχή του προγράμματος",
+   "import": "ΝΑΙ",
+   "shop": "Merrell PL"
+  },
+  {
+   "row": 142,
+   "site": "sgw",
+   "retailer": "OpticsPlanet Dvor US",
+   "countries": [
+    "US"
+   ],
+   "feedLanguages": [
+    "en"
+   ],
+   "network": "Awin",
+   "id": "46059",
+   "feedIds": [
+    108814,
+    108842
+   ],
+   "currency": "USD",
+   "products": 586090,
+   "evidence": "Awin: περιοχή του προγράμματος",
+   "import": "ΝΑΙ",
+   "shop": "OpticsPlanet + Dvor"
+  },
+  {
+   "row": 143,
+   "site": "sgw",
+   "retailer": "Play Baseball US",
+   "countries": [
+    "US"
+   ],
+   "feedLanguages": [
+    "en"
+   ],
+   "network": "CJ",
+   "id": "4671299",
+   "currency": "USD",
+   "products": 34150,
+   "evidence": "νόμισμα του feed (USD)",
+   "import": "ΟΧΙ ακόμα",
+   "why": [
+    "νέα μηχανή: CJ δεν διαβάζεται ακόμα (L234)"
+   ],
+   "shop": "Play Baseball"
+  },
+  {
+   "row": 144,
+   "site": "sgw",
+   "retailer": "PUMA - USD",
+   "countries": [
+    "DE",
+    "DK",
+    "ES",
+    "FR",
+    "IT",
+    "NL",
+    "NO",
+    "SE"
+   ],
+   "feedLanguages": [
+    "da",
+    "de",
+    "es",
+    "fr",
+    "it",
+    "nl",
+    "no",
+    "sv"
+   ],
+   "network": "Daisycon",
+   "id": "17002",
+   "currency": "EUR",
+   "products": 67105,
+   "evidence": "Daisycon: χώρες των προϊόντων του feed",
+   "import": "ΟΧΙ ακόμα",
+   "why": [
+    "πολλές γλώσσες στο feed (da,de,es,fr,it,nl,no,sv): θέλει κανόνα γλώσσας ανά χώρα από την 3"
+   ],
+   "shop": "PUMA (EU) - USD"
+  },
+  {
+   "row": 145,
+   "site": "sgw",
+   "retailer": "Shokz DE",
+   "countries": [
+    "DE"
+   ],
+   "language": "de",
+   "feedLanguages": [
+    "de"
+   ],
+   "network": "Daisycon",
+   "id": "21925",
+   "currency": "EUR",
+   "products": 38,
+   "evidence": "Daisycon: χώρες των προϊόντων του feed",
+   "import": "ΝΑΙ",
+   "shop": "Shokz (DE, FR, UK, NL)"
+  },
+  {
+   "row": 146,
+   "site": "sgw",
+   "retailer": "Sinner NL",
+   "countries": [
+    "NL"
+   ],
+   "language": "nl",
+   "feedLanguages": [
+    "nl"
+   ],
+   "network": "Daisycon",
+   "id": "1281",
+   "currency": "EUR",
+   "products": 2830,
+   "evidence": "Daisycon: χώρες των προϊόντων του feed",
+   "import": "ΝΑΙ",
+   "shop": "Sinner"
+  },
+  {
+   "row": 147,
+   "site": "sgw",
+   "retailer": "Topoutdoorshop.nl NL",
+   "countries": [
+    "NL"
+   ],
+   "language": "nl",
+   "feedLanguages": [
+    "nl"
+   ],
+   "network": "Daisycon",
+   "id": "13076",
+   "currency": "EUR",
+   "products": 86,
+   "evidence": "Daisycon: χώρες των προϊόντων του feed",
+   "import": "ΝΑΙ",
+   "shop": "Topoutdoorshop.nl"
+  },
+  {
+   "row": 148,
+   "site": "sgw",
+   "retailer": "Topsnowshop.nl NL",
+   "countries": [
+    "NL"
+   ],
+   "language": "nl",
+   "feedLanguages": [
+    "nl"
+   ],
+   "network": "Daisycon",
+   "id": "5857",
+   "currency": "EUR",
+   "products": 242,
+   "evidence": "Daisycon: χώρες των προϊόντων του feed",
+   "import": "ΝΑΙ",
+   "shop": "Topsnowshop.nl"
+  },
+  {
+   "row": 149,
+   "site": "sgw",
+   "retailer": "Tradeinn",
+   "countries": [
+    "AT",
+    "BE",
+    "CH",
+    "DE",
+    "DK",
+    "ES",
+    "FI",
+    "FR",
+    "IT",
+    "NL",
+    "NO",
+    "PL",
+    "PT",
+    "SE",
+    "US"
+   ],
+   "feedLanguages": [
+    "da",
+    "de",
+    "en",
+    "es",
+    "fi",
+    "fr",
+    "it",
+    "nl",
+    "no",
+    "pl",
+    "pt",
+    "sv"
+   ],
+   "network": "Daisycon",
+   "id": "20600 · 20601 · 20602 · 20603 · 20604 · 20605 · 20606 · 20607 · 20608 · 20614 · 20615 · 20616 · 20617 · 20618 · 20619 · 20620",
+   "currency": "GBP,USD",
+   "products": 718591,
+   "evidence": "Daisycon: χώρες των προϊόντων του feed",
+   "import": "ΟΧΙ ακόμα",
+   "why": [
+    "πολλές γλώσσες στο feed (da,de,en,es,fi,fr,it,nl,no,pl,pt,sv): θέλει κανόνα γλώσσας ανά χώρα από την 3"
+   ],
+   "shop": "Tradeinn (17 καταστήματα: BikeInn, TrekkInn, TechInn, DiveInn, SnowInn κ.ά.)"
+  },
+  {
+   "row": 151,
+   "site": "sgw",
+   "retailer": "TT Shop Tischtennis Equipment DE",
+   "countries": [
+    "DE"
+   ],
+   "language": "de",
+   "feedLanguages": [
+    "de"
+   ],
+   "network": "Daisycon",
+   "id": "22409",
+   "currency": "EUR",
+   "products": 1882,
+   "evidence": "Daisycon: χώρες των προϊόντων του feed",
+   "import": "ΝΑΙ",
+   "shop": "TT Shop Tischtennis Equipment (EU)"
+  },
+  {
+   "row": 152,
+   "site": "sgw",
+   "retailer": "Voetbaltafel.nl Tafeltennistafel.nl NL",
+   "countries": [
+    "NL"
+   ],
+   "language": "nl",
+   "feedLanguages": [
+    "nl"
+   ],
+   "network": "Daisycon",
+   "id": "18007 · 18008",
+   "currency": "EUR",
+   "products": 96,
+   "evidence": "Daisycon: χώρες των προϊόντων του feed",
+   "import": "ΝΑΙ",
+   "shop": "Voetbaltafel.nl · Tafeltennistafel.nl"
+  },
+  {
+   "row": 154,
+   "site": "tgw",
+   "retailer": "Acculaders.nl NL",
+   "countries": [
+    "NL"
+   ],
+   "language": "nl",
+   "feedLanguages": [
+    "nl"
+   ],
+   "network": "Daisycon",
+   "id": "12933",
+   "currency": "EUR",
+   "products": 4442,
+   "evidence": "Daisycon: χώρες των προϊόντων του feed",
+   "import": "ΝΑΙ",
+   "shop": "Acculaders.nl"
+  },
+  {
+   "row": 156,
+   "site": "tgw",
+   "retailer": "Akku.net DE",
+   "countries": [
+    "DE"
+   ],
+   "language": "de",
+   "feedLanguages": [
+    "de"
+   ],
+   "network": "Awin",
+   "id": "22871",
+   "feedIds": [
+    85081
+   ],
+   "currency": "EUR",
+   "products": 7350,
+   "evidence": "Awin: περιοχή του προγράμματος",
+   "import": "ΝΑΙ",
+   "shop": "Akku.net DE"
+  },
+  {
+   "row": 159,
+   "site": "tgw",
+   "retailer": "Aurzen US",
+   "countries": [
+    "US"
+   ],
+   "feedLanguages": [
+    "en"
+   ],
+   "network": "Awin",
+   "id": "105387",
+   "feedIds": [
+    105528
+   ],
+   "currency": "USD",
+   "products": 27,
+   "evidence": "Awin: περιοχή του προγράμματος",
+   "import": "ΝΑΙ",
+   "shop": "Aurzen"
+  },
+  {
+   "row": 160,
+   "site": "tgw",
+   "retailer": "BlazeVideo DE",
+   "countries": [
+    "DE"
+   ],
+   "language": "de",
+   "feedLanguages": [
+    "de"
+   ],
+   "network": "Awin",
+   "id": "25962",
+   "feedIds": [
+    62725,
+    88951
+   ],
+   "currency": "EUR",
+   "products": 27,
+   "evidence": "Awin: περιοχή του προγράμματος",
+   "import": "ΝΑΙ",
+   "shop": "BlazeVideo (κάμερες άγριας ζωής)"
+  },
+  {
+   "row": 161,
+   "site": "tgw",
+   "retailer": "BLUETTI US",
+   "countries": [
+    "US"
+   ],
+   "feedLanguages": [
+    "en"
+   ],
+   "network": "Awin",
+   "id": "59271",
+   "feedIds": [
+    111249
+   ],
+   "currency": "USD",
+   "products": 255,
+   "evidence": "Awin: περιοχή του προγράμματος",
+   "import": "ΝΑΙ",
+   "shop": "BLUETTI US"
+  },
+  {
+   "row": 162,
+   "site": "tgw",
+   "retailer": "Coolblue BE",
+   "countries": [
+    "BE"
+   ],
+   "feedLanguages": [
+    "fr",
+    "nl"
+   ],
+   "network": "Awin",
+   "id": "85165",
+   "feedIds": [
+    95840,
+    95841,
+    95842,
+    95843,
+    95844,
+    95845,
+    95846,
+    95847,
+    95884,
+    95941,
+    96637,
+    96638,
+    116548,
+    117353,
+    117570,
+    117571
+   ],
+   "currency": "EUR",
+   "products": 17924,
+   "evidence": "Awin: περιοχή του προγράμματος",
+   "import": "ΟΧΙ ακόμα",
+   "why": [
+    "πολλές γλώσσες στο feed (fr,nl): θέλει κανόνα γλώσσας ανά χώρα από την 3"
+   ],
+   "shop": "Coolblue BE"
+  },
+  {
+   "row": 163,
+   "site": "tgw",
+   "retailer": "Coolblue NL",
+   "countries": [
+    "NL"
+   ],
+   "language": "nl",
+   "feedLanguages": [
+    "nl"
+   ],
+   "network": "Awin",
+   "id": "85161",
+   "feedIds": [
+    95829,
+    95830,
+    95831,
+    95833,
+    95834,
+    95835,
+    95836,
+    95839,
+    95886,
+    95887,
+    95888,
+    95889,
+    95890,
+    95892,
+    95893,
+    95894,
+    95895,
+    95896,
+    95897,
+    95898,
+    95902,
+    95903,
+    95904,
+    95927,
+    95929,
+    95930,
+    95932,
+    95938,
+    95939,
+    95940,
+    96636,
+    115421,
+    117541,
+    117569
+   ],
+   "currency": "EUR",
+   "products": 17324,
+   "evidence": "Awin: περιοχή του προγράμματος",
+   "import": "ΝΑΙ",
+   "shop": "Coolblue NL"
+  },
+  {
+   "row": 165,
+   "site": "tgw",
+   "retailer": "EcoFlow US",
+   "countries": [
+    "US"
+   ],
+   "feedLanguages": [
+    "en"
+   ],
+   "network": "Awin",
+   "id": "59181",
+   "feedIds": [
+    108774
+   ],
+   "currency": "USD",
+   "products": 312,
+   "evidence": "Awin: περιοχή του προγράμματος",
+   "import": "ΝΑΙ",
+   "shop": "EcoFlow"
+  },
+  {
+   "row": 168,
+   "site": "tgw",
+   "retailer": "Eufy",
+   "feedLanguages": [
+    "en"
+   ],
+   "network": "Daisycon",
+   "id": "18489",
+   "currency": "EUR",
+   "products": 379,
+   "evidence": "Daisycon: χώρες των προϊόντων του feed",
+   "import": "ΟΧΙ ακόμα",
+   "why": [
+    "μόνο GB/άγνωστη χώρα στο feed"
+   ],
+   "shop": "Eufy (EU)"
+  },
+  {
+   "row": 170,
+   "site": "tgw",
+   "retailer": "GSMnet",
+   "countries": [
+    "DE",
+    "FR",
+    "NL"
+   ],
+   "feedLanguages": [
+    "de",
+    "fr",
+    "nl"
+   ],
+   "network": "Awin",
+   "id": "127701 · 127703 · 127705",
+   "feedIds": [
+    115905,
+    115910,
+    115911
+   ],
+   "currency": "EUR",
+   "products": 35730,
+   "evidence": "Awin: περιοχή του προγράμματος",
+   "import": "ΟΧΙ ακόμα",
+   "why": [
+    "πολλές γλώσσες στο feed (de,fr,nl): θέλει κανόνα γλώσσας ανά χώρα από την 3"
+   ],
+   "shop": "GSMnet (DE, NL, IT, FR)"
+  },
+  {
+   "row": 171,
+   "site": "tgw",
+   "retailer": "HIFI-REGLER DE",
+   "countries": [
+    "DE"
+   ],
+   "language": "de",
+   "feedLanguages": [
+    "de"
+   ],
+   "network": "Awin",
+   "id": "13776",
+   "feedIds": [
+    36091
+   ],
+   "currency": "EUR",
+   "products": 5215,
+   "evidence": "Awin: περιοχή του προγράμματος",
+   "import": "ΝΑΙ",
+   "shop": "HIFI-REGLER DE"
+  },
+  {
+   "row": 172,
+   "site": "tgw",
+   "retailer": "hm-sat.de DE",
+   "countries": [
+    "DE"
+   ],
+   "language": "de",
+   "feedLanguages": [
+    "de"
+   ],
+   "network": "Awin",
+   "id": "14698",
+   "feedIds": [
+    34401
+   ],
+   "currency": "EUR",
+   "products": 1398,
+   "evidence": "Awin: περιοχή του προγράμματος",
+   "import": "ΝΑΙ",
+   "shop": "hm-sat.de"
+  },
+  {
+   "row": 173,
+   "site": "tgw",
+   "retailer": "iRepairshop BE",
+   "countries": [
+    "BE"
+   ],
+   "language": "nl",
+   "feedLanguages": [
+    "nl"
+   ],
+   "network": "Daisycon",
+   "id": "19060",
+   "currency": "EUR",
+   "products": 7598,
+   "evidence": "Daisycon: χώρες των προϊόντων του feed",
+   "import": "ΝΑΙ",
+   "shop": "iRepairshop (BE)"
+  },
+  {
+   "row": 174,
+   "site": "tgw",
+   "retailer": "mac of all trades US",
+   "countries": [
+    "US"
+   ],
+   "feedLanguages": [
+    "en"
+   ],
+   "network": "Rakuten",
+   "id": "39536",
+   "currency": "USD",
+   "products": 88,
+   "evidence": "νόμισμα του feed (USD)",
+   "import": "ΟΧΙ ακόμα",
+   "why": [
+    "νέα μηχανή: Rakuten δεν διαβάζεται ακόμα (L234)"
+   ],
+   "shop": "mac of all trades"
+  },
+  {
+   "row": 176,
+   "site": "tgw",
+   "retailer": "MUNBYN LLC US",
+   "countries": [
+    "US"
+   ],
+   "feedLanguages": [
+    "en"
+   ],
+   "network": "Awin",
+   "id": "93215",
+   "feedIds": [
+    107396
+   ],
+   "currency": "USD",
+   "products": 1,
+   "evidence": "Awin: περιοχή του προγράμματος",
+   "import": "ΝΑΙ",
+   "shop": "MUNBYN LLC"
+  },
+  {
+   "row": 177,
+   "site": "tgw",
+   "retailer": "NIIMBOTS US",
+   "countries": [
+    "US"
+   ],
+   "feedLanguages": [
+    "en"
+   ],
+   "network": "Awin",
+   "id": "44209",
+   "feedIds": [
+    102756
+   ],
+   "currency": "USD",
+   "products": 379,
+   "evidence": "Awin: περιοχή του προγράμματος",
+   "import": "ΝΑΙ",
+   "shop": "NIIMBOTS (US)"
+  },
+  {
+   "row": 179,
+   "site": "tgw",
+   "retailer": "OtterBox US",
+   "countries": [
+    "US"
+   ],
+   "feedLanguages": [
+    "en"
+   ],
+   "network": "CJ",
+   "id": "2393553",
+   "currency": "USD",
+   "products": 3133,
+   "evidence": "νόμισμα του feed (USD)",
+   "import": "ΟΧΙ ακόμα",
+   "why": [
+    "νέα μηχανή: CJ δεν διαβάζεται ακόμα (L234)"
+   ],
+   "shop": "OtterBox"
+  },
+  {
+   "row": 180,
+   "site": "tgw",
+   "retailer": "Paradigit.ie IE",
+   "countries": [
+    "IE"
+   ],
+   "feedLanguages": [
+    "en"
+   ],
+   "network": "Awin",
+   "id": "8912",
+   "feedIds": [
+    24555
+   ],
+   "currency": "EUR",
+   "products": 3439,
+   "evidence": "Awin: περιοχή του προγράμματος",
+   "import": "ΝΑΙ",
+   "shop": "Paradigit.ie"
+  },
+  {
+   "row": 181,
+   "site": "tgw",
+   "retailer": "Phonecases 3D",
+   "countries": [
+    "ES",
+    "FI",
+    "FR",
+    "PT"
+   ],
+   "feedLanguages": [
+    "en",
+    "es",
+    "fi",
+    "fr",
+    "no",
+    "pt",
+    "sv"
+   ],
+   "network": "Daisycon",
+   "id": "19662",
+   "currency": "EUR",
+   "products": 32522,
+   "evidence": "Daisycon: χώρες των προϊόντων του feed",
+   "import": "ΟΧΙ ακόμα",
+   "why": [
+    "πολλές γλώσσες στο feed (en,es,fi,fr,no,pt,sv): θέλει κανόνα γλώσσας ανά χώρα από την 3"
+   ],
+   "shop": "Phonecases 3D (EU)"
+  },
+  {
+   "row": 182,
+   "site": "tgw",
+   "retailer": "Plaud DE",
+   "countries": [
+    "DE"
+   ],
+   "feedLanguages": [
+    "en"
+   ],
+   "network": "Daisycon",
+   "id": "21213",
+   "currency": "EUR",
+   "products": 98,
+   "evidence": "Daisycon: χώρες των προϊόντων του feed",
+   "import": "ΝΑΙ",
+   "shop": "Plaud (EU)"
+  },
+  {
+   "row": 184,
+   "site": "tgw",
+   "retailer": "SharperImage.com US",
+   "countries": [
+    "US"
+   ],
+   "feedLanguages": [
+    "en"
+   ],
+   "network": "Rakuten",
+   "id": "815",
+   "currency": "USD",
+   "products": 5073,
+   "evidence": "νόμισμα του feed (USD)",
+   "import": "ΟΧΙ ακόμα",
+   "why": [
+    "νέα μηχανή: Rakuten δεν διαβάζεται ακόμα (L234)"
+   ],
+   "shop": "SharperImage.com"
+  },
+  {
+   "row": 185,
+   "site": "tgw",
+   "retailer": "Soundcore US",
+   "countries": [
+    "US"
+   ],
+   "feedLanguages": [
+    "en"
+   ],
+   "network": "CJ",
+   "id": "7382109",
+   "currency": "USD",
+   "products": 224,
+   "evidence": "νόμισμα του feed (USD)",
+   "import": "ΟΧΙ ακόμα",
+   "why": [
+    "νέα μηχανή: CJ δεν διαβάζεται ακόμα (L234)"
+   ],
+   "shop": "Soundcore US"
+  },
+  {
+   "row": 186,
+   "site": "tgw",
+   "retailer": "Systemtreff DE",
+   "countries": [
+    "DE"
+   ],
+   "language": "de",
+   "feedLanguages": [
+    "de"
+   ],
+   "network": "Awin",
+   "id": "29783",
+   "feedIds": [
+    82187
+   ],
+   "currency": "EUR",
+   "products": 974,
+   "evidence": "Awin: περιοχή του προγράμματος",
+   "import": "ΝΑΙ",
+   "shop": "Systemtreff DE"
+  },
+  {
+   "row": 189,
+   "site": "tgw",
+   "retailer": "Teufel NL",
+   "countries": [
+    "NL"
+   ],
+   "language": "nl",
+   "feedLanguages": [
+    "nl"
+   ],
+   "network": "Daisycon",
+   "id": "15574",
+   "currency": "EUR",
+   "products": 314,
+   "evidence": "Daisycon: χώρες των προϊόντων του feed",
+   "import": "ΝΑΙ",
+   "shop": "Teufel (NL)"
+  },
+  {
+   "row": 190,
+   "site": "tgw",
+   "retailer": "TroniTechnik DE",
+   "countries": [
+    "DE"
+   ],
+   "language": "de",
+   "feedLanguages": [
+    "de"
+   ],
+   "network": "Awin",
+   "id": "16584",
+   "feedIds": [
+    39903
+   ],
+   "currency": "EUR",
+   "products": 289,
+   "evidence": "Awin: περιοχή του προγράμματος",
+   "import": "ΝΑΙ",
+   "shop": "TroniTechnik DE"
+  },
+  {
+   "row": 193,
+   "site": "vgw",
+   "retailer": "Koffer.de DE",
+   "countries": [
+    "DE"
+   ],
+   "language": "de",
+   "feedLanguages": [
+    "de"
+   ],
+   "network": "Awin",
+   "id": "13771",
+   "feedIds": [
+    68865
+   ],
+   "currency": "EUR",
+   "products": 15391,
+   "evidence": "Awin: περιοχή του προγράμματος",
+   "import": "ΝΑΙ",
+   "shop": "Koffer.de DE"
+  },
+  {
+   "row": 196,
+   "site": "wgw",
+   "retailer": "AMIclubwear US",
+   "countries": [
+    "US"
+   ],
+   "feedLanguages": [
+    "en"
+   ],
+   "network": "CJ",
+   "id": "3011689",
+   "currency": "USD",
+   "products": 1930,
+   "evidence": "νόμισμα του feed (USD)",
+   "import": "ΝΑΙ",
+   "shop": "AMIclubwear"
+  },
+  {
+   "row": 199,
+   "site": "wgw",
+   "retailer": "Avocadostore DE",
+   "countries": [
+    "DE"
+   ],
+   "language": "de",
+   "feedLanguages": [
+    "de"
+   ],
+   "network": "Awin",
+   "id": "19075",
+   "feedIds": [
+    69595,
+    85098,
+    93283
+   ],
+   "currency": "EUR",
+   "products": 543088,
+   "evidence": "Awin: περιοχή του προγράμματος",
+   "import": "ΝΑΙ",
+   "shop": "Avocadostore DE"
+  },
+  {
+   "row": 200,
+   "site": "wgw",
+   "retailer": "Bali Bras US",
+   "countries": [
+    "US"
+   ],
+   "feedLanguages": [
+    "en"
+   ],
+   "network": "Rakuten",
+   "id": "46392",
+   "currency": "USD",
+   "products": 4155,
+   "evidence": "νόμισμα του feed (USD)",
+   "import": "ΝΑΙ",
+   "shop": "Bali Bras"
+  },
+  {
+   "row": 202,
+   "site": "wgw",
+   "retailer": "BrillenPlatz DE",
+   "countries": [
+    "DE"
+   ],
+   "language": "de",
+   "feedLanguages": [
+    "de"
+   ],
+   "network": "Awin",
+   "id": "13850",
+   "feedIds": [
+    32473,
+    80603
+   ],
+   "currency": "EUR",
+   "products": 6219,
+   "evidence": "Awin: περιοχή του προγράμματος",
+   "import": "ΝΑΙ",
+   "shop": "BrillenPlatz DE"
+  },
+  {
+   "row": 204,
+   "site": "wgw",
+   "retailer": "Cashmere Boutique US",
+   "countries": [
+    "US"
+   ],
+   "feedLanguages": [
+    "en"
+   ],
+   "network": "CJ",
+   "id": "1989180",
+   "currency": "USD",
+   "products": 1018,
+   "evidence": "νόμισμα του feed (USD)",
+   "import": "ΝΑΙ",
+   "shop": "Cashmere Boutique"
+  },
+  {
+   "row": 205,
+   "site": "wgw",
+   "retailer": "Caudalie USA",
+   "countries": [
+    "CA",
+    "US"
+   ],
+   "feedLanguages": [
+    "en"
+   ],
+   "network": "Rakuten",
+   "id": "44624 · 49183",
+   "currency": "CAD,USD",
+   "products": 83,
+   "evidence": "νόμισμα του feed (CAD,USD)",
+   "import": "ΝΑΙ",
+   "shop": "Caudalie USA"
+  },
+  {
+   "row": 206,
+   "site": "wgw",
+   "retailer": "Esdemarca",
+   "countries": [
+    "AT",
+    "BE",
+    "DE",
+    "DK",
+    "ES",
+    "FI",
+    "FR",
+    "IE",
+    "IT",
+    "NL",
+    "PL",
+    "PT",
+    "SE"
+   ],
+   "feedLanguages": [
+    "da",
+    "de",
+    "en",
+    "es",
+    "fi",
+    "fr",
+    "it",
+    "nl",
+    "pl",
+    "pt",
+    "sv"
+   ],
+   "network": "Daisycon",
+   "id": "22083",
+   "currency": "EUR",
+   "products": 65234,
+   "evidence": "Daisycon: χώρες των προϊόντων του feed",
+   "import": "ΟΧΙ ακόμα",
+   "why": [
+    "πολλές γλώσσες στο feed (da,de,en,es,fi,fr,it,nl,pl,pt,sv): θέλει κανόνα γλώσσας ανά χώρα από την 3"
+   ],
+   "shop": "Esdemarca (INT)"
+  },
+  {
+   "row": 207,
+   "site": "wgw",
+   "retailer": "FragranceNet.com US",
+   "countries": [
+    "US"
+   ],
+   "feedLanguages": [
+    "en"
+   ],
+   "network": "Rakuten",
+   "id": "216",
+   "currency": "USD",
+   "products": "20000+",
+   "evidence": "νόμισμα του feed (USD)",
+   "import": "ΝΑΙ",
+   "shop": "FragranceNet.com"
+  },
+  {
+   "row": 208,
+   "site": "wgw",
+   "retailer": "Giglio",
+   "countries": [
+    "DE",
+    "FR",
+    "IT"
+   ],
+   "feedLanguages": [
+    "de",
+    "en",
+    "fr",
+    "it"
+   ],
+   "network": "Daisycon",
+   "id": "19810",
+   "currency": "EUR",
+   "products": 255712,
+   "evidence": "Daisycon: χώρες των προϊόντων του feed",
+   "import": "ΟΧΙ ακόμα",
+   "why": [
+    "πολλές γλώσσες στο feed (de,en,fr,it): θέλει κανόνα γλώσσας ανά χώρα από την 3"
+   ],
+   "shop": "Giglio (INT)"
+  },
+  {
+   "row": 209,
+   "site": "wgw",
+   "retailer": "Giuseppe Zanotti",
+   "countries": [
+    "DE",
+    "ES",
+    "IT"
+   ],
+   "feedLanguages": [
+    "de",
+    "en",
+    "es",
+    "it"
+   ],
+   "network": "Daisycon",
+   "id": "15019",
+   "currency": "EUR",
+   "products": 3687,
+   "evidence": "Daisycon: χώρες των προϊόντων του feed",
+   "import": "ΟΧΙ ακόμα",
+   "why": [
+    "πολλές γλώσσες στο feed (de,en,es,it): θέλει κανόνα γλώσσας ανά χώρα από την 3"
+   ],
+   "shop": "Giuseppe Zanotti (EU)"
+  },
+  {
+   "row": 210,
+   "site": "wgw",
+   "retailer": "Giuseppe Zanotti US",
+   "countries": [
+    "US"
+   ],
+   "feedLanguages": [
+    "en"
+   ],
+   "network": "Rakuten",
+   "id": "41342",
+   "currency": "USD",
+   "products": 3750,
+   "evidence": "νόμισμα του feed (USD)",
+   "import": "ΝΑΙ",
+   "shop": "Giuseppe Zanotti US"
+  },
+  {
+   "row": 211,
+   "site": "wgw",
+   "retailer": "Goettgen.de DE",
+   "countries": [
+    "DE"
+   ],
+   "language": "de",
+   "feedLanguages": [
+    "de"
+   ],
+   "network": "Awin",
+   "id": "17453",
+   "feedIds": [
+    107982
+   ],
+   "currency": "EUR",
+   "products": 8745,
+   "evidence": "Awin: περιοχή του προγράμματος",
+   "import": "ΝΑΙ",
+   "shop": "Goettgen.de"
+  },
+  {
+   "row": 212,
+   "site": "wgw",
+   "retailer": "iEDM US",
+   "countries": [
+    "US"
+   ],
+   "feedLanguages": [
+    "en"
+   ],
+   "network": "Awin",
+   "id": "71579",
+   "feedIds": [
+    115127
+   ],
+   "currency": "USD",
+   "products": 46912,
+   "evidence": "Awin: περιοχή του προγράμματος",
+   "import": "ΝΑΙ",
+   "shop": "iEDM"
+  },
+  {
+   "row": 213,
+   "site": "wgw",
+   "retailer": "Julep US",
+   "countries": [
+    "US"
+   ],
+   "feedLanguages": [
+    "en"
+   ],
+   "network": "Rakuten",
+   "id": "45313",
+   "currency": "USD",
+   "products": 257,
+   "evidence": "νόμισμα του feed (USD)",
+   "import": "ΝΑΙ",
+   "shop": "Julep"
+  },
+  {
+   "row": 215,
+   "site": "wgw",
+   "retailer": "Maidenform US",
+   "countries": [
+    "US"
+   ],
+   "feedLanguages": [
+    "en"
+   ],
+   "network": "Rakuten",
+   "id": "43954",
+   "currency": "USD",
+   "products": 1579,
+   "evidence": "νόμισμα του feed (USD)",
+   "import": "ΝΑΙ",
+   "shop": "Maidenform"
+  },
+  {
+   "row": 216,
+   "site": "wgw",
+   "retailer": "MicroPerfumes.com US",
+   "countries": [
+    "US"
+   ],
+   "feedLanguages": [
+    "en"
+   ],
+   "network": "Rakuten",
+   "id": "47418",
+   "currency": "USD",
+   "products": 521,
+   "evidence": "νόμισμα του feed (USD)",
+   "import": "ΝΑΙ",
+   "shop": "MicroPerfumes.com"
+  },
+  {
+   "row": 218,
+   "site": "wgw",
+   "retailer": "Naghedi US",
+   "countries": [
+    "US"
+   ],
+   "feedLanguages": [
+    "en"
+   ],
+   "network": "Awin",
+   "id": "96197",
+   "feedIds": [
+    103597
+   ],
+   "currency": "USD",
+   "products": 135,
+   "evidence": "Awin: περιοχή του προγράμματος",
+   "import": "ΝΑΙ",
+   "shop": "Naghedi"
+  },
+  {
+   "row": 219,
+   "site": "wgw",
+   "retailer": "onehanesplace.com US",
+   "countries": [
+    "US"
+   ],
+   "feedLanguages": [
+    "en"
+   ],
+   "network": "Rakuten",
+   "id": "2856 · 24366",
+   "currency": "USD",
+   "products": 13537,
+   "evidence": "νόμισμα του feed (USD)",
+   "import": "ΝΑΙ",
+   "shop": "onehanesplace.com (Hanesbrands)"
+  },
+  {
+   "row": 220,
+   "site": "wgw",
+   "retailer": "Princess Polly US",
+   "countries": [
+    "US"
+   ],
+   "feedLanguages": [
+    "en"
+   ],
+   "network": "Rakuten",
+   "id": "44648",
+   "currency": "USD",
+   "products": "20000+",
+   "evidence": "νόμισμα του feed (USD)",
+   "import": "ΝΑΙ",
+   "shop": "Princess Polly US"
+  },
+  {
+   "row": 221,
+   "site": "wgw",
+   "retailer": "Robell DE",
+   "countries": [
+    "DE"
+   ],
+   "language": "de",
+   "feedLanguages": [
+    "de"
+   ],
+   "network": "Daisycon",
+   "id": "17900",
+   "currency": "EUR",
+   "products": 909,
+   "evidence": "Daisycon: χώρες των προϊόντων του feed",
+   "import": "ΝΑΙ",
+   "shop": "Robell (DE)"
+  },
+  {
+   "row": 222,
+   "site": "wgw",
+   "retailer": "Robell",
+   "feedLanguages": [
+    "en"
+   ],
+   "network": "Daisycon",
+   "id": "17901",
+   "currency": "EUR",
+   "products": 990,
+   "evidence": "Daisycon: χώρες των προϊόντων του feed",
+   "import": "ΟΧΙ ακόμα",
+   "why": [
+    "μόνο GB/άγνωστη χώρα στο feed"
+   ],
+   "shop": "Robell (EU)"
+  },
+  {
+   "row": 223,
+   "site": "wgw",
+   "retailer": "Sachin and Babi US",
+   "countries": [
+    "US"
+   ],
+   "feedLanguages": [
+    "en"
+   ],
+   "network": "Rakuten",
+   "id": "52872",
+   "currency": "USD",
+   "products": 2783,
+   "evidence": "νόμισμα του feed (USD)",
+   "import": "ΝΑΙ",
+   "shop": "Sachin and Babi"
+  },
+  {
+   "row": 224,
+   "site": "wgw",
+   "retailer": "Salontopper.nl NL",
+   "countries": [
+    "NL"
+   ],
+   "language": "nl",
+   "feedLanguages": [
+    "nl"
+   ],
+   "network": "Daisycon",
+   "id": "12554",
+   "currency": "EUR",
+   "products": 28533,
+   "evidence": "Daisycon: χώρες των προϊόντων του feed",
+   "import": "ΝΑΙ",
+   "shop": "Salontopper.nl"
+  },
+  {
+   "row": 225,
+   "site": "wgw",
+   "retailer": "Stilettoschuhe.com DE",
+   "countries": [
+    "DE"
+   ],
+   "language": "de",
+   "feedLanguages": [
+    "de"
+   ],
+   "network": "Daisycon",
+   "id": "20162",
+   "currency": "EUR",
+   "products": 8069,
+   "evidence": "Daisycon: χώρες των προϊόντων του feed",
+   "import": "ΝΑΙ",
+   "shop": "Stilettoschuhe.com (DE)"
+  },
+  {
+   "row": 226,
+   "site": "wgw",
+   "retailer": "Stylevana",
+   "network": "CJ",
+   "id": "7819130",
+   "products": 97566,
+   "evidence": "νόμισμα του feed (?)",
+   "import": "ΟΧΙ ακόμα",
+   "why": [
+    "η χώρα δεν φαίνεται από το feed (νόμισμα ?)",
+    "γλώσσα feed άγνωστη",
+    "το feed δεν έχει κατέβει ακόμα"
+   ],
+   "shop": "Stylevana"
+  },
+  {
+   "row": 228,
+   "site": "wgw",
+   "retailer": "Vanilla Copenhagen DK",
+   "countries": [
+    "DK"
+   ],
+   "language": "da",
+   "feedLanguages": [
+    "da"
+   ],
+   "network": "Daisycon",
+   "id": "17415",
+   "currency": "DKK",
+   "products": 109,
+   "evidence": "Daisycon: χώρες των προϊόντων του feed",
+   "import": "ΝΑΙ",
+   "shop": "Vanilla Copenhagen (DK, SE, INT)"
+  },
+  {
+   "row": 229,
+   "site": "wgw",
+   "retailer": "Ventis NL",
+   "countries": [
+    "NL"
+   ],
+   "feedLanguages": [
+    "de",
+    "en",
+    "es",
+    "it"
+   ],
+   "network": "Awin",
+   "id": "80046",
+   "feedIds": [
+    93349,
+    96398,
+    96417,
+    96418,
+    96965,
+    97921,
+    97922,
+    119049
+   ],
+   "currency": "EUR",
+   "products": 19336,
+   "evidence": "Awin: περιοχή του προγράμματος",
+   "import": "ΟΧΙ ακόμα",
+   "why": [
+    "πολλές γλώσσες στο feed (de,en,es,it): θέλει κανόνα γλώσσας ανά χώρα από την 3"
+   ],
+   "shop": "Ventis EU"
+  },
+  {
+   "row": 230,
+   "site": "wgw",
+   "retailer": "ZadigandVoltaire FR",
+   "countries": [
+    "FR"
+   ],
+   "language": "fr",
+   "feedLanguages": [
+    "fr"
+   ],
+   "network": "Daisycon",
+   "id": "15679",
+   "currency": "EUR",
+   "products": 3257,
+   "evidence": "Daisycon: χώρες των προϊόντων του feed",
+   "import": "ΝΑΙ",
+   "shop": "Zadig&Voltaire (INT)"
+  }
+ ]
+}
