@@ -27,6 +27,8 @@ if (-not $OutDir) { $OutDir = Join-Path $HOME 'gear-world-reports' }
 if (-not $Reports) { $Reports = Join-Path $HOME 'gear-world-reports' }
 if (-not $Archive) { $Archive = Join-Path (Join-Path $HOME 'Downloads') 'GW_AWIN_BULK_ARCHIVE' }
 if (-not $List) { $List = Join-Path (Join-Path (Join-Path $repo 'tools') 'massive') 'candidates-1122.json' }
+# A bare file name is a list of this version's tools\massive folder (lessons L231: -List candidates-1125.json).
+if (-not [System.IO.Path]::IsPathRooted($List) -and $List -notmatch '[\\/]') { $List = Join-Path (Join-Path (Join-Path $repo 'tools') 'massive') $List }
 Write-Host ''
 Write-Host 'Massive inventory - ΜΟΝΟ ΑΝΑΓΝΩΣΗ (δεν φορτώνει, δεν κατεβάζει και δεν αλλάζει τίποτα)' -ForegroundColor Cyan
 $node = Get-Command node -ErrorAction SilentlyContinue
