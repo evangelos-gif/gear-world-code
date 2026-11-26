@@ -9,6 +9,7 @@ import { gzipSync } from 'node:zlib';
 import { planZgwImport } from '../../tools/zgw-import-plan.mjs';
 import { classify, cleanProductName, CATEGORY_SLUGS, QUALITY } from '../../sites/zgw/category-rules.js';
 import site from '../../sites/zgw/site.config.js';
+import { waveDelivery } from '../../sites/_shared/wave-a.js';
 
 const slug = (n, c = '') => classify(cleanProductName(n), c, c).slug;
 const ok = (n, c = '') => classify(cleanProductName(n), c, c).ok;
@@ -54,7 +55,7 @@ test('11 categories (birds with subcategories and horse and riding, owner 1 Nov 
   // ALZOO sells in US dollars and ships within the US only: only the US view shows it (site.config.js deliversTo).
   // AliExpress PL (L157 round 2): zloty, Poland only.
   assert.deepEqual(QUALITY.currencies, ['GBP', 'EUR', 'USD', 'PLN'], 'EUR: Miscota IE, Ireland only (L194)');
-  assert.deepEqual(site.deliversTo.retailers, { 'AliExpress PL': ['PL'], ALZOO: ['US'], 'Bonne et Filou': ['US'], EcoKind: ['US'], 'RadioFence.com': ['US'], 'Crown and Paw': ['US'], MeoWant: ['US'], 'Miscota IE': ['IE'], 'bol.com': ['NL', 'BE'], 'PetShop4u GR': ['GR'] }, 'wave 3 (L169): five US pet shops, US view only; bol.com in Dutch (L204)');
+  assert.deepEqual(site.deliversTo.retailers, { 'AliExpress PL': ['PL'], ALZOO: ['US'], 'Bonne et Filou': ['US'], EcoKind: ['US'], 'RadioFence.com': ['US'], 'Crown and Paw': ['US'], MeoWant: ['US'], 'Miscota IE': ['IE'], 'bol.com': ['NL', 'BE'], 'PetShop4u GR': ['GR'], ...waveDelivery('zgw').retailers }, 'wave 3 (L169): five US pet shops, US view only; bol.com in Dutch (L204)');
   assert.deepEqual(CATEGORY_SLUGS, site.categories.map(c => c.slug), 'the same order as the site menu');
 });
 

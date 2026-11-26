@@ -37,13 +37,14 @@ const VIEWS = [...[...EUROPE, 'US'].map(c => [c, c, '']), ['CA', 'CA', ''], ['un
 // Who sees the bar. The codes of CGW, AGW and BGW are of retailers that deliver to the UK only (Tooled Up, My Tool
 // Shed), those of GGW, HGW and KGW too (Joybuy and the other UK shops, lessons L114), and WGW's (Angel Barocco EARLYBF10
 // until 21 Nov 2026, lessons L186).
-//   The UK view (the UK, Google's crawlers from anywhere, the US where nobody ships there: AGW, BGW) has them.
+//   The UK view (the UK, Google's crawlers from anywhere, the US where nobody ships there: BGW) has them.
 //   The all view (every other country and an unknown one, lessons L151) has every retailer, so them too; each code card
 //   says where its retailer delivers.
 //   The US view (L141: CGW GRABO, GGW Click and Grow, HGW Kincmo, AlorAir, Mosaic Weighted Blankets, KGW Dream Pairs,
-//   Kaiya Baby, Diecast Models Wholesale) has none of them: no bar.
+//   Kaiya Baby, Diecast Models Wholesale; AGW since Priority A, L234: AstroAI, Eonon, Lectron, Rexing, SEALIGHT) has none
+//   of them: no bar.
 const seeing = (except = []) => Object.fromEntries(VIEWS.map(([name]) => [name, !except.includes(name)]));
-const SHOWN = { CGW: seeing(['US', 'PL']), AGW: seeing(['PL']), BGW: seeing(['PL']), GGW: seeing(['US', 'PL']), HGW: seeing(['US', 'PL']), KGW: seeing(['US', 'PL']),
+const SHOWN = { CGW: seeing(['US', 'PL']), AGW: seeing(['US', 'PL']), BGW: seeing(['PL']), GGW: seeing(['US', 'PL']), HGW: seeing(['US', 'PL']), KGW: seeing(['US', 'PL']),
   WGW: seeing(['US', 'PL']), TGW: seeing(['US', 'PL']), PGW: seeing(['US', 'PL']) };
 // How many view groups each site has: gb, all, pl, and us where a retailer ships to the US; and one for the countries
 // that speak the language of a feed (L165: CGW Reidl in German for DE and AT, AGW VEVOR in Dutch for NL and BE).
@@ -55,7 +56,10 @@ const SHOWN = { CGW: seeing(['US', 'PL']), AGW: seeing(['PL']), BGW: seeing(['PL
 // The NL/BE-only line of bol.com on TGW, BGW and PGW too (review of 6954a135, none listed there): TGW had that group for
 // refurbed NL; BGW and PGW one more (the Netherlands and Belgium in Dutch).
 // AGW, BGW and TGW +2 since 21 Nov 2026 (L209): the Greek Linkwise shops, one view for Greece and one for Cyprus.
-const GROUPS = { CGW: 6, AGW: 6, BGW: 6, GGW: 7, HGW: 10, KGW: 7, WGW: 8, TGW: 7, PGW: 5 };
+// Priority A since 26 Nov 2026 (L234, sites/_shared/wave-a.js): shops of the US only on AGW (so the US has a view of its own
+// there too), German feeds for Germany only (AGW, GGW, KGW, WGW, TGW, PGW), Dutch ones for the Netherlands or Belgium only
+// (CGW, KGW, TGW, PGW split the two), Danish for Denmark (PGW): CGW 7, AGW 8, GGW 8, KGW 9, WGW 10, TGW 9, PGW 8.
+const GROUPS = { CGW: 7, AGW: 8, BGW: 6, GGW: 8, HGW: 10, KGW: 9, WGW: 10, TGW: 9, PGW: 8 };
 // What the bar says in the UK view while the codes of the config run (promos/promos.js, 10 Nov 2026).
 // BGW 6 since 19 Nov 2026: Tooled Up's 2 and iHoverboard's 4 (BF8%, 12%H1Q4, 15%iK1S, F7Ultra100, lessons L196).
 const WORDS = {
@@ -136,7 +140,7 @@ test('L115, L151: every view group of the sites with codes: the UK view and the 
     const allLike = [all.id, ...list.filter(g => g.language).map(g => g.id)];
     for (const c of ['DE', 'BE', 'NL', 'FR', 'IE', 'AT', 'CH']) assert.ok(allLike.includes(viewFor(site, c).group) && want[c], `${code} ${c}: the all view, the codes`);
     // The US (lessons L141): a view of its own where a retailer ships there (CGW GRABO, the US shops of GGW, HGW, KGW, WGW, TGW, PGW).
-    const usOwn = ['CGW', 'GGW', 'HGW', 'KGW', 'WGW', 'TGW', 'PGW'].includes(code);
+    const usOwn = ['CGW', 'GGW', 'HGW', 'KGW', 'WGW', 'TGW', 'PGW', 'AGW'].includes(code);
     assert.equal(viewFor(site, 'US').group !== home.id, usOwn, `${code} US: ${usOwn ? 'a view of its own' : 'the UK view'}`);
     assert.equal(want.US, !usOwn, `${code} US: ${usOwn ? 'no codes' : 'the codes of the UK view'}`);
   }
@@ -358,9 +362,10 @@ test('L115, L151: cached pages keep the bar in the copy of their own view group 
       // Germany and Austria (L165, Reidl in German): one more copy, the all view plus Reidl, with the bar.
       for (const country of ['DE', 'AT']) assert.ok(barOf((await get(path, env, country)).html), `${path} ${country}`);
       assert.equal(store.size, size + 2, `${path}: one copy for Germany and Austria`);
-      // The Netherlands and Belgium (L204, bol.com in Dutch): one more copy, the all view plus bol.com, with the bar.
+      // The Netherlands and Belgium (L204, bol.com in Dutch): the all view plus bol.com, with the bar; one copy each since
+      // Gereedschapspecialist NL (L234, Priority A) is in Dutch for the Netherlands only.
       for (const country of ['NL', 'BE']) assert.ok(barOf((await get(path, env, country)).html), `${path} ${country}`);
-      assert.equal(store.size, size + 3, `${path}: one copy for the Netherlands and Belgium`);
+      assert.equal(store.size, size + 4, `${path}: one copy for the Netherlands, one for Belgium`);
       assert.ok(barOf(await store.get(`${key}${sep}gw-view=all`).clone().text()), `${path}: the bar is in the cached all copy`);
       assert.ok(!/codes-bar/.test((await get(path, env, 'US')).html), `${path} US`);
     }
