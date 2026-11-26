@@ -42,8 +42,10 @@ test('L235 helper: the key test says whether Yadore took the key and which marke
   assert.ok(!api.calls[0].u.toString().includes(KEY), 'the key in the header only');
 });
 
-test('L235 helper: the plan lists the stores of the market and proposes a few, never the forbidden ones or one without SEO traffic', async () => {
-  useYadoreStores(null);
+test('L235 helper: the plan lists the stores of the market and proposes a few, never the forbidden ones or one without SEO traffic', async t => {
+  // An empty list of the code here (the live one has the stores of 26 Nov 2026).
+  useYadoreStores({ gr: [] });
+  t.after(() => useYadoreStores(null));
   const merchants = [
     { name: 'alpha.gr', offerCount: 900, trafficTypes: [{ type: 'seo', permission: 'allowed' }] },
     { name: 'beta.gr', offerCount: 50, trafficTypes: [{ type: 'seo', permission: 'not_allowed' }] },

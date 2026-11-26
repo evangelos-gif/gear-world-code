@@ -97,9 +97,10 @@ const box = text => {
   return i < 0 ? '' : text.slice(i, text.indexOf('</section>', i) + 10);
 };
 
-test('L235: the live code ships with no store at all, so nothing shows until the stores are chosen from the read-only plan', () => {
+test('L235: the live code ships with the Greek stores of the read-only plan of 26 Nov 2026 that may show, and the daily caps', () => {
   assert.deepEqual(Object.keys(YADORE_STORES), ['gr']);
-  assert.deepEqual([...YADORE_STORES.gr], []);
+  assert.deepEqual([...YADORE_STORES.gr], ['autodoc.gr', 'drele.com', 'gemimarket.gr', 'intersport.gr']);
+  for (const s of YADORE_STORES.gr) assert.equal(neverStore(s), false, s);
   assert.equal(new Date(YADORE_FROM).toISOString(), '2026-12-02T18:00:00.000Z', 'Wed 2 Dec 2026 18:00 UK time');
   assert.deepEqual(YADORE_CAPS.map(c => ({ ...c })), [{ from: '2026-12-02', site: 15, store: 5 }], 'few and steady clicks: 15 a day per site, 5 per store');
   assert.equal(capsFor(Date.parse('2026-12-01T23:00:00Z')), null, 'no clicks before the start day');
@@ -108,7 +109,9 @@ test('L235: the live code ships with no store at all, so nothing shows until the
 
 test('L235: never the 5 big Linkwise stores, Amazon, Aliexpress or Panora, nor a store name with an L107 word', () => {
   for (const n of ['public.gr', 'www.public.gr', 'Public', 'Public GR', 'Public Greece', 'sephora.gr', 'Sephora Greece', 'Kotsovolos GR', 'e-shop.gr', 'ab.gr', 'AB Vasilopoulos', 'ΑΒ Βασιλόπουλος', 'kotsovolos.gr', 'Κωτσόβολος',
-    'amazon.de', 'Amazon.co.uk', 'amazon', 'aliexpress.com', 'panora.gr', '']) assert.equal(neverStore(n), true, n);
+    'amazon.de', 'Amazon.co.uk', 'amazon', 'aliexpress.com', 'panora.gr', '',
+    // Adult shops (the plan of 26 Nov 2026 offered lovesexshop.gr, even under the pets' toys).
+    'lovesexshop.gr', 'www.LoveSexShop.gr', 'erotica-shop.gr', 'ερωτικά είδη', 'adult-store.example']) assert.equal(neverStore(n), true, n);
   for (const n of ['alpha.gr', 'plaisio.gr', 'publicis.gr', 'kotsovolos-fan.example'.replace('kotsovolos', 'kots')]) assert.equal(neverStore(n), false, n);
   const env = {};
   assert.equal(storeAllowed(env, 'gr', 'public.gr'), false, 'on the test list, still never');

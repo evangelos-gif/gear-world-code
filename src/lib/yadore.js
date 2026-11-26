@@ -36,11 +36,13 @@ export const YADORE_PER_VISITOR = 3; // clicks in the box a day per visitor and 
 export const YADORE_CAPS = Object.freeze([
   Object.freeze({ from: '2026-12-02', site: 15, store: 5 })
 ]);
-// The stores allowed now, per market, by the name Yadore gives (merchant.name, lower case, without "www."). Few at the
-// start (Anna's rule): chosen from the read-only list of tools/yadore.ps1 -Step plan. An empty list shows nothing.
-// A store that reaches 300 clicks without a sale is taken out (or paused at once with the secret YADORE_PAUSE).
+// The stores allowed now, per market, by the name Yadore gives (merchant.name, lower case, without "www."), from the
+// read-only list of tools/yadore.ps1 -Step plan. Greece: every store of the plan of 26 Nov 2026 that may show (owner,
+// 26 Nov 2026: «φορτώσουμε κανονικά», the sites have few visitors yet), so not lovesexshop.gr (an adult shop, never) nor
+// the five big Linkwise stores, Amazon, Aliexpress or Panora; the daily caps below stay. A new store comes in with the next
+// plan. A store that reaches 300 clicks without a sale is taken out (or paused at once with the secret YADORE_PAUSE).
 export const YADORE_STORES = Object.freeze({
-  gr: Object.freeze([])
+  gr: Object.freeze(['autodoc.gr', 'drele.com', 'gemimarket.gr', 'intersport.gr'])
 });
 // The tests set other lists (like useClock of src/lib/visibility.js); the live Worker never calls this.
 let STORES = YADORE_STORES;
@@ -52,7 +54,8 @@ export function storesOf(market) {
 }
 // Never, whatever the lists say: the 5 big Linkwise stores, Amazon, and Aliexpress and Panora (only for Mega Stores).
 const NEVER_LABELS = ['public', 'sephora', 'e-shop', 'eshop', 'ab', 'abvasilopoulos', 'ab-vasilopoulos', 'kotsovolos', 'amazon', 'aliexpress', 'panora'];
-const NEVER_WORDS = /amazon|aliexpress|sephora|kotsovolos|κωτσόβολος|κωτσοβολος|βασιλόπουλος|βασιλοπουλος|vasilopoulos|\bpanora\b|e-?shop\.gr|\bpublic\.gr\b/i;
+// Adult shops never either (the sites are for everyone, Kids and Pets too): lovesexshop.gr came in the plan of 26 Nov 2026.
+const NEVER_WORDS = /amazon|aliexpress|sephora|kotsovolos|κωτσόβολος|κωτσοβολος|βασιλόπουλος|βασιλοπουλος|vasilopoulos|\bpanora\b|e-?shop\.gr|\bpublic\.gr\b|sex|erotic|ερωτικ|adult|porn|xxx/i;
 // The words the sites never use (lessons L107). A title or a store name with one of them is left out (never rewritten).
 export const L107_WORDS = /\bshop|\bcart\b|\bsale\b|\bdeals?\b|\bofficial\b|\bpartner|lowest price|% ?off\b|\bsave\b|buy now|\bwas\s*£|uk retailers/i;
 // Sale words of a title in Greek too (L107 is about our texts; a store's title with them is left out, never rewritten):
