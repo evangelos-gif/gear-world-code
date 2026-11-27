@@ -409,6 +409,10 @@ test('Idea 17 Α: greeting by the hour, world names with icons, our word "Sale" 
   assert.equal(worldIcon('XYZ'), DEFAULT_WORLD_ICON);
   assert.equal(new Set(Object.values(WORLD_ICONS)).size, 13, 'one icon per world');
   // The product cards and the Saved rows name the world, never its code alone.
+  // The world cards on Home show the world's icon above its name, never the code (owner 27/11/2026).
+  const card = read('../src/components/world-card.tsx');
+  assert.ok(!/\{world\.key\}<\/Txt>/.test(card), 'world card: no code');
+  assert.match(card, /worldIcon\(world\.key\)/, 'world card: the world icon');
   for (const f of ['../src/components/product-card.tsx', '../src/app/(tabs)/saved.tsx']) {
     const src = read(f);
     assert.match(src, /<WorldTag worldKey=/, `${f}: world name with icon`);
