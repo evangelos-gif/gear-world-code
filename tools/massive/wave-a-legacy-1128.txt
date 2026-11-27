@@ -1,0 +1,58 @@
+# Priority A on the six older sites (chat 3, 27 Nov 2026, lessons L234, L237): one line per shop, "<rules key>:<site>",
+# for tools/legacy-import-batch.ps1 -Pairs 'file:tools/massive/wave-a-legacy-1128.txt'. The two largest feeds last.
+# Not here (see the plan, 27 Nov 2026): DirectWonen.nl NL (rooms and houses to rent, not products), meubelo.nl NL and
+# moebel.de DE (1.4 million and 750,000 rows: they need a filter first), MicroPerfumes.com US (only sample vials),
+# ssimder welding equipment inc US (no photos in the feed), Rasendoktor DE (chat 7: not to import), and the 20 German,
+# Dutch and Polish lines of CGW, GGW, KGW, MGW and WGW (after Cyber Monday).
+wa-airdog-us:hgw
+wa-amiclubwear-us:wgw
+wa-arielbath-us:hgw
+wa-bakerross-ie:kgw
+wa-balibras-us:wgw
+wa-bioethanol-kamin-de:hgw
+wa-bioethanolhaard-nl:hgw
+wa-brunomarc-us:mgw
+wa-cashmereboutique-us:wgw
+wa-caudalie-us:wgw
+wa-cosori-de:hgw
+wa-cuckoo-us:hgw
+wa-dekotopia-de:hgw
+wa-ecko-us:mgw
+wa-efeglasses-us:mgw
+wa-enjoythewood-us:hgw
+wa-fragrancenet-us:wgw
+wa-fufugaga-us:hgw
+wa-goally-us:kgw
+wa-hanes-us:mgw
+wa-homeleader-us:hgw
+wa-homsee-us:hgw
+wa-houseoflamps-us:hgw
+wa-iedm-us:wgw
+wa-janine-de:hgw
+wa-julep-us:wgw
+wa-kochblume-de:hgw
+wa-lampenconcurrent-nl:hgw
+wa-ledlager-de:hgw
+wa-leuchtmittel-de:hgw
+wa-levoit-de:hgw
+wa-maidenform-us:wgw
+wa-mattenwelt-de:hgw
+wa-maytag-us:hgw
+wa-naghedi-us:wgw
+wa-norma24-de:hgw
+wa-onehanesplace-us:wgw
+wa-princesspolly-us:wgw
+wa-profichemie-de:hgw
+wa-puredown-us:hgw
+wa-sachinbabi-us:wgw
+wa-sanifun-nl:hgw
+wa-sebastiancruz-us:mgw
+wa-sheepworld-de:hgw
+wa-tushbaby-us:kgw
+wa-vincasa-de:hgw
+wa-whirlpool-us:hgw
+wa-wildguarder-us:ggw
+wa-youcustomizeit-us:hgw
+wa-zanotti-us:wgw
+wa-1800lighting-us:hgw
+wa-zulily-us:kgw
