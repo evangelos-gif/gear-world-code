@@ -27,6 +27,9 @@
   would write more than 90,000 rows in D1 (about 11,000 products) stops before changing anything (lessons L49).
   -Approve: the phrase given on the command line instead of typing it (tests only).
   -MinFreeMb (default 1024): with less free disk space than this nothing starts (exit 6); first pc-disk-cleanup.ps1.
+  -FreshHours N (lessons L236): every pair takes only feed files downloaded in the last N hours. A re-import used as a
+  refresh (fresh downloads first, then this batch) then never writes today's «Price checked» on an older copy whose
+  download failed or was refused: that shop is not imported (its exit is not 0 in the summary) and nothing of it changes.
 
   Report: <home>\gear-world-reports\IMPORT_BATCH_<time>.txt (also copied to the clipboard), with every pair's
   summary and the full plan of every shop.
@@ -44,6 +47,7 @@ param(
     [string]$Sites = '',
     [string]$Approve = '',
     [int]$MinFreeMb = 1024,
+    [int]$FreshHours = 0,
     [switch]$NoClipboard
 )
 
@@ -180,6 +184,8 @@ if ($Apply) {
     Write-Host 'Έγκριση για όλα: ξεκινώ.' -ForegroundColor Green
 }
 
+# -FreshHours (L236): the planner of every pair reads it and refuses a feed file older than that.
+if ($FreshHours -gt 0) { $env:GW_FEED_MAX_AGE_HOURS = [string]$FreshHours; Write-Host ('Μόνο feeds που κατέβηκαν τις τελευταίες {0} ώρες (L236).' -f $FreshHours) -ForegroundColor Cyan }
 $results = @()
 $n = 0
 foreach ($pair in $list) {

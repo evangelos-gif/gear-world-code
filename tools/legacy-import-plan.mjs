@@ -98,6 +98,14 @@ export function feedPaths({ archive, rules }) {
   return readdirSync(archive).filter(f => name.test(f)).sort().map(f => join(archive, f));
 }
 
+// Feed files downloaded more than maxAgeHours before now (lessons L236), with their download time (UTC, minutes).
+export function staleFeedFiles(paths, maxAgeHours, now = new Date()) {
+  const limit = now.getTime() - maxAgeHours * 3600 * 1000;
+  return paths.map(f => { let m = NaN; try { m = statSync(f).mtimeMs; } catch { m = NaN; } return { file: basename(f), m }; })
+    .filter(o => !(o.m >= limit))
+    .map(o => ({ file: o.file, at: Number.isFinite(o.m) ? new Date(o.m).toISOString().slice(0, 16).replace('T', ' ') + ' UTC' : 'άγνωστο' }));
+}
+
 export async function readProducts({ archive, rules }) {
   const paths = feedPaths({ archive, rules });
   const files = paths.map(f => basename(f));
@@ -368,6 +376,14 @@ export async function planLegacyImport({ archive, retailer, outDir, now = new Da
   const NET = networkOf(rules);
   const read = await readProducts({ archive, rules });
   const { files, rows } = read;
+  // GW_FEED_MAX_AGE_HOURS (set by tools/legacy-import-batch.ps1 -FreshHours, lessons L236): a re-import used as a refresh
+  // takes only feed files downloaded in the last N hours. An older copy (its download failed or was refused) would write
+  // today's «Price checked» on old prices, so the shop is not imported and the report says why.
+  const maxAgeHours = Number(process.env.GW_FEED_MAX_AGE_HOURS || 0);
+  if (maxAgeHours > 0) {
+    const tooOld = staleFeedFiles(feedPaths({ archive, rules }), maxAgeHours, now);
+    if (tooOld.length) throw new Error(tooOld.map(o => `${o.file}: το feed κατέβηκε ${o.at}, πριν από πάνω από ${maxAgeHours} ώρες: δεν έγινε εισαγωγή, δεν άλλαξε τίποτα (L236)`).join('\n'));
+  }
   // rules.feedTooOld (bol.com, L204): the import refuses a feed file older than the rules allow (run the download again);
   // the dry run of tools/bol-import-plan.mjs (allowOld) makes the plan and lists them.
   const oldFiles = typeof rules.feedTooOld === 'function' ? Object.entries(read.fileStamps).filter(([, s]) => rules.feedTooOld(s, now)) : [];
