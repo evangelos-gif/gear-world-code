@@ -97,10 +97,14 @@ const box = text => {
   return i < 0 ? '' : text.slice(i, text.indexOf('</section>', i) + 10);
 };
 
-test('L235: the live code ships with the Greek stores of the read-only plan of 26 Nov 2026 that may show, and the daily caps', () => {
+test('L235: the live code ships with the Greek stores per site of the owner (27 Nov 2026), and the daily caps', () => {
   assert.deepEqual(Object.keys(YADORE_STORES), ['gr']);
-  assert.deepEqual([...YADORE_STORES.gr], ['autodoc.gr', 'drele.com', 'gemimarket.gr', 'intersport.gr']);
-  for (const s of YADORE_STORES.gr) assert.equal(neverStore(s), false, s);
+  const per = Object.fromEntries(Object.entries(YADORE_STORES.gr).map(([k, v]) => [k, [...v]]));
+  assert.deepEqual(per, {
+    bgw: ['autodoc.gr'], cgw: ['autodoc.gr'], ggw: ['autodoc.gr'], pgw: ['drele.com'],
+    sgw: ['intersport.gr'], tgw: ['drele.com'], vgw: ['intersport.gr']
+  }, 'intersport.gr on Sporty and Travel, drele.com on Technology and Gaming, autodoc.gr on Construction, Garden and Biker');
+  for (const list of Object.values(per)) for (const s of list) assert.equal(neverStore(s), false, s);
   assert.equal(new Date(YADORE_FROM).toISOString(), '2026-12-02T18:00:00.000Z', 'Wed 2 Dec 2026 18:00 UK time');
   assert.deepEqual(YADORE_CAPS.map(c => ({ ...c })), [{ from: '2026-12-02', site: 15, store: 5 }], 'few and steady clicks: 15 a day per site, 5 per store');
   assert.equal(capsFor(Date.parse('2026-12-01T23:00:00Z')), null, 'no clicks before the start day');
@@ -721,5 +725,32 @@ test('L235 review 4: one offer link per visitor even across new page copies, and
     assert.equal(where(await clickNow(tgw, env, first[2], ip)), 'yadore', 'the same offer later: still allowed');
   } finally {
     globalThis.caches = before;
+  }
+});
+
+test('L235: a store shows only on its sites (owner, 27 Nov 2026), and a site without a store gets no box at all', () => {
+  useYadoreStores(null);
+  try {
+    const env = { YADORE_API_KEY: 'k'.repeat(32) };
+    assert.equal(storeAllowed(env, 'gr', 'intersport.gr', 'sgw'), true);
+    assert.equal(storeAllowed(env, 'gr', 'www.Intersport.gr', 'VGW'), true);
+    assert.equal(storeAllowed(env, 'gr', 'intersport.gr', 'bgw'), false, 'not on Biker');
+    assert.equal(storeAllowed(env, 'gr', 'autodoc.gr', 'agw'), false, 'not on Car: Autodoc GR is ours there through Linkwise');
+    assert.equal(storeAllowed(env, 'gr', 'autodoc.gr', 'bgw'), true);
+    assert.equal(storeAllowed(env, 'gr', 'drele.com', 'tgw'), true);
+    assert.equal(storeAllowed(env, 'gr', 'drele.com', 'sgw'), false);
+    assert.equal(storeAllowed(env, 'gr', 'lovesexshop.gr', 'sgw'), false, 'never');
+    assert.equal(storeAllowed(env, 'gr', 'autodoc.gr'), false, 'no site, no store');
+    assert.equal(storeAllowed({ ...env, YADORE_PAUSE: 'autodoc.gr' }, 'gr', 'autodoc.gr', 'cgw'), false, 'paused');
+    for (const code of ['agw', 'hgw', 'kgw', 'mgw', 'wgw', 'zgw']) {
+      const site = { code };
+      const words = YADORE_WORDS.gr[code] || {};
+      const slug = Object.keys(words)[0];
+      if (slug) assert.equal(yadoreMarket(site, env, { slug }, 'GR', DAY), '', `${code}: no box`);
+    }
+    const sgwSlug = Object.keys(YADORE_WORDS.gr.sgw)[0];
+    assert.equal(yadoreMarket({ code: 'sgw' }, env, { slug: sgwSlug }, 'GR', DAY), 'gr', 'Sporty: the box');
+  } finally {
+    useYadoreStores(STORES);
   }
 });

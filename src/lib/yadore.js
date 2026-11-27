@@ -36,21 +36,35 @@ export const YADORE_PER_VISITOR = 3; // clicks in the box a day per visitor and 
 export const YADORE_CAPS = Object.freeze([
   Object.freeze({ from: '2026-12-02', site: 15, store: 5 })
 ]);
-// The stores allowed now, per market, by the name Yadore gives (merchant.name, lower case, without "www."), from the
-// read-only list of tools/yadore.ps1 -Step plan. Greece: every store of the plan of 26 Nov 2026 that may show (owner,
-// 26 Nov 2026: «φορτώσουμε κανονικά», the sites have few visitors yet), so not lovesexshop.gr (an adult shop, never) nor
-// the five big Linkwise stores, Amazon, Aliexpress or Panora; the daily caps below stay. A new store comes in with the next
-// plan. A store that reaches 300 clicks without a sale is taken out (or paused at once with the secret YADORE_PAUSE).
+// The stores allowed now, per market and site, by the name Yadore gives (merchant.name, lower case, without "www."), from
+// the read-only list of tools/yadore.ps1 -Step plan (26 Nov 2026). Greece, the owner's decision of 27 Nov 2026 («όπως η 4,
+// χωρίς Intersport στο Biker»): intersport.gr on Sporty and Travel, drele.com on Technology and Gaming, autodoc.gr on
+// Construction, Garden and Biker (not Car: Autodoc GR is ours there through Linkwise); no box on Pets, Home, Kids, Car,
+// Men's, Women's; never lovesexshop.gr (an adult shop). A store that reaches 300 clicks without a sale is taken out (or
+// paused at once with the secret YADORE_PAUSE). A list (not per site) applies to every site: the tests use that.
 export const YADORE_STORES = Object.freeze({
-  gr: Object.freeze(['autodoc.gr', 'drele.com', 'gemimarket.gr', 'intersport.gr'])
+  gr: Object.freeze({
+    bgw: Object.freeze(['autodoc.gr']),
+    cgw: Object.freeze(['autodoc.gr']),
+    ggw: Object.freeze(['autodoc.gr']),
+    pgw: Object.freeze(['drele.com']),
+    sgw: Object.freeze(['intersport.gr']),
+    tgw: Object.freeze(['drele.com']),
+    vgw: Object.freeze(['intersport.gr'])
+  })
 });
 // The tests set other lists (like useClock of src/lib/visibility.js); the live Worker never calls this.
 let STORES = YADORE_STORES;
 export function useYadoreStores(map) {
   STORES = map || YADORE_STORES;
 }
-export function storesOf(market) {
-  return (STORES[market] || []).map(storeKey);
+// The stores of a market on one site (code), or of all its sites (no code: the plan's list).
+export function storesOf(market, code) {
+  const m = STORES[market];
+  if (!m) return [];
+  if (Array.isArray(m)) return m.map(storeKey);
+  const lists = code === undefined ? Object.values(m) : [m[String(code || '').toLowerCase()] || []];
+  return [...new Set(lists.flat().map(storeKey))].sort();
 }
 // Never, whatever the lists say: the 5 big Linkwise stores, Amazon, and Aliexpress and Panora (only for Mega Stores).
 const NEVER_LABELS = ['public', 'sephora', 'e-shop', 'eshop', 'ab', 'abvasilopoulos', 'ab-vasilopoulos', 'kotsovolos', 'amazon', 'aliexpress', 'panora'];
@@ -91,10 +105,16 @@ export function yadoreKey(env) {
 export function pausedStores(env) {
   return new Set(String((env && env.YADORE_PAUSE) || '').split(/[,\n]/).map(storeKey).filter(Boolean));
 }
-export function storeAllowed(env, market, name) {
+export function storeAllowed(env, market, name, code) {
   const k = storeKey(name);
   if (!k || neverStore(k) || L107_WORDS.test(k)) return false;
-  return storesOf(market).includes(k) && !pausedStores(env).has(k);
+  // No site: no store of a per-site list (only a list for every site applies).
+  return storesOf(market, code || '').includes(k) && !pausedStores(env).has(k);
+}
+
+// A site's code in lower case ('' when there is none: then only a list for every site applies).
+function siteCode(site) {
+  return String((site && site.code) || '').toLowerCase();
 }
 
 export function capsFor(at) {
@@ -109,7 +129,7 @@ export function capsFor(at) {
 export function yadoreMarket(site, env, cat, country, at) {
   if (!yadoreKey(env) || !(at >= YADORE_FROM) || !capsFor(at)) return '';
   const market = YADORE_MARKETS[String(country || '').toUpperCase()] || '';
-  if (!market || !storesOf(market).length) return '';
+  if (!market || !storesOf(market, siteCode(site)).length) return '';
   return categoryWords(site, cat, market).length ? market : '';
 }
 
@@ -126,7 +146,7 @@ export function placementId(site, market, cat) {
 // Offers of one Yadore answer that may be shown: an https link of Yadore, a price, a photo, a title and store without an
 // L107 word, a store of the list, not out of stock. No promoText, no original price ("Was", L107), no CPC on the page.
 // anyStore (the read-only plan of tools/yadore-api.mjs only): every store but the never ones, to choose the list.
-export function readOffers(json, env, market, { anyStore = false } = {}) {
+export function readOffers(json, env, market, { anyStore = false, site = null } = {}) {
   const list = json && Array.isArray(json.offers) ? json.offers : [];
   const out = [];
   for (const o of list) {
@@ -135,7 +155,7 @@ export function readOffers(json, env, market, { anyStore = false } = {}) {
     // A very long click address would make a link the click path refuses (TOKEN_RE): left out.
     if (!click || !/(^|\.)yadore\.com$/i.test(click.hostname) || click.toString().length > 1800) continue;
     const store = String((o.merchant && o.merchant.name) || '').trim();
-    if (anyStore ? (neverStore(store) || L107_WORDS.test(storeKey(store))) : !storeAllowed(env, market, store)) continue;
+    if (anyStore ? (neverStore(store) || L107_WORDS.test(storeKey(store))) : !storeAllowed(env, market, store, siteCode(site))) continue;
     const title = String(o.title || '').replace(/\s+/g, ' ').trim();
     if (!title || title.length > 200 || L107_WORDS.test(title) || promoTitle(title)) continue;
     const price = Number.parseFloat(String((o.price && o.price.amount) || '').replace(',', '.'));
@@ -277,7 +297,7 @@ export async function yadoreBox(env, ctx, { site, cat, market, own, at, origin }
   if (!cap) return null;
   const placement = placementId(site, market, cat);
   const answers = await Promise.all(categoryWords(site, cat, market).map(keyword => askYadore(env, ctx, { market, keyword, placement, origin, at })));
-  const lists = answers.filter(Boolean).map(a => readOffers(a.json, env, market));
+  const lists = answers.filter(Boolean).map(a => readOffers(a.json, env, market, { site }));
   if (!lists.some(l => l.length)) return null;
   let counts;
   try { counts = await clicksToday(env.DB, at); } catch (err) { console.warn('yadore clicks', err && err.message); return null; }
@@ -422,7 +442,7 @@ export async function yadoreClick({ env, site, token, country, bot, preview, at,
   if (!(at >= YADORE_FROM)) return no('not yet');
   if (YADORE_MARKETS[String(country || '').toUpperCase()] !== link.market) return no('country');
   if (!(at - link.at <= YADORE_LINK_HOURS * 3600 * 1000) || link.at > at + 600000) return no('old link');
-  if (!storeAllowed(env, link.market, link.store)) return no('store');
+  if (!storeAllowed(env, link.market, link.store, siteCode(site))) return no('store');
   const cap = capsFor(at);
   let counts;
   try { counts = await clicksToday(env.DB, at); } catch { return no('database'); }

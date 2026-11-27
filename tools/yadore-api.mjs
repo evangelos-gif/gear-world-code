@@ -105,6 +105,10 @@ export async function plan(fetchFn, key, { market = 'gr', sites = null, wait = 2
   const now = storesOf(market);
   lines.push('', `Καταστήματα στην αγορά ${market}: ${merchants.length} (Yadore /v2/merchant).`);
   lines.push(`Λίστα του κώδικα τώρα (${now.length}): ${now.length ? now.join(', ') : '(άδεια: το πλαίσιο δεν δείχνει τίποτα)'}`);
+  for (const code of codes) {
+    const own = storesOf(market, code);
+    lines.push(`  ${code}: ${own.length ? own.join(', ') : 'κανένα (χωρίς πλαίσιο)'}`);
+  }
   lines.push('', `Πρόταση: ${suggest.length} καταστήματα με τις περισσότερες κατηγορίες μας (ποτέ τα 5 της Linkwise, Amazon, Aliexpress, Panora, ονόματα με λέξη L107):`);
   for (const s of suggest) lines.push(`  ${pad(storeKey(s.name), 32)} κατηγορίες ${pad(s.categories.size, 3)} προϊόντα στις λέξεις ${pad(s.hits, 4)} στο Yadore ${s.offers || '?'}${s.traffic ? ` · ${s.traffic}` : ''}`);
   lines.push('', 'Ανά site και κατηγορία (προϊόντα που θα έδειχνε το πλαίσιο πριν από τα όρια, και τα 3 πρώτα καταστήματα):');
