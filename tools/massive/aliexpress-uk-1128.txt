@@ -1,0 +1,8 @@
+# AliExpress UK (Awin 7035), first wave (owner, 27 Nov 2026, lessons L239): one line per site for
+# tools/legacy-import-batch.ps1 -Pairs 'file:tools/massive/aliexpress-uk-1128.txt'. Five of the 15 feeds
+# (tools/import-rules/aliexpress-uk.mjs FEEDS); the Technology, Car, Sporty, Biker, Pets, Gaming, Travel, Garden and
+# Construction sites come in a later wave with their own dry run.
+aliexpress-uk:wgw
+aliexpress-uk:mgw
+aliexpress-uk:kgw
+aliexpress-uk:hgw
