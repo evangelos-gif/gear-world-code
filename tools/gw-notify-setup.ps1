@@ -1,6 +1,6 @@
 ﻿<#
 .SYNOPSIS
-  Gear World: sets up the end-of-command notifications (owner, 27 Nov 2026, for all chats; lessons L234).
+  Gear World: sets up the end-of-command notifications (owner, 27 Nov 2026, for all chats; lessons L240).
 
 .DESCRIPTION
   Every command then ends with 3 beeps, the voice "Gear World. Command finished." and a Windows notification

@@ -1,6 +1,6 @@
 ﻿<#
 .SYNOPSIS
-  Gear World: says that a command has finished (owner, 27 Nov 2026, for all chats; lessons L234).
+  Gear World: says that a command has finished (owner, 27 Nov 2026, for all chats; lessons L240).
 
 .DESCRIPTION
   Runs at the very end of every PowerShell command, after «Αντιγράφηκε στο πρόχειρο...»:

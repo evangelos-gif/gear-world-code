@@ -6877,7 +6877,7 @@ Check (-not (Test-Path -LiteralPath (Join-Path $dcLogs 'wrangler-old.log')) -and
 & $exe @dcArgs | Out-Null
 Check ($LASTEXITCODE -eq 0 -and (Dc-Report).Contains('Δεν υπάρχει τίποτα για σβήσιμο')) 'disk cleanup again: nothing left to delete'
 
-# 8z. gw-notify.ps1 and gw-notify-setup.ps1 (end-of-command notifications, owner 27 Nov 2026, lessons L234)
+# 8z. gw-notify.ps1 and gw-notify-setup.ps1 (end-of-command notifications, owner 27 Nov 2026, lessons L240)
 Write-Host 'gw-notify.ps1'
 $gnTool = Join-Path (Join-Path $repo 'tools') 'gw-notify.ps1'
 $gnSetup = Join-Path (Join-Path $repo 'tools') 'gw-notify-setup.ps1'
