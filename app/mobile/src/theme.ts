@@ -47,21 +47,22 @@ export const DARK: Palette = {
   blue: '#7CC4FF'
 };
 
+/** The light theme is cream, not pure white (owner, 27/11/2026); it is the theme the app starts in. */
 export const LIGHT: Palette = {
   mode: 'light',
-  bg: '#F3F5F9',
-  bgDeep: '#E8EDF4',
-  card: '#FFFFFF',
-  cardHigh: '#E8EDF4',
-  border: 'rgba(8,17,31,0.16)',
+  bg: '#F3EAD6',
+  bgDeep: '#E9DEC6',
+  card: '#FBF6EA',
+  cardHigh: '#E9DEC6',
+  border: 'rgba(70,50,20,0.18)',
   text: '#0B1626',
   muted: '#33435A',
-  faint: '#4F5F76',
-  gold: '#8A5800',
-  goldDark: '#6E4600',
+  faint: '#4A586D',
+  gold: '#7E5000',
+  goldDark: '#643F00',
   goldFill: '#FFC23D',
   onGold: '#08111F',
-  blue: '#0B5AA8'
+  blue: '#0A539B'
 };
 
 export const PALETTES: Record<Mode, Palette> = { dark: DARK, light: LIGHT };
