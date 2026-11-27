@@ -27,9 +27,14 @@ $ErrorActionPreference = 'Stop'
 $Owner = 'evangelos-gif'
 $Repo = 'gear-world-code'
 
-# Temporary folder of the downloaded versions (tests: their own folder).
-$TempRoot = [System.IO.Path]::GetTempPath()
-if ($env:GW_RUN_TEST_TEMP) { $TempRoot = [string]$env:GW_RUN_TEST_TEMP }
+# Folder of the downloaded versions: <home>\gear-world-tools (tests: their own folder). On 23 Nov 2026 Norton removed
+# gw-run.ps1 from %TEMP% ("IDP.WebShield.PSHelper36"); the owner excluded only C:\Users\vagge\gear-world-tools from its
+# scans, so the versions and the tools run from there (lessons L222). Older versions in %TEMP% still serve as the base
+# when codeload.github.com cannot be reached (L212).
+$TempRoot = Join-Path $HOME 'gear-world-tools'
+$OldRoots = @([System.IO.Path]::GetTempPath())
+if ($env:GW_RUN_TEST_TEMP) { $TempRoot = [string]$env:GW_RUN_TEST_TEMP; $OldRoots = @() }
+if (-not (Test-Path -LiteralPath $TempRoot)) { New-Item -ItemType Directory -Path $TempRoot -Force | Out-Null }
 
 # The bytes of one web address (tests: of one file under a local folder instead).
 function Read-Url([string]$Url, [string]$TestBase, [string]$TestName) {
@@ -60,7 +65,7 @@ function Get-BlobSha([byte[]]$Bytes) {
 # GitHub's compare API lists between the two (each from raw.githubusercontent.com, checked by its blob SHA-1).
 # Returns $true when the folder $Root holds the version $Ref.
 function Build-FromOlder([string]$Ref, [string]$Cache, [string]$Root) {
-    $cands = @(Get-ChildItem -LiteralPath $TempRoot -Directory -Filter ($Repo + '-*') -ErrorAction SilentlyContinue |
+    $cands = @(@($TempRoot) + $OldRoots | ForEach-Object { Get-ChildItem -LiteralPath $_ -Directory -Filter ($Repo + '-*') -ErrorAction SilentlyContinue } |
         Where-Object { $_.FullName -ne $Cache -and (Test-Path -LiteralPath (Join-Path $_.FullName 'download-complete.txt')) } |
         Sort-Object LastWriteTime -Descending)
     foreach ($c in $cands) {

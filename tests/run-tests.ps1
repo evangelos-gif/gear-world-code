@@ -2708,6 +2708,14 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
             Check ($tt.Contains('TGW: exit 0') -and $tt.Contains('##### PLAN TGW') -and $tt.Contains('TGW IMPORT PLAN (dry run, nothing imported)')) 'import batch with -Tgw: the TGW plan is in the report'
         } else { Check $false 'import batch with -Tgw: one combined report' }
         Check (-not ((LiCalls) -match '--file|time-travel')) 'import batch with -Tgw without -Apply: only reads'
+        # -CategoriesOnly (L223): the batch passes it on; the import loads only the category file, never the product SQL.
+        $coOut = Join-Path $work 'batch-cat-out'
+        if (Test-Path -LiteralPath $liCalls) { Remove-Item -LiteralPath $liCalls -Force }
+        & $exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $repo 'tools\legacy-import-batch.ps1') -Pairs 'joybuy:wgw' -CategoriesOnly -Apply -Approve 'egkrino all imports' -Archive $jArch -WorkDir $liWork -OutDir $coOut -NoClipboard | Out-Null
+        $coCalls = LiCalls
+        Check (-not ($coCalls -match '[\\/]sql[\\/]wgw[\\/]')) 'import batch -CategoriesOnly: no product SQL file is loaded'
+        $coRep = (@(Get-ChildItem -LiteralPath $coOut -File -Filter 'IMPORT_*.txt' -ErrorAction SilentlyContinue) | ForEach-Object { [System.IO.File]::ReadAllText($_.FullName) }) -join "`n"
+        Check ($coRep.Contains('ΜΟΝΟ ΚΑΤΗΓΟΡΙΕΣ') -and $coRep.Contains('ΕΤΟΙΜΟ (μόνο κατηγορίες)')) 'import batch -CategoriesOnly: the report says categories only and ends ready'
         # -Pairs 'file:<file>' (22 Nov 2026, the Greek wave of 108 shops): the list from a file, comments and blank lines skipped.
         $pfOut = Join-Path $work 'batch-file-out'
         $pfFile = Join-Path $work 'pairs-test.txt'
@@ -2726,6 +2734,11 @@ if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
             $gr = ($gp -split ':')[0]
             if (-not (Test-Path -LiteralPath (Join-Path $repo ('tools\import-rules\' + $gr + '.mjs')))) { Check $false ('the Greek wave list: rules for ' + $gr) }
         }
+        # The category fix of 23-24 Nov 2026 (L223): only the pairs of gr-refresh-1124.txt whose dry run showed changes.
+        $gcPairs = @(); $grPairs = @()
+        foreach ($l in [System.IO.File]::ReadAllLines((Join-Path $repo 'tools\massive\gr-categories-1123.txt'), [System.Text.Encoding]::UTF8)) { $x = ($l -split '#', 2)[0].Trim(); if ($x) { $gcPairs += $x } }
+        foreach ($l in [System.IO.File]::ReadAllLines((Join-Path $repo 'tools\massive\gr-refresh-1124.txt'), [System.Text.Encoding]::UTF8)) { $x = ($l -split '#', 2)[0].Trim(); if ($x) { $grPairs += $x } }
+        Check ($gcPairs.Count -eq 118 -and @($gcPairs | Select-Object -Unique).Count -eq 118 -and @($gcPairs | Where-Object { $grPairs -notcontains $_ }).Count -eq 0 -and $gcPairs -notcontains 'lw-10483:wgw') 'the Greek category list of 23 Nov 2026: 118 pairs, all from gr-refresh-1124.txt, no Theodoras'
         $bBad = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', (Join-Path $repo 'tools\legacy-import-batch.ps1'), '-Pairs', 'joybuy:xyz', '-OutDir', $bOut, '-NoClipboard')
         & $exe @bBad | Out-Null
         Check ($LASTEXITCODE -eq 2) 'import batch: a wrong site is refused'
@@ -3090,6 +3103,7 @@ const cols = ['product_id', 'product_name', 'category', 'tracking_url', 'image_u
 http.createServer((q, s) => {
   const m = /^\/feeds\/1\.2\/([^/]+)\/programs-joined\/columns-[^/]+\/catinc-0\/catex-0\/proginc-(\d+)\/progex-0\/feed\.csv$/.exec(q.url);
   if (!m || m[1] !== code) { s.writeHead(403); return s.end('no'); }
+  if (m[2] === '5') { s.writeHead(200, { 'Content-Type': 'text/csv' }); return s.end(''); }
   if (m[2] !== '11532') { s.writeHead(200); return s.end(cols.join(',') + '\n'); }
   const rows = [1, 2, 3].map(i => [String(i), 'Βάζο κεραμικό ' + i, 'Διακόσμηση&gt;Βάζα', 'https://go.linkwi.se/z/11532-0/' + code + '/?lnkurl=https%3A%2F%2Fwww.24home.gr%2Fp' + i,
     'https://img.24home.gr/' + i + '.jpg', 'Y', '24,90', '24home.gr'].map(v => '"' + v + '"').join(','));
@@ -3101,25 +3115,102 @@ http.createServer((q, s) => {
     Start-Sleep -Seconds 2
     try {
         $lwTool = Join-Path (Join-Path $repo 'tools') 'linkwise-feed-download.ps1'
-        $lwArgs = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $lwTool, '-Program', '11532,11533', '-Base', 'http://127.0.0.1:8799', '-SecretFile', $lwSecretFile,
+        $lwArgs = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $lwTool, '-Program', '11532,11533,5', '-Base', 'http://127.0.0.1:8799', '-SecretFile', $lwSecretFile,
             '-Archive', $lwArch, '-OutDir', $lwOut, '-NoClipboard')
         & $exe @lwArgs | Out-Null
         Check ($LASTEXITCODE -eq 0 -and @(Get-ChildItem -LiteralPath $lwArch -File).Count -eq 0) 'linkwise-feed-download: read-only run, exit 0, nothing downloaded'
         & $exe @($lwArgs + @('-Apply', '-Approve', 'wrong phrase')) | Out-Null
         Check ($LASTEXITCODE -eq 1 -and @(Get-ChildItem -LiteralPath $lwArch -File).Count -eq 0) 'linkwise-feed-download: a wrong phrase changes nothing'
+        # L230: an old unfinished file of a programme of this run is cleared, the one of another programme is left alone.
+        $lwStale = Join-Path $lwArch 'LINKWISE_11533.csv.gz.part'
+        $lwOther = Join-Path $lwArch 'LINKWISE_99999.csv.gz.part'
+        Write-Utf8 $lwStale 'half'
+        Write-Utf8 $lwOther 'other'
+        (Get-Item -LiteralPath $lwStale).LastWriteTime = (Get-Date).AddHours(-2)
+        (Get-Item -LiteralPath $lwOther).LastWriteTime = (Get-Date).AddHours(-2)
         & $exe @($lwArgs + @('-Apply', '-Approve', 'ΕΓΚΡΙΝΩ LINKWISE FEED DOWNLOAD')) | Out-Null
         Check ($LASTEXITCODE -eq 0 -and (Test-Path -LiteralPath (Join-Path $lwArch 'LINKWISE_11532.csv.gz')) -and -not (Test-Path -LiteralPath (Join-Path $lwArch 'LINKWISE_11533.csv.gz'))) 'linkwise-feed-download: with the phrase the feed is saved as LINKWISE_11532.csv.gz, an empty one is not'
         $lwAll = (@(Get-ChildItem -LiteralPath $lwOut -Filter 'LINKWISE_FEED_DOWNLOAD_*.txt') | ForEach-Object { [System.IO.File]::ReadAllText($_.FullName) }) -join "`n"
         Check ($lwAll.Contains('11532: OK, 3 προϊόντα') -and $lwAll.Contains('11533: δεν κατέβηκε')) 'linkwise-feed-download: report counts the products and names the empty feed'
+        Check ($lwAll.Contains('5: δεν κατέβηκε (empty answer (0 bytes') -and $lwAll.Contains('δεν έχει product feed για εμάς')) 'linkwise-feed-download (L230): a one-digit programme is asked, and an empty answer is explained'
+        Check (-not (Test-Path -LiteralPath $lwStale) -and (Test-Path -LiteralPath $lwOther) -and $lwAll.Contains('LINKWISE_11533.csv.gz.part') -and -not $lwAll.Contains('LINKWISE_99999')) 'linkwise-feed-download (L230): clears only the old unfinished file of its own programme'
         Check (-not $lwAll.Contains($lwCode) -and -not $lwAll.Contains('0004321')) 'linkwise-feed-download: the code is in no report'
         & $exe @($lwArgs + @('-Apply', '-Approve', 'ΕΓΚΡΙΝΩ LINKWISE FEED DOWNLOAD')) | Out-Null
         Check ($LASTEXITCODE -eq 0 -and @(Get-ChildItem -LiteralPath (Join-Path $lwArch '_old') -Recurse -File -Filter 'LINKWISE_11532.csv.gz').Count -eq 1) 'linkwise-feed-download: a second download keeps the old copy in _old'
+        # L230: a .part written a moment ago means another download is running: stop, change nothing.
+        $lwBusy = Join-Path $lwArch 'LINKWISE_11532.csv.gz.part'
+        Write-Utf8 $lwBusy 'busy'
+        $lwBefore = (Get-Item -LiteralPath (Join-Path $lwArch 'LINKWISE_11532.csv.gz')).LastWriteTimeUtc
+        & $exe @($lwArgs + @('-Apply', '-Approve', 'ΕΓΚΡΙΝΩ LINKWISE FEED DOWNLOAD')) | Out-Null
+        Check ($LASTEXITCODE -eq 5 -and (Test-Path -LiteralPath $lwBusy) -and (Get-Item -LiteralPath (Join-Path $lwArch 'LINKWISE_11532.csv.gz')).LastWriteTimeUtc -eq $lwBefore) 'linkwise-feed-download (L230): another download still writing stops the run, nothing changes'
+        Remove-Item -LiteralPath $lwBusy -Force
         & $exe -NoProfile -ExecutionPolicy Bypass -File $lwTool -Program '11532' -Base 'https://evil.example' -SecretFile $lwSecretFile -Archive $lwArch -OutDir $lwOut -NoClipboard | Out-Null
         Check ($LASTEXITCODE -eq 2) 'linkwise-feed-download: refuses an address that is not Linkwise or the local test server'
         & $exe -NoProfile -ExecutionPolicy Bypass -File $lwTool -Program 'x1' -SecretFile $lwSecretFile -Archive $lwArch -OutDir $lwOut -NoClipboard | Out-Null
         Check ($LASTEXITCODE -eq 2) 'linkwise-feed-download: a wrong programme number is refused'
     } finally {
         if ($lwProc -and -not $lwProc.HasExited) { Stop-Process -Id $lwProc.Id -Force -ErrorAction SilentlyContinue }
+    }
+}
+
+# 8c6d. adtraction-feed-download.ps1 (Adtraction API v3, UK programmes of 23 Nov 2026, lessons L221) with a fake Adtraction
+if ($isWin -and (Get-Command node -ErrorAction SilentlyContinue)) {
+    Write-Host 'adtraction-feed-download.ps1 (token in DPAPI, approved programmes, JSON feed to ADTRACTION_<id>.csv.gz)'
+    $atDir = Join-Path $work 'at'
+    $atArch = Join-Path $atDir 'archive'
+    $atOut = Join-Path $atDir 'out'
+    New-Item -ItemType Directory -Path $atArch, $atOut -Force | Out-Null
+    # A made-up token, written in two parts so no token appears in the repository.
+    $atToken = 'TEST' + 'TOKEN0123456789ABCDEF'
+    $atSecretFile = Join-Path $atDir 'adtraction-token.dat'
+    [System.IO.File]::WriteAllText($atSecretFile, (ConvertFrom-SecureString (ConvertTo-SecureString $atToken -AsPlainText -Force)), [System.Text.Encoding]::ASCII)
+    $atSrv = Join-Path $atDir 'server.js'
+    Write-Utf8 $atSrv @'
+const http = require('http');
+const token = process.argv[2];
+http.createServer((q, s) => {
+  let b = '';
+  q.on('data', c => { b += c; });
+  q.on('end', () => {
+    if (q.headers['x-token'] !== token) { s.writeHead(401); return s.end('{}'); }
+    const body = b ? JSON.parse(b) : {};
+    s.writeHead(200, { 'Content-Type': 'application/json' });
+    if (q.url === '/v3/partner/programs/') {
+      return s.end(JSON.stringify([
+        { programId: 1500, programName: 'Living Chic', market: 'GB', currency: 'GBP', approvalStatus: 1, feeds: [{ feedId: 1, name: 'Main', numberOfProducts: 3, lastUpdated: '2026-11-23' }] },
+        { programId: 1501, programName: 'Empty Shop', market: 'GB', currency: 'GBP', approvalStatus: 1, feeds: [{ feedId: 2, name: 'Main', numberOfProducts: 0, lastUpdated: '2026-11-23' }] }]));
+    }
+    if (q.url === '/v3/partner/products/feed/' && body.programId === 1500 && body.channelId === 12345) {
+      return s.end(JSON.stringify([1, 2, 3].map(i => ({ productName: 'Sofa ' + i, productPrice: 199 + i, currency: 'GBP', productUrl: 'https://www.livingchic.co.uk/p' + i,
+        trackingUrl: i === 1 ? 'https://at.livingchic.co.uk/t/t?a=1500&as=12345&t=2&tk=1&url=x' : '', imageUrl: 'https://img.livingchic.co.uk/' + i + '.jpg', inStock: true, sku: 'S' + i }))));
+    }
+    s.end('[]');
+  });
+}).listen(8798, '127.0.0.1');
+'@
+    $atProc = Start-Process -FilePath (Get-Command node).Source -ArgumentList @($atSrv, $atToken) -PassThru -WindowStyle Hidden
+    Start-Sleep -Seconds 2
+    try {
+        $atTool = Join-Path (Join-Path $repo 'tools') 'adtraction-feed-download.ps1'
+        $atArgs = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $atTool, '-Channel', '12345', '-Base', 'http://127.0.0.1:8798', '-SecretFile', $atSecretFile,
+            '-Archive', $atArch, '-OutDir', $atOut, '-NoClipboard')
+        & $exe @atArgs | Out-Null
+        Check ($LASTEXITCODE -eq 0 -and @(Get-ChildItem -LiteralPath $atArch -File).Count -eq 0) 'adtraction-feed-download check: read-only, exit 0, nothing downloaded'
+        $atChk = (@(Get-ChildItem -LiteralPath $atOut -Filter 'ADTRACTION_FEED_CHECK_*.txt') | ForEach-Object { [System.IO.File]::ReadAllText($_.FullName) }) -join "`n"
+        Check ($atChk.Contains('1500  Living Chic  [GB, GBP]  feed: 3') -and $atChk.Contains('Εγκεκριμένα προγράμματα (GB): 2')) 'adtraction-feed-download check: lists the approved programmes with their products'
+        & $exe @($atArgs + @('-Step', 'download', '-Apply', '-Approve', 'wrong phrase')) | Out-Null
+        Check ($LASTEXITCODE -eq 1 -and @(Get-ChildItem -LiteralPath $atArch -File).Count -eq 0) 'adtraction-feed-download: a wrong phrase changes nothing'
+        & $exe @($atArgs + @('-Step', 'download', '-Apply', '-Approve', 'ΕΓΚΡΙΝΩ ADTRACTION FEED DOWNLOAD')) | Out-Null
+        Check ($LASTEXITCODE -eq 0 -and (Test-Path -LiteralPath (Join-Path $atArch 'ADTRACTION_1500.csv.gz')) -and -not (Test-Path -LiteralPath (Join-Path $atArch 'ADTRACTION_1501.csv.gz'))) 'adtraction-feed-download: with the phrase only the feed with products is saved'
+        $atAll = (@(Get-ChildItem -LiteralPath $atOut -Filter 'ADTRACTION_FEED_*.txt') | ForEach-Object { [System.IO.File]::ReadAllText($_.FullName) }) -join "`n"
+        Check ($atAll.Contains('1500 Living Chic: OK, 3 προϊόντα (2 με το βασικό deep link του Adtraction)')) 'adtraction-feed-download: the report counts the products and the built links'
+        Check (-not $atAll.Contains($atToken) -and -not $atAll.Contains('TOKEN0123456789')) 'adtraction-feed-download: the token is in no report'
+        & $exe -NoProfile -ExecutionPolicy Bypass -File $atTool -Channel '12345' -Base 'https://evil.example' -SecretFile $atSecretFile -Archive $atArch -OutDir $atOut -NoClipboard | Out-Null
+        Check ($LASTEXITCODE -eq 2) 'adtraction-feed-download: refuses an address that is not Adtraction or the local test server'
+        & $exe -NoProfile -ExecutionPolicy Bypass -File $atTool -Channel 'abc' -SecretFile $atSecretFile -Archive $atArch -OutDir $atOut -NoClipboard | Out-Null
+        Check ($LASTEXITCODE -eq 2) 'adtraction-feed-download: a wrong channel is refused'
+    } finally {
+        if ($atProc -and -not $atProc.HasExited) { Stop-Process -Id $atProc.Id -Force -ErrorAction SilentlyContinue }
     }
 }
 

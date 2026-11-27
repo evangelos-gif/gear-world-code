@@ -5,9 +5,12 @@ import { promosFor, AWIN_PUBLISHER_ID } from '../../promos/promos.js';
 import { networkFor } from '../../promos/network.js';
 // bol.com (NL and BE only, Dutch names, lessons L204): sites/_shared/bol.js.
 import { bolDelivery, BOL_SITES } from '../_shared/bol.js';
+import { waveDelivery } from '../_shared/wave-a.js';
 import { LINKWISE_GR } from './linkwise-gr.js';
 
 const BOL = bolDelivery(BOL_SITES.hgw);
+// Priority A of «Λείπουν 25-11» (lessons L234): ../_shared/wave-a.js.
+const WAVE_A = waveDelivery('hgw');
 
 export default {
   code: 'HGW',
@@ -89,10 +92,10 @@ export default {
     'Dr.Prepare': ['US'], MEEDEN: ['US'], Buture: ['US'], Garvee: ['US'], GardePro: ['US'], MOVA: ['US'],
     Aosom: ['US'], Zepter: ['EU'],
     // Linkwise (Greece, lessons L199): ./linkwise-gr.js.
-    ...LINKWISE_GR.retailers, ...BOL.retailers },
+    ...LINKWISE_GR.retailers, ...BOL.retailers, ...WAVE_A.retailers },
     languages: { 'Westwing NL': 'nl', 'Westwing DE': 'de', 'Westwing FR': 'fr', 'Westwing IT': 'it', 'Westwing ES': 'es',
       'La Redoute NL': 'nl', 'La Redoute DE': 'de', 'Dille Kamille NL': 'nl', 'Dille Kamille FR': 'fr', 'Miss Towels': 'nl', 'WoodWick NL': 'nl',
-      Kerstland: 'nl', 'Baobab Collection': 'fr', ...LINKWISE_GR.languages, ...BOL.languages } },
+      Kerstland: 'nl', 'Baobab Collection': 'fr', ...LINKWISE_GR.languages, ...BOL.languages, ...WAVE_A.languages } },
   foreignCurrencies: ['USD', 'PLN'],
   displayCurrencies: ['GBP', 'EUR', 'PLN', 'ALL', 'RON', 'RUB'],
   cart: { name: 'Saved list', maxItems: 30 },

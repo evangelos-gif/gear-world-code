@@ -50,9 +50,9 @@ function hostOf(link) {
 // DE/NL and Chromeburner GB/DE of wave 3 would have been missing from the profile).
 // -Network Daisycon (or 'CJ,Daisycon'): only the files of those networks. The shop ids of two networks can be the same
 // number (an Awin advertiser and a Daisycon programme), so -Advertiser alone cannot pick one network.
-const FEED_FILE = /^(?:AWIN_(\d+)_(\d+)|(CJ|DAISYCON|RAKUTEN|BOL)_(\d+)(?:_([A-Za-z0-9][A-Za-z0-9-]{0,39}))?)\.csv(?:\.gz)?$/i;
-const NETWORK = { CJ: 'CJ', DAISYCON: 'Daisycon', RAKUTEN: 'Rakuten', BOL: 'bol' };
-export const NETWORKS = ['Awin', 'CJ', 'Daisycon', 'Rakuten', 'bol'];
+const FEED_FILE = /^(?:AWIN_(\d+)_(\d+)|(CJ|DAISYCON|RAKUTEN|BOL|LINKWISE|ADTRACTION)_(\d+)(?:_([A-Za-z0-9][A-Za-z0-9-]{0,39}))?)\.csv(?:\.gz)?$/i;
+const NETWORK = { CJ: 'CJ', DAISYCON: 'Daisycon', RAKUTEN: 'Rakuten', BOL: 'bol', LINKWISE: 'Linkwise', ADTRACTION: 'Adtraction' };
+export const NETWORKS = ['Awin', 'CJ', 'Daisycon', 'Rakuten', 'bol', 'Linkwise', 'Adtraction'];
 export function feedOf(name) {
   const m = String(name).match(FEED_FILE);
   if (!m) return null;

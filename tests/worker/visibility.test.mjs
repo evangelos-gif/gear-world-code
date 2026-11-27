@@ -19,6 +19,7 @@ import { deliveryText, UK_BAR_TEXT } from '../../src/pages/layout.js';
 import { toString } from '../../src/lib/html.js';
 import { MIN_INDEXED_PRODUCTS } from '../../src/pages/listing.js';
 import { TEST_DAY } from './test-clock.mjs';
+import { withoutWaveA } from './without-wave-a.mjs';
 // The Greek Linkwise shops of the new-engine sites (L209): seen only in Greece (and Cyprus), hidden everywhere else.
 import { LINKWISE_GR as LW_AGW } from '../../sites/agw/linkwise-gr.js';
 import { LINKWISE_GR as LW_VGW } from '../../sites/vgw/linkwise-gr.js';
@@ -27,7 +28,9 @@ const withLw = (list, lw) => [...list, ...Object.keys(lw.retailers)].sort();
 
 const SITES = readdirSync('sites').filter(n => existsSync(`sites/${n}/site.config.js`) && existsSync(`sites/${n}/public/assets/site.js`));
 const config = {};
-for (const s of SITES) config[s] = (await import(`../../sites/${s}/site.config.js`)).default;
+// The engine's rules on the real sites as they were before the Priority A lines (L234); wave-a.test.mjs checks those on the
+// real configs (never the UK view, Google or the sitemaps; only their countries; at most 10 page groups).
+for (const s of SITES) config[s] = withoutWaveA(s, (await import(`../../sites/${s}/site.config.js`)).default);
 const read = f => readFileSync(f, 'utf8');
 const NOW = Date.parse(`${TEST_DAY}T12:00:00Z`);
 

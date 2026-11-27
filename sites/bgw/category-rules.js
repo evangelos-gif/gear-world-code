@@ -137,7 +137,10 @@ export const RULES = [
     slug: 'electric-motorbikes',
     include: words(['electric (?:motor ?bikes?|motor ?cycles?|mopeds?|dirt ?bikes?|pit ?bikes?|off[- ]road (?:bikes?|motor ?bikes?)|scooter mopeds?)', 'e-?(?:motor ?bikes?|motor ?cycles?|mopeds?)', 'mopeds?',
       '\\d{2,3} ?cc (?:scooters?|motor ?bikes?|motor ?cycles?|pit ?bikes?|dirt ?bikes?|quads?|atvs?)', 'pit ?bikes?', 'dirt ?bikes?', 'quad ?bikes?', 'super soco', 'yadea', 'lexmoto', 'sur-?ron', 'talaria', 'niu (?:nqi|mqi|uqi)\\w*', '\\d{3,5} ?w (?:electric )?(?:motor ?bikes?|motor ?cycles?)']),
-    exclude: words([`(?:for|voor) (?:an? |your )?(?:electric )?${VEHICLE}`, `${VEHICLE}(?: \\w+)? (?:${ACCESSORY.join('|')})`])
+    // A part anywhere in the name is a part ("Dt-1 Racing X Pitbike 43-47 Mm Air Filter", "Bcr Moped M10x1 Mm Fuel Tap", L224).
+    exclude: words([`(?:for|voor) (?:an? |your )?(?:electric )?${VEHICLE}`, `${VEHICLE}(?: \\w+)? (?:${ACCESSORY.join('|')})`,
+      'air filters?', 'filters?', 'fuel taps?', 'taps?', 'carburet\\w*', 'gaskets?', 'pistons?', 'spark plugs?', 'clutch\\w*', 'sprockets?', 'exhausts?',
+      'mufflers?', 'silencers?', 'tyres?', 'tires?', 'grips?', 'shock absorbers?', 'brake (?:pads?|discs?|levers?|calipers?)', 'bearings?', 'gear ?box\\w*'])
   },
   {
     slug: 'kick-scooters',
@@ -148,7 +151,11 @@ export const RULES = [
     // A scooter with nothing else said: a kick scooter ("Evo Move n Groove Scooter – Blue"). Its lock or cover is Luggage.
     slug: 'kick-scooters',
     include: words(['scooters?']),
-    exclude: words(['electric', 'e-?scooters?', 'mopeds?', '\\d{2,3} ?cc', 'petrol', 'motor ?(?:bike|cycle)s?', 'locks?', 'covers?', 'alarms?', 'top ?box\\w*', 'chargers?', 'batter(?:y|ies)', 'mounts?', 'holders?', 'oils?', 'tyres?', 'mirrors?', 'stands? for (?:motor|mopeds?)'])
+    // A motor scooter's own parts (MotardInn, 21 Nov 2026, lessons L224: "Pirelli Scoot Angel Scooter Rear Tire 140/70 R13",
+    // "Ebc Scooter Brake Disc", "Gpr Scooter Honda Sh 300 Full Line System", "Domino Scooter Honda Grips") are Parts & Maintenance.
+    exclude: words(['electric', 'e-?scooters?', 'mopeds?', '\\d{2,3} ?cc', 'petrol', 'motor ?(?:bike|cycle)s?', 'locks?', 'covers?', 'alarms?', 'top ?box\\w*', 'chargers?', 'batter(?:y|ies)', 'mounts?', 'holders?', 'oils?', 'tyres?', 'mirrors?', 'stands? for (?:motor|mopeds?)',
+      'tires?', 'brake discs?', 'discs?', 'exhausts?', 'mufflers?', 'full line', 'slip[- ]on', 'silencers?', 'shocks?', 'shock absorbers?', 'homologated', 'r\\d{2}', '\\d{2,3} ?/ ?\\d{2}',
+      'honda', 'yamaha', 'piaggio', 'kymco', 'suzuki', 'aprilia', 'gilera', 'peugeot', 'sym', 'vespa', 'lambretta', '(?:end|handlebar) grips?'])
   },
   {
     slug: 'electronics',
@@ -180,7 +187,7 @@ export const RULES = [
   },
   {
     slug: 'parts-maintenance',
-    include: words(['stands?', 'lifts?', 'jacks?', 'wheel chocks?', 'chocks?', 'front wheel clamps?', 'wheel clamps?', 'oils?', 'lube\\w*', 'lubricants?', 'grease', 'brake (?:pads?|fluid|discs?|levers?|bleeders?|shoes)', 'batter(?:y|ies)', 'chargers?', 'tyres?', 'tires?', 'inner tubes?', 'puncture repair\\w*', 'tyre\\w*',
+    include: words(['full line systems?', 'slip[- ]on (?:mufflers?|silencers?|exhausts?)', 'mufflers?', 'silencers?', 'stands?', 'lifts?', 'jacks?', 'wheel chocks?', 'chocks?', 'front wheel clamps?', 'wheel clamps?', 'oils?', 'lube\\w*', 'lubricants?', 'grease', 'brake (?:pads?|fluid|discs?|levers?|bleeders?|shoes)', 'batter(?:y|ies)', 'chargers?', 'tyres?', 'tires?', 'inner tubes?', 'puncture repair\\w*', 'tyre\\w*',
       'inflators?', '(?:foot|track|hand|stirrup) pumps?', '(?:2|4|two|four)[- ]?(?:t|stroke) (?:engine )?oils?', '1[05]w[- ]?[345]0', '20w[- ]?50', 'battery (?:chargers?|tenders?|optimi[sz]ers?|maintainers?)', 'tyre (?:levers?|changers?|inflators?|pumps?|repair kits?|bead breakers?)', 'hooks?', 'hangers?', 'shel(?:f|ves)', 'dryers?', 'mats?', 'air compressors?', 'compressors?', 'spark plugs?', '(?:air|oil|fuel) filters?', 'filters?', 'mirrors?', 'levers?', 'grips?', 'indicators?', 'headlights?', 'head ?lamps?', 'tail ?lights?', 'bulbs?', 'leds?', 'exhausts?', 'silencers?', 'windscreens?', 'wind ?shields?', 'screens?', 'hand ?guards?',
       'proof(?:ing)? sprays?', 'reproof\\w*', 'wash-?in', 'waterproofing', 'cleaners?', 'polish\\w*', 'degreasers?', 'protectants?', 'wash\\w*', 'sponges?', 'microfib(?:re|er)s?', 'tools?', 'tool (?:kits?|sets?|rolls?|boxes)', 'spanners?', 'wrench(?:es)?', 'sockets?', 'socket sets?', 'pullers?', 'extractors?', 'compressors?', 'gauges?', 'torque\\w*', 'ramps?', 'loading ramps?', 'trailers?', 'transport\\w*', 'tie[- ]?downs?', 'ratchet straps?', 'straps?', 'dollies?', 'dolly', 'creepers?', 'workshop\\w*', 'service (?:kits?|stands?)', 'carb(?:urett?ors?)?', 'cables?', 'clutch\\w*', 'gaskets?', 'pistons?', 'fuel (?:cans?|caddies?|tanks?|taps?|pumps?)', 'jerry cans?', 'spoke\\w*', 'valve\\w*', 'bearings?', 'seals?', 'fork\\w*', 'shocks?', 'suspension', 'chains?', 'pads?', 'drip trays?', 'shelters?', 'garages?', 'storage tents?', 'vices?', 'kits?']),
     ctx: true

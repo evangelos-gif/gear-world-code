@@ -554,6 +554,8 @@ switch ($Step) {
         Say 'Τι θα γίνει:'
         Say ('  - Σημείο επαναφοράς (Cloudflare Time Travel) της D1 του ZGW, γραμμένο στο {0}' -f (Join-Path $WorkDir 'backups'))
         Say ('  - Φόρτωση προϊόντων: {0}' -f $head)
+        # Lessons L225: a closed programme (sources.json "closed") is not read, and ALL its products still shown are hidden.
+        foreach ($cl in @([System.IO.File]::ReadAllLines((Join-Path $planDir 'report.txt')) | Where-Object { $_ -match ': CLOSED \(' })) { Say ('  - Κλειστό πρόγραμμα (L225), κρύβονται όλα του τα προϊόντα: {0}' -f $cl) 'Yellow' }
         Say ('  - Εγγραφές στη βάση: περίπου {0} (δωρεάν πλάνο Cloudflare: όριο 100.000 την ημέρα για όλο τον λογαριασμό)' -f $writes)
         Say ('  - {0} αρχεία SQL, το ένα μετά το άλλο. Σταματά στο πρώτο λάθος.' -f $files.Count)
         Say '  - Αλλάζει ΜΟΝΟ η D1 του ZGW. Κανένα άλλο site.'

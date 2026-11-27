@@ -1,0 +1,4659 @@
+{
+ "_comment": "Massive inventory of 25 Nov 2026 (chat 7, sheet «Λείπουν 25-11» of the approvals sheet): the 229 approved shops of priority A and the 188 with country «?» that no site has yet. row = row of that sheet, pri = its priority (Α or ?), ids = the network numbers from the sheet or its «Εγκρίσεις» row (ranges of Daisycon numbers as found in the download reports). Read by tools/massive-inventory.ps1 -List (lessons L207, L231). No prices, links or feed data here.",
+ "candidates": [
+  {
+   "row": 2,
+   "pri": "Α",
+   "name": "Joom Many GEOs",
+   "net": "admitad",
+   "ids": [],
+   "site": "",
+   "country": "Πολλές χώρες",
+   "wave": "world"
+  },
+  {
+   "row": 3,
+   "pri": "Α",
+   "name": "MKC Moto (NL/BE/LU)",
+   "net": "daisycon",
+   "ids": [
+    "19448"
+   ],
+   "site": "bgw",
+   "country": "NL / BE / LU",
+   "wave": "world"
+  },
+  {
+   "row": 4,
+   "pri": "Α",
+   "name": "AstroAI",
+   "net": "awin",
+   "ids": [],
+   "site": "agw",
+   "country": "US",
+   "wave": "world"
+  },
+  {
+   "row": 5,
+   "pri": "Α",
+   "name": "Eonon",
+   "net": "awin",
+   "ids": [
+    "32471"
+   ],
+   "site": "agw",
+   "country": "US",
+   "wave": "world"
+  },
+  {
+   "row": 6,
+   "pri": "Α",
+   "name": "Fußmatten-Welt DE",
+   "net": "awin",
+   "ids": [],
+   "site": "agw",
+   "country": "DE",
+   "wave": "world"
+  },
+  {
+   "row": 7,
+   "pri": "Α",
+   "name": "Lectron",
+   "net": "awin",
+   "ids": [],
+   "site": "agw",
+   "country": "US",
+   "wave": "world"
+  },
+  {
+   "row": 8,
+   "pri": "Α",
+   "name": "OEDRO",
+   "net": "cj",
+   "ids": [],
+   "site": "agw",
+   "country": "US",
+   "wave": "world"
+  },
+  {
+   "row": 9,
+   "pri": "Α",
+   "name": "Parts Geek",
+   "net": "cj",
+   "ids": [],
+   "site": "agw",
+   "country": "US",
+   "wave": "world"
+  },
+  {
+   "row": 10,
+   "pri": "Α",
+   "name": "Rexing",
+   "net": "cj",
+   "ids": [],
+   "site": "agw",
+   "country": "US",
+   "wave": "world"
+  },
+  {
+   "row": 11,
+   "pri": "Α",
+   "name": "Rexing",
+   "net": "awin",
+   "ids": [],
+   "site": "agw",
+   "country": "US",
+   "wave": "world"
+  },
+  {
+   "row": 12,
+   "pri": "Α",
+   "name": "SEALIGHT",
+   "net": "awin",
+   "ids": [
+    "70817"
+   ],
+   "site": "agw",
+   "country": "US",
+   "wave": "world"
+  },
+  {
+   "row": 13,
+   "pri": "Α",
+   "name": "Spytec GPS",
+   "net": "awin",
+   "ids": [
+    "74072"
+   ],
+   "site": "agw",
+   "country": "US",
+   "wave": "world"
+  },
+  {
+   "row": 14,
+   "pri": "Α",
+   "name": "Tirendo BE",
+   "net": "awin",
+   "ids": [],
+   "site": "agw",
+   "country": "BE",
+   "wave": "world"
+  },
+  {
+   "row": 15,
+   "pri": "Α",
+   "name": "TopCoat Products",
+   "net": "awin",
+   "ids": [
+    "96131"
+   ],
+   "site": "agw",
+   "country": "US",
+   "wave": "world"
+  },
+  {
+   "row": 16,
+   "pri": "Α",
+   "name": "TyresNET (18 χώρες)",
+   "net": "daisycon",
+   "ids": [
+    "20827",
+    "21576"
+   ],
+   "site": "agw",
+   "country": "Πολλές χώρες",
+   "wave": "world"
+  },
+  {
+   "row": 17,
+   "pri": "Α",
+   "name": "DK Hardware",
+   "net": "rakuten",
+   "ids": [],
+   "site": "cgw",
+   "country": "US",
+   "wave": "world"
+  },
+  {
+   "row": 18,
+   "pri": "Α",
+   "name": "Gereedschapspecialist",
+   "net": "daisycon",
+   "ids": [
+    "13231"
+   ],
+   "site": "cgw",
+   "country": "NL",
+   "wave": "world"
+  },
+  {
+   "row": 19,
+   "pri": "Α",
+   "name": "ssimder welding equipment inc.",
+   "net": "awin",
+   "ids": [
+    "41930"
+   ],
+   "site": "cgw",
+   "country": "US",
+   "wave": "world"
+  },
+  {
+   "row": 20,
+   "pri": "Α",
+   "name": "Verfuitverkoop.nl · Wixx Coatings",
+   "net": "daisycon",
+   "ids": [
+    "21219",
+    "21467"
+   ],
+   "site": "cgw",
+   "country": "NL",
+   "wave": "world"
+  },
+  {
+   "row": 21,
+   "pri": "Α",
+   "name": "Corsair WW",
+   "net": "admitad",
+   "ids": [],
+   "site": "pgw",
+   "country": "INT",
+   "wave": "world"
+  },
+  {
+   "row": 22,
+   "pri": "Α",
+   "name": "Dowinx (EU)",
+   "net": "awin",
+   "ids": [
+    "107524"
+   ],
+   "site": "pgw",
+   "country": "ΕΕ",
+   "wave": "world"
+  },
+  {
+   "row": 23,
+   "pri": "Α",
+   "name": "Funko EU",
+   "net": "admitad",
+   "ids": [
+    "35143"
+   ],
+   "site": "pgw",
+   "country": "Πολλές χώρες (και GR/CY)",
+   "wave": "gr"
+  },
+  {
+   "row": 24,
+   "pri": "Α",
+   "name": "Kelz0r (EU)",
+   "net": "daisycon",
+   "ids": [
+    "17407"
+   ],
+   "site": "pgw",
+   "country": "ΕΕ",
+   "wave": "world"
+  },
+  {
+   "row": 25,
+   "pri": "Α",
+   "name": "PREMIUM BANDAI USA",
+   "net": "rakuten",
+   "ids": [],
+   "site": "pgw",
+   "country": "US",
+   "wave": "world"
+  },
+  {
+   "row": 26,
+   "pri": "Α",
+   "name": "Redmagic WW",
+   "net": "admitad",
+   "ids": [
+    "20543"
+   ],
+   "site": "pgw",
+   "country": "Πολλές χώρες (και GR/CY)",
+   "wave": "gr"
+  },
+  {
+   "row": 27,
+   "pri": "Α",
+   "name": "Ubisoft (DE/AT)",
+   "net": "daisycon",
+   "ids": [
+    "14378"
+   ],
+   "site": "pgw",
+   "country": "DE/AT",
+   "wave": "world"
+  },
+  {
+   "row": 28,
+   "pri": "Α",
+   "name": "Ubisoft (INT)",
+   "net": "daisycon",
+   "ids": [
+    "18993"
+   ],
+   "site": "pgw",
+   "country": "INT",
+   "wave": "world"
+  },
+  {
+   "row": 29,
+   "pri": "Α",
+   "name": "Ubisoft (NL/BE/LU)",
+   "net": "daisycon",
+   "ids": [
+    "12734"
+   ],
+   "site": "pgw",
+   "country": "NL/BE/LU",
+   "wave": "world"
+  },
+  {
+   "row": 30,
+   "pri": "Α",
+   "name": "Gabiona (EU)",
+   "net": "daisycon",
+   "ids": [
+    "19568"
+   ],
+   "site": "ggw",
+   "country": "EU",
+   "wave": "world"
+  },
+  {
+   "row": 31,
+   "pri": "Α",
+   "name": "InterGard Heim und Garten DE",
+   "net": "awin",
+   "ids": [
+    "24966"
+   ],
+   "site": "ggw",
+   "country": "DE",
+   "wave": "world"
+  },
+  {
+   "row": 32,
+   "pri": "Α",
+   "name": "Oklahoma Joe's",
+   "net": "cj",
+   "ids": [],
+   "site": "ggw",
+   "country": "US",
+   "wave": "world"
+  },
+  {
+   "row": 33,
+   "pri": "Α",
+   "name": "Orchideen Klusmann DE",
+   "net": "awin",
+   "ids": [
+    "23139"
+   ],
+   "site": "ggw",
+   "country": "DE",
+   "wave": "world"
+  },
+  {
+   "row": 34,
+   "pri": "Α",
+   "name": "Rasendoktor DE",
+   "net": "awin",
+   "ids": [
+    "26999"
+   ],
+   "site": "ggw",
+   "country": "DE",
+   "wave": "world"
+  },
+  {
+   "row": 35,
+   "pri": "Α",
+   "name": "Sunjoy Group (US)",
+   "net": "awin",
+   "ids": [
+    "47153"
+   ],
+   "site": "ggw",
+   "country": "US",
+   "wave": "world"
+  },
+  {
+   "row": 36,
+   "pri": "Α",
+   "name": "Trampoline Parts and Supply",
+   "net": "cj",
+   "ids": [
+    "1875857"
+   ],
+   "site": "ggw",
+   "country": "US",
+   "wave": "world"
+  },
+  {
+   "row": 37,
+   "pri": "Α",
+   "name": "WILDGUARDER",
+   "net": "awin",
+   "ids": [],
+   "site": "ggw",
+   "country": "US",
+   "wave": "world"
+  },
+  {
+   "row": 38,
+   "pri": "Α",
+   "name": "1-800Lighting",
+   "net": "rakuten",
+   "ids": [],
+   "site": "hgw",
+   "country": "US",
+   "wave": "world"
+  },
+  {
+   "row": 39,
+   "pri": "Α",
+   "name": "ARIEL Bath",
+   "net": "rakuten",
+   "ids": [],
+   "site": "hgw",
+   "country": "US",
+   "wave": "world"
+  },
+  {
+   "row": 40,
+   "pri": "Α",
+   "name": "Bioethanol-haard (BE)",
+   "net": "daisycon",
+   "ids": [
+    "20106"
+   ],
+   "site": "hgw",
+   "country": "BE",
+   "wave": "world"
+  },
+  {
+   "row": 41,
+   "pri": "Α",
+   "name": "Bioethanol-Kamin-Shop (DE)",
+   "net": "daisycon",
+   "ids": [
+    "15516"
+   ],
+   "site": "hgw",
+   "country": "DE",
+   "wave": "world"
+  },
+  {
+   "row": 42,
+   "pri": "Α",
+   "name": "Bioethanolhaard-Shop (NL)",
+   "net": "daisycon",
+   "ids": [
+    "15518"
+   ],
+   "site": "hgw",
+   "country": "NL",
+   "wave": "world"
+  },
+  {
+   "row": 43,
+   "pri": "Α",
+   "name": "Biokominek-Shop (PL)",
+   "net": "daisycon",
+   "ids": [
+    "15520"
+   ],
+   "site": "hgw",
+   "country": "PL",
+   "wave": "world"
+  },
+  {
+   "row": 44,
+   "pri": "Α",
+   "name": "Casa Moro DE",
+   "net": "awin",
+   "ids": [
+    "31431"
+   ],
+   "site": "hgw",
+   "country": "DE",
+   "wave": "world"
+  },
+  {
+   "row": 45,
+   "pri": "Α",
+   "name": "Colchones Aznar (INT)",
+   "net": "daisycon",
+   "ids": [
+    "21353"
+   ],
+   "site": "hgw",
+   "country": "INT",
+   "wave": "world"
+  },
+  {
+   "row": 46,
+   "pri": "Α",
+   "name": "COSORI DE",
+   "net": "awin",
+   "ids": [
+    "112896"
+   ],
+   "site": "hgw",
+   "country": "DE",
+   "wave": "world"
+  },
+  {
+   "row": 47,
+   "pri": "Α",
+   "name": "CUCKOO Electronics America",
+   "net": "awin",
+   "ids": [],
+   "site": "hgw",
+   "country": "US",
+   "wave": "world"
+  },
+  {
+   "row": 48,
+   "pri": "Α",
+   "name": "Degrootmeesters (NL) & Home Artworks (DE)",
+   "net": "daisycon",
+   "ids": [
+    "14804"
+   ],
+   "site": "hgw",
+   "country": "NL / DE",
+   "wave": "world"
+  },
+  {
+   "row": 49,
+   "pri": "Α",
+   "name": "Dekotopia (INT)",
+   "net": "daisycon",
+   "ids": [
+    "21939"
+   ],
+   "site": "hgw",
+   "country": "INT",
+   "wave": "world"
+  },
+  {
+   "row": 50,
+   "pri": "Α",
+   "name": "DirectWonen.nl",
+   "net": "daisycon",
+   "ids": [
+    "15320"
+   ],
+   "site": "hgw",
+   "country": "NL",
+   "wave": "world"
+  },
+  {
+   "row": 51,
+   "pri": "Α",
+   "name": "Enjoy The Wood",
+   "net": "awin",
+   "ids": [],
+   "site": "hgw",
+   "country": "INT",
+   "wave": "world"
+  },
+  {
+   "row": 52,
+   "pri": "Α",
+   "name": "Ethanolkamin-shop (AT)",
+   "net": "daisycon",
+   "ids": [
+    "20105"
+   ],
+   "site": "hgw",
+   "country": "AT",
+   "wave": "world"
+  },
+  {
+   "row": 53,
+   "pri": "Α",
+   "name": "Everydrop",
+   "net": "rakuten",
+   "ids": [],
+   "site": "hgw",
+   "country": "US",
+   "wave": "world"
+  },
+  {
+   "row": 54,
+   "pri": "Α",
+   "name": "FUFU&GAGA",
+   "net": "cj",
+   "ids": [],
+   "site": "hgw",
+   "country": "US",
+   "wave": "world"
+  },
+  {
+   "row": 55,
+   "pri": "Α",
+   "name": "Guzzini (EU)",
+   "net": "daisycon",
+   "ids": [
+    "21196"
+   ],
+   "site": "hgw",
+   "country": "EU",
+   "wave": "world"
+  },
+  {
+   "row": 56,
+   "pri": "Α",
+   "name": "Happy Lamps DE",
+   "net": "awin",
+   "ids": [],
+   "site": "hgw",
+   "country": "DE",
+   "wave": "world"
+  },
+  {
+   "row": 57,
+   "pri": "Α",
+   "name": "HOMELEADER INC",
+   "net": "awin",
+   "ids": [
+    "113628"
+   ],
+   "site": "hgw",
+   "country": "US",
+   "wave": "world"
+  },
+  {
+   "row": 58,
+   "pri": "Α",
+   "name": "HOMSEE",
+   "net": "cj",
+   "ids": [],
+   "site": "hgw",
+   "country": "US",
+   "wave": "world"
+  },
+  {
+   "row": 59,
+   "pri": "Α",
+   "name": "House of Lamps",
+   "net": "awin",
+   "ids": [
+    "130277"
+   ],
+   "site": "hgw",
+   "country": "US",
+   "wave": "world"
+  },
+  {
+   "row": 60,
+   "pri": "Α",
+   "name": "Janine (DACH)",
+   "net": "daisycon",
+   "ids": [
+    "21986"
+   ],
+   "site": "hgw",
+   "country": "DE / AT / CH",
+   "wave": "world"
+  },
+  {
+   "row": 61,
+   "pri": "Α",
+   "name": "Kikkerland US",
+   "net": "awin",
+   "ids": [
+    "131128"
+   ],
+   "site": "hgw",
+   "country": "US",
+   "wave": "world"
+  },
+  {
+   "row": 62,
+   "pri": "Α",
+   "name": "Kochblume DE",
+   "net": "awin",
+   "ids": [
+    "78872"
+   ],
+   "site": "hgw",
+   "country": "DE",
+   "wave": "world"
+  },
+  {
+   "row": 63,
+   "pri": "Α",
+   "name": "LampenConcurrent",
+   "net": "daisycon",
+   "ids": [
+    "17145"
+   ],
+   "site": "hgw",
+   "country": "NL",
+   "wave": "world"
+  },
+  {
+   "row": 64,
+   "pri": "Α",
+   "name": "LEDLager (DE/AT)",
+   "net": "daisycon",
+   "ids": [
+    "20911"
+   ],
+   "site": "hgw",
+   "country": "DE",
+   "wave": "world"
+  },
+  {
+   "row": 65,
+   "pri": "Α",
+   "name": "Leuchtmittel Verkauf (INT)",
+   "net": "daisycon",
+   "ids": [
+    "21938"
+   ],
+   "site": "hgw",
+   "country": "INT",
+   "wave": "world"
+  },
+  {
+   "row": 66,
+   "pri": "Α",
+   "name": "Levoit DE",
+   "net": "awin",
+   "ids": [
+    "112902"
+   ],
+   "site": "hgw",
+   "country": "DE",
+   "wave": "world"
+  },
+  {
+   "row": 67,
+   "pri": "Α",
+   "name": "LTT Versand (INT)",
+   "net": "daisycon",
+   "ids": [
+    "21936"
+   ],
+   "site": "hgw",
+   "country": "INT",
+   "wave": "world"
+  },
+  {
+   "row": 68,
+   "pri": "Α",
+   "name": "Matr Boomie",
+   "net": "awin",
+   "ids": [
+    "96117"
+   ],
+   "site": "hgw",
+   "country": "US",
+   "wave": "world"
+  },
+  {
+   "row": 69,
+   "pri": "Α",
+   "name": "Matten Welt DE",
+   "net": "awin",
+   "ids": [
+    "22158"
+   ],
+   "site": "hgw",
+   "country": "DE",
+   "wave": "world"
+  },
+  {
+   "row": 70,
+   "pri": "Α",
+   "name": "Maytag",
+   "net": "rakuten",
+   "ids": [],
+   "site": "hgw",
+   "country": "US",
+   "wave": "world"
+  },
+  {
+   "row": 71,
+   "pri": "Α",
+   "name": "meubelo.nl (NL)",
+   "net": "daisycon",
+   "ids": [
+    "21258"
+   ],
+   "site": "hgw",
+   "country": "NL",
+   "wave": "world"
+  },
+  {
+   "row": 72,
+   "pri": "Α",
+   "name": "moebel.de (DE)",
+   "net": "daisycon",
+   "ids": [
+    "20557"
+   ],
+   "site": "hgw",
+   "country": "DE",
+   "wave": "world"
+  },
+  {
+   "row": 73,
+   "pri": "Α",
+   "name": "moebel24.at (AT)",
+   "net": "daisycon",
+   "ids": [
+    "21256"
+   ],
+   "site": "hgw",
+   "country": "AT",
+   "wave": "world"
+  },
+  {
+   "row": 74,
+   "pri": "Α",
+   "name": "NORMA24 DE",
+   "net": "awin",
+   "ids": [],
+   "site": "hgw",
+   "country": "DE",
+   "wave": "world"
+  },
+  {
+   "row": 75,
+   "pri": "Α",
+   "name": "Profichemie.com DE",
+   "net": "awin",
+   "ids": [
+    "17412"
+   ],
+   "site": "hgw",
+   "country": "DE",
+   "wave": "world"
+  },
+  {
+   "row": 76,
+   "pri": "Α",
+   "name": "Prydligt (SE, FI, DE, NL, EU)",
+   "net": "daisycon",
+   "ids": [
+    "18472",
+    "18473",
+    "18474",
+    "18475",
+    "18476"
+   ],
+   "site": "hgw",
+   "country": "Πολλές χώρες",
+   "wave": "world"
+  },
+  {
+   "row": 77,
+   "pri": "Α",
+   "name": "Puredown.Inc",
+   "net": "awin",
+   "ids": [
+    "91133"
+   ],
+   "site": "hgw",
+   "country": "US",
+   "wave": "world"
+  },
+  {
+   "row": 78,
+   "pri": "Α",
+   "name": "Sanifun - Online-sanitair.com (BE)",
+   "net": "daisycon",
+   "ids": [
+    "14262"
+   ],
+   "site": "hgw",
+   "country": "BE",
+   "wave": "world"
+  },
+  {
+   "row": 79,
+   "pri": "Α",
+   "name": "Sanifun - Online-sanitairkopen.nl",
+   "net": "daisycon",
+   "ids": [
+    "7400"
+   ],
+   "site": "hgw",
+   "country": "NL",
+   "wave": "world"
+  },
+  {
+   "row": 80,
+   "pri": "Α",
+   "name": "Sanifun - Salledebain-Online.be",
+   "net": "daisycon",
+   "ids": [
+    "14259"
+   ],
+   "site": "hgw",
+   "country": "BE",
+   "wave": "world"
+  },
+  {
+   "row": 81,
+   "pri": "Α",
+   "name": "Sewingmachinesplus.com",
+   "net": "awin",
+   "ids": [
+    "85561"
+   ],
+   "site": "hgw",
+   "country": "US",
+   "wave": "world"
+  },
+  {
+   "row": 82,
+   "pri": "Α",
+   "name": "sheepworld DE",
+   "net": "awin",
+   "ids": [],
+   "site": "hgw",
+   "country": "DE",
+   "wave": "world"
+  },
+  {
+   "row": 83,
+   "pri": "Α",
+   "name": "Silicon Valley Air Expert Inc.",
+   "net": "awin",
+   "ids": [
+    "54965"
+   ],
+   "site": "hgw",
+   "country": "US",
+   "wave": "world"
+  },
+  {
+   "row": 84,
+   "pri": "Α",
+   "name": "Sleep & Beyond",
+   "net": "cj",
+   "ids": [],
+   "site": "hgw",
+   "country": "US",
+   "wave": "world"
+  },
+  {
+   "row": 85,
+   "pri": "Α",
+   "name": "SOUTH POINT HOME FASHIONS (Sleep Zone)",
+   "net": "awin",
+   "ids": [
+    "79814"
+   ],
+   "site": "hgw",
+   "country": "US",
+   "wave": "world"
+  },
+  {
+   "row": 86,
+   "pri": "Α",
+   "name": "Vincasa (DE)",
+   "net": "daisycon",
+   "ids": [
+    "20840"
+   ],
+   "site": "hgw",
+   "country": "DE",
+   "wave": "world"
+  },
+  {
+   "row": 87,
+   "pri": "Α",
+   "name": "Vincasa (EU)",
+   "net": "daisycon",
+   "ids": [
+    "20839"
+   ],
+   "site": "hgw",
+   "country": "EU",
+   "wave": "world"
+  },
+  {
+   "row": 88,
+   "pri": "Α",
+   "name": "WardrobeSupplies",
+   "net": "awin",
+   "ids": [],
+   "site": "hgw",
+   "country": "US",
+   "wave": "world"
+  },
+  {
+   "row": 89,
+   "pri": "Α",
+   "name": "Whirlpool USA",
+   "net": "rakuten",
+   "ids": [],
+   "site": "hgw",
+   "country": "US",
+   "wave": "world"
+  },
+  {
+   "row": 90,
+   "pri": "Α",
+   "name": "YouCustomizeIt",
+   "net": "awin",
+   "ids": [
+    "65088"
+   ],
+   "site": "hgw",
+   "country": "US",
+   "wave": "world"
+  },
+  {
+   "row": 91,
+   "pri": "Α",
+   "name": "Baker Ross IE",
+   "net": "awin",
+   "ids": [],
+   "site": "kgw",
+   "country": "IE",
+   "wave": "world"
+  },
+  {
+   "row": 92,
+   "pri": "Α",
+   "name": "Bienmarquer (FR / BEFR)",
+   "net": "daisycon",
+   "ids": [
+    "12940"
+   ],
+   "site": "kgw",
+   "country": "FR / BEFR",
+   "wave": "world"
+  },
+  {
+   "row": 93,
+   "pri": "Α",
+   "name": "Goally",
+   "net": "awin",
+   "ids": [],
+   "site": "kgw",
+   "country": "US",
+   "wave": "world"
+  },
+  {
+   "row": 94,
+   "pri": "Α",
+   "name": "Goedgemerkt (NL / BENL)",
+   "net": "daisycon",
+   "ids": [
+    "12921"
+   ],
+   "site": "kgw",
+   "country": "NL / BENL",
+   "wave": "world"
+  },
+  {
+   "row": 95,
+   "pri": "Α",
+   "name": "Gutmarkiert (DACH)",
+   "net": "daisycon",
+   "ids": [
+    "12922"
+   ],
+   "site": "kgw",
+   "country": "DACH",
+   "wave": "world"
+  },
+  {
+   "row": 96,
+   "pri": "Α",
+   "name": "Magic Makers Inc",
+   "net": "awin",
+   "ids": [],
+   "site": "kgw",
+   "country": "US",
+   "wave": "world"
+  },
+  {
+   "row": 97,
+   "pri": "Α",
+   "name": "Mein kleines Baby (DE)",
+   "net": "daisycon",
+   "ids": [
+    "16824"
+   ],
+   "site": "kgw",
+   "country": "DE",
+   "wave": "world"
+  },
+  {
+   "row": 98,
+   "pri": "Α",
+   "name": "MEL Science (INT)",
+   "net": "daisycon",
+   "ids": [
+    "18073"
+   ],
+   "site": "kgw",
+   "country": "INT",
+   "wave": "world"
+  },
+  {
+   "row": 99,
+   "pri": "Α",
+   "name": "Mijn Hummeltje (NL)",
+   "net": "daisycon",
+   "ids": [
+    "16616"
+   ],
+   "site": "kgw",
+   "country": "NL",
+   "wave": "world"
+  },
+  {
+   "row": 100,
+   "pri": "Α",
+   "name": "Moj-Maly-Slodziak (PL)",
+   "net": "daisycon",
+   "ids": [
+    "19184"
+   ],
+   "site": "kgw",
+   "country": "PL",
+   "wave": "world"
+  },
+  {
+   "row": 101,
+   "pri": "Α",
+   "name": "Petit Bateau (EU)",
+   "net": "daisycon",
+   "ids": [
+    "23319"
+   ],
+   "site": "kgw",
+   "country": "EU",
+   "wave": "world"
+  },
+  {
+   "row": 102,
+   "pri": "Α",
+   "name": "Puzzle (BE, DE, AT, FR) · Go Puzzle (FR, DE)",
+   "net": "daisycon",
+   "ids": [
+    "21043",
+    "21636",
+    "21637",
+    "21638",
+    "20851",
+    "21471"
+   ],
+   "site": "kgw",
+   "country": "Πολλές χώρες",
+   "wave": "world"
+  },
+  {
+   "row": 103,
+   "pri": "Α",
+   "name": "Spelhuis",
+   "net": "daisycon",
+   "ids": [
+    "15618"
+   ],
+   "site": "kgw",
+   "country": "NL",
+   "wave": "world"
+  },
+  {
+   "row": 104,
+   "pri": "Α",
+   "name": "SWaddle AN",
+   "net": "cj",
+   "ids": [],
+   "site": "kgw",
+   "country": "US",
+   "wave": "world"
+  },
+  {
+   "row": 105,
+   "pri": "Α",
+   "name": "Tushbaby",
+   "net": "rakuten",
+   "ids": [],
+   "site": "kgw",
+   "country": "US",
+   "wave": "world"
+  },
+  {
+   "row": 106,
+   "pri": "Α",
+   "name": "Zulily",
+   "net": "rakuten",
+   "ids": [],
+   "site": "kgw",
+   "country": "US",
+   "wave": "world"
+  },
+  {
+   "row": 107,
+   "pri": "Α",
+   "name": "Modellbau-Universe",
+   "net": "awin",
+   "ids": [
+    "17471"
+   ],
+   "site": "kgw",
+   "country": "DE",
+   "wave": "world"
+  },
+  {
+   "row": 108,
+   "pri": "Α",
+   "name": "Bamboo Basics (INT)",
+   "net": "daisycon",
+   "ids": [
+    "16649"
+   ],
+   "site": "mgw",
+   "country": "INT",
+   "wave": "world"
+  },
+  {
+   "row": 109,
+   "pri": "Α",
+   "name": "Bruno Marc",
+   "net": "awin",
+   "ids": [
+    "76024"
+   ],
+   "site": "mgw",
+   "country": "US",
+   "wave": "world"
+  },
+  {
+   "row": 110,
+   "pri": "Α",
+   "name": "Dr. Martens (EU)",
+   "net": "daisycon",
+   "ids": [
+    "15138"
+   ],
+   "site": "mgw",
+   "country": "EU",
+   "wave": "world"
+  },
+  {
+   "row": 111,
+   "pri": "Α",
+   "name": "ECKO UNLTD.",
+   "net": "rakuten",
+   "ids": [],
+   "site": "mgw",
+   "country": "US",
+   "wave": "world"
+  },
+  {
+   "row": 112,
+   "pri": "Α",
+   "name": "EFE Glasses",
+   "net": "awin",
+   "ids": [
+    "52103"
+   ],
+   "site": "mgw",
+   "country": "US",
+   "wave": "world"
+  },
+  {
+   "row": 113,
+   "pri": "Α",
+   "name": "G-Star Raw Many Geos",
+   "net": "admitad",
+   "ids": [],
+   "site": "mgw",
+   "country": "Πολλές χώρες",
+   "wave": "world"
+  },
+  {
+   "row": 114,
+   "pri": "Α",
+   "name": "Hanes.com",
+   "net": "rakuten",
+   "ids": [],
+   "site": "mgw",
+   "country": "US",
+   "wave": "world"
+  },
+  {
+   "row": 115,
+   "pri": "Α",
+   "name": "Nicksboots.com",
+   "net": "cj",
+   "ids": [],
+   "site": "mgw",
+   "country": "US",
+   "wave": "world"
+  },
+  {
+   "row": 116,
+   "pri": "Α",
+   "name": "Sebastian Cruz Couture",
+   "net": "awin",
+   "ids": [
+    "88999"
+   ],
+   "site": "mgw",
+   "country": "US",
+   "wave": "world"
+  },
+  {
+   "row": 117,
+   "pri": "Α",
+   "name": "Shoes4Gentlemen (DACH)",
+   "net": "daisycon",
+   "ids": [
+    "20915"
+   ],
+   "site": "mgw",
+   "country": "DE / AT / CH",
+   "wave": "world"
+  },
+  {
+   "row": 118,
+   "pri": "Α",
+   "name": "Superdry (EU)",
+   "net": "daisycon",
+   "ids": [
+    "14965"
+   ],
+   "site": "mgw",
+   "country": "EU",
+   "wave": "world"
+  },
+  {
+   "row": 119,
+   "pri": "Α",
+   "name": "Timeshop24 DE",
+   "net": "awin",
+   "ids": [
+    "14609"
+   ],
+   "site": "mgw",
+   "country": "DE",
+   "wave": "world"
+  },
+  {
+   "row": 120,
+   "pri": "Α",
+   "name": "Ugly Christmas Sweater",
+   "net": "awin",
+   "ids": [
+    "67350"
+   ],
+   "site": "mgw",
+   "country": "US",
+   "wave": "world"
+  },
+  {
+   "row": 121,
+   "pri": "Α",
+   "name": "Van Arendonk (BE)",
+   "net": "daisycon",
+   "ids": [
+    "12502"
+   ],
+   "site": "mgw",
+   "country": "BE",
+   "wave": "world"
+  },
+  {
+   "row": 122,
+   "pri": "Α",
+   "name": "Van Arendonk (NL)",
+   "net": "daisycon",
+   "ids": [
+    "11852"
+   ],
+   "site": "mgw",
+   "country": "NL",
+   "wave": "world"
+  },
+  {
+   "row": 123,
+   "pri": "Α",
+   "name": "Will Leather Goods",
+   "net": "awin",
+   "ids": [
+    "76568"
+   ],
+   "site": "mgw",
+   "country": "US",
+   "wave": "world"
+  },
+  {
+   "row": 124,
+   "pri": "Α",
+   "name": "Dinner for Cats (DE/AT)",
+   "net": "daisycon",
+   "ids": [
+    "20658"
+   ],
+   "site": "zgw",
+   "country": "DE",
+   "wave": "world"
+  },
+  {
+   "row": 125,
+   "pri": "Α",
+   "name": "Dinner for Dogs (DE/AT)",
+   "net": "daisycon",
+   "ids": [
+    "20652"
+   ],
+   "site": "zgw",
+   "country": "DE",
+   "wave": "world"
+  },
+  {
+   "row": 126,
+   "pri": "Α",
+   "name": "MaJa Koi",
+   "net": "daisycon",
+   "ids": [
+    "15904"
+   ],
+   "site": "zgw",
+   "country": "NL",
+   "wave": "world"
+  },
+  {
+   "row": 127,
+   "pri": "Α",
+   "name": "PetTreatery.com",
+   "net": "awin",
+   "ids": [],
+   "site": "zgw",
+   "country": "US",
+   "wave": "world"
+  },
+  {
+   "row": 128,
+   "pri": "Α",
+   "name": "Plein.be",
+   "net": "daisycon",
+   "ids": [
+    "14720"
+   ],
+   "site": "zgw",
+   "country": "BE",
+   "wave": "world"
+  },
+  {
+   "row": 129,
+   "pri": "Α",
+   "name": "Plein.nl",
+   "net": "daisycon",
+   "ids": [
+    "3366"
+   ],
+   "site": "zgw",
+   "country": "NL",
+   "wave": "world"
+  },
+  {
+   "row": 130,
+   "pri": "Α",
+   "name": "Raw Paws Pet Food",
+   "net": "cj",
+   "ids": [],
+   "site": "zgw",
+   "country": "US",
+   "wave": "world"
+  },
+  {
+   "row": 131,
+   "pri": "Α",
+   "name": "365Rider DE",
+   "net": "awin",
+   "ids": [
+    "30677"
+   ],
+   "site": "sgw",
+   "country": "DE",
+   "wave": "world"
+  },
+  {
+   "row": 132,
+   "pri": "Α",
+   "name": "Alpenhaus",
+   "net": "cj",
+   "ids": [],
+   "site": "sgw",
+   "country": "US",
+   "wave": "world"
+  },
+  {
+   "row": 133,
+   "pri": "Α",
+   "name": "Altas Strength US",
+   "net": "awin",
+   "ids": [
+    "130493"
+   ],
+   "site": "sgw",
+   "country": "US",
+   "wave": "world"
+  },
+  {
+   "row": 134,
+   "pri": "Α",
+   "name": "Anta Sports America",
+   "net": "awin",
+   "ids": [
+    "100515"
+   ],
+   "site": "sgw",
+   "country": "US",
+   "wave": "world"
+  },
+  {
+   "row": 135,
+   "pri": "Α",
+   "name": "Donnay.nl",
+   "net": "daisycon",
+   "ids": [
+    "14372"
+   ],
+   "site": "sgw",
+   "country": "NL",
+   "wave": "world"
+  },
+  {
+   "row": 136,
+   "pri": "Α",
+   "name": "Eskute DE",
+   "net": "awin",
+   "ids": [
+    "25715"
+   ],
+   "site": "sgw",
+   "country": "DE",
+   "wave": "world"
+  },
+  {
+   "row": 137,
+   "pri": "Α",
+   "name": "Free Country",
+   "net": "cj",
+   "ids": [],
+   "site": "sgw",
+   "country": "US",
+   "wave": "world"
+  },
+  {
+   "row": 138,
+   "pri": "Α",
+   "name": "House of Scuba",
+   "net": "awin",
+   "ids": [
+    "88507"
+   ],
+   "site": "sgw",
+   "country": "US",
+   "wave": "world"
+  },
+  {
+   "row": 139,
+   "pri": "Α",
+   "name": "leguano DE",
+   "net": "awin",
+   "ids": [
+    "15155"
+   ],
+   "site": "sgw",
+   "country": "DE",
+   "wave": "world"
+  },
+  {
+   "row": 140,
+   "pri": "Α",
+   "name": "Merrell PL",
+   "net": "awin",
+   "ids": [
+    "24986"
+   ],
+   "site": "sgw",
+   "country": "PL",
+   "wave": "world"
+  },
+  {
+   "row": 141,
+   "pri": "Α",
+   "name": "New Balance Many geos",
+   "net": "admitad",
+   "ids": [],
+   "site": "sgw",
+   "country": "Πολλές χώρες",
+   "wave": "world"
+  },
+  {
+   "row": 142,
+   "pri": "Α",
+   "name": "OpticsPlanet + Dvor",
+   "net": "awin",
+   "ids": [],
+   "site": "sgw",
+   "country": "US",
+   "wave": "world"
+  },
+  {
+   "row": 143,
+   "pri": "Α",
+   "name": "Play Baseball",
+   "net": "cj",
+   "ids": [],
+   "site": "sgw",
+   "country": "US",
+   "wave": "world"
+  },
+  {
+   "row": 144,
+   "pri": "Α",
+   "name": "PUMA (EU) - USD",
+   "net": "daisycon",
+   "ids": [
+    "17002"
+   ],
+   "site": "sgw",
+   "country": "EU",
+   "wave": "world"
+  },
+  {
+   "row": 145,
+   "pri": "Α",
+   "name": "Shokz (DE, FR, UK, NL)",
+   "net": "daisycon",
+   "ids": [
+    "21925",
+    "21926",
+    "21927",
+    "22077"
+   ],
+   "site": "sgw",
+   "country": "DE / FR / UK / NL",
+   "wave": "uk"
+  },
+  {
+   "row": 146,
+   "pri": "Α",
+   "name": "Sinner",
+   "net": "daisycon",
+   "ids": [
+    "1281"
+   ],
+   "site": "sgw",
+   "country": "NL",
+   "wave": "world"
+  },
+  {
+   "row": 147,
+   "pri": "Α",
+   "name": "Topoutdoorshop.nl",
+   "net": "daisycon",
+   "ids": [
+    "13076"
+   ],
+   "site": "sgw",
+   "country": "NL",
+   "wave": "world"
+  },
+  {
+   "row": 148,
+   "pri": "Α",
+   "name": "Topsnowshop.nl",
+   "net": "daisycon",
+   "ids": [
+    "5857"
+   ],
+   "site": "sgw",
+   "country": "NL",
+   "wave": "world"
+  },
+  {
+   "row": 149,
+   "pri": "Α",
+   "name": "Tradeinn (17 καταστήματα: BikeInn, TrekkInn, TechInn, DiveInn, SnowInn κ.ά.)",
+   "net": "daisycon",
+   "ids": [
+    "20600",
+    "20601",
+    "20602",
+    "20603",
+    "20604",
+    "20605",
+    "20606",
+    "20607",
+    "20608",
+    "20614",
+    "20615",
+    "20616",
+    "20617",
+    "20618",
+    "20619",
+    "20620"
+   ],
+   "site": "sgw",
+   "country": "INT",
+   "wave": "world"
+  },
+  {
+   "row": 150,
+   "pri": "Α",
+   "name": "Trail (NL)",
+   "net": "daisycon",
+   "ids": [
+    "18704"
+   ],
+   "site": "sgw",
+   "country": "NL",
+   "wave": "world"
+  },
+  {
+   "row": 151,
+   "pri": "Α",
+   "name": "TT Shop Tischtennis Equipment (EU)",
+   "net": "daisycon",
+   "ids": [
+    "22409"
+   ],
+   "site": "sgw",
+   "country": "EU",
+   "wave": "world"
+  },
+  {
+   "row": 152,
+   "pri": "Α",
+   "name": "Voetbaltafel.nl · Tafeltennistafel.nl",
+   "net": "daisycon",
+   "ids": [
+    "18007",
+    "18008"
+   ],
+   "site": "sgw",
+   "country": "NL",
+   "wave": "world"
+  },
+  {
+   "row": 153,
+   "pri": "Α",
+   "name": "Zwemshop.com",
+   "net": "daisycon",
+   "ids": [
+    "14485"
+   ],
+   "site": "sgw",
+   "country": "NL",
+   "wave": "world"
+  },
+  {
+   "row": 154,
+   "pri": "Α",
+   "name": "Acculaders.nl",
+   "net": "daisycon",
+   "ids": [
+    "12933"
+   ],
+   "site": "tgw",
+   "country": "NL",
+   "wave": "world"
+  },
+  {
+   "row": 155,
+   "pri": "Α",
+   "name": "Acer Many Geos",
+   "net": "admitad",
+   "ids": [
+    "35026"
+   ],
+   "site": "tgw",
+   "country": "Πολλές χώρες",
+   "wave": "world"
+  },
+  {
+   "row": 156,
+   "pri": "Α",
+   "name": "Akku.net DE",
+   "net": "awin",
+   "ids": [],
+   "site": "tgw",
+   "country": "DE",
+   "wave": "world"
+  },
+  {
+   "row": 157,
+   "pri": "Α",
+   "name": "Amazfit US",
+   "net": "cj",
+   "ids": [],
+   "site": "tgw",
+   "country": "US",
+   "wave": "world"
+  },
+  {
+   "row": 158,
+   "pri": "Α",
+   "name": "AmScope",
+   "net": "rakuten",
+   "ids": [],
+   "site": "tgw",
+   "country": "US",
+   "wave": "world"
+  },
+  {
+   "row": 159,
+   "pri": "Α",
+   "name": "Aurzen",
+   "net": "awin",
+   "ids": [
+    "105387"
+   ],
+   "site": "tgw",
+   "country": "US",
+   "wave": "world"
+  },
+  {
+   "row": 160,
+   "pri": "Α",
+   "name": "BlazeVideo (κάμερες άγριας ζωής)",
+   "net": "awin",
+   "ids": [],
+   "site": "tgw",
+   "country": "DE",
+   "wave": "world"
+  },
+  {
+   "row": 161,
+   "pri": "Α",
+   "name": "BLUETTI US",
+   "net": "awin",
+   "ids": [],
+   "site": "tgw",
+   "country": "US",
+   "wave": "world"
+  },
+  {
+   "row": 162,
+   "pri": "Α",
+   "name": "Coolblue BE",
+   "net": "awin",
+   "ids": [
+    "85165"
+   ],
+   "site": "tgw",
+   "country": "BE",
+   "wave": "world"
+  },
+  {
+   "row": 163,
+   "pri": "Α",
+   "name": "Coolblue NL",
+   "net": "awin",
+   "ids": [
+    "85161"
+   ],
+   "site": "tgw",
+   "country": "NL",
+   "wave": "world"
+  },
+  {
+   "row": 164,
+   "pri": "Α",
+   "name": "DATOUBOSS (DE)",
+   "net": "awin",
+   "ids": [],
+   "site": "tgw",
+   "country": "DE",
+   "wave": "world"
+  },
+  {
+   "row": 165,
+   "pri": "Α",
+   "name": "EcoFlow",
+   "net": "awin",
+   "ids": [
+    "59181"
+   ],
+   "site": "tgw",
+   "country": "US",
+   "wave": "world"
+  },
+  {
+   "row": 166,
+   "pri": "Α",
+   "name": "Electronic Express",
+   "net": "awin",
+   "ids": [
+    "89657"
+   ],
+   "site": "tgw",
+   "country": "US",
+   "wave": "world"
+  },
+  {
+   "row": 167,
+   "pri": "Α",
+   "name": "ESR Tech EU",
+   "net": "awin",
+   "ids": [],
+   "site": "tgw",
+   "country": "EU",
+   "wave": "world"
+  },
+  {
+   "row": 168,
+   "pri": "Α",
+   "name": "Eufy (EU)",
+   "net": "daisycon",
+   "ids": [
+    "18489"
+   ],
+   "site": "tgw",
+   "country": "EU",
+   "wave": "world"
+  },
+  {
+   "row": 169,
+   "pri": "Α",
+   "name": "Govee Many GEOs",
+   "net": "admitad",
+   "ids": [
+    "24808"
+   ],
+   "site": "tgw",
+   "country": "Πολλές χώρες (και GR)",
+   "wave": "gr"
+  },
+  {
+   "row": 170,
+   "pri": "Α",
+   "name": "GSMnet (DE, NL, IT, FR)",
+   "net": "awin",
+   "ids": [],
+   "site": "tgw",
+   "country": "DE / NL / IT / FR",
+   "wave": "world"
+  },
+  {
+   "row": 171,
+   "pri": "Α",
+   "name": "HIFI-REGLER DE",
+   "net": "awin",
+   "ids": [],
+   "site": "tgw",
+   "country": "DE",
+   "wave": "world"
+  },
+  {
+   "row": 172,
+   "pri": "Α",
+   "name": "hm-sat.de",
+   "net": "awin",
+   "ids": [],
+   "site": "tgw",
+   "country": "DE",
+   "wave": "world"
+  },
+  {
+   "row": 173,
+   "pri": "Α",
+   "name": "iRepairshop (BE)",
+   "net": "daisycon",
+   "ids": [
+    "19060"
+   ],
+   "site": "tgw",
+   "country": "BE",
+   "wave": "world"
+  },
+  {
+   "row": 174,
+   "pri": "Α",
+   "name": "mac of all trades",
+   "net": "rakuten",
+   "ids": [],
+   "site": "tgw",
+   "country": "US",
+   "wave": "world"
+  },
+  {
+   "row": 175,
+   "pri": "Α",
+   "name": "Minisforum (EU)",
+   "net": "daisycon",
+   "ids": [
+    "20771"
+   ],
+   "site": "tgw",
+   "country": "EU",
+   "wave": "world"
+  },
+  {
+   "row": 176,
+   "pri": "Α",
+   "name": "MUNBYN LLC",
+   "net": "awin",
+   "ids": [
+    "93215"
+   ],
+   "site": "tgw",
+   "country": "US",
+   "wave": "world"
+  },
+  {
+   "row": 177,
+   "pri": "Α",
+   "name": "NIIMBOTS (US)",
+   "net": "awin",
+   "ids": [
+    "44209"
+   ],
+   "site": "tgw",
+   "country": "US",
+   "wave": "world"
+  },
+  {
+   "row": 178,
+   "pri": "Α",
+   "name": "nubia Many GEOs",
+   "net": "admitad",
+   "ids": [
+    "24118"
+   ],
+   "site": "tgw",
+   "country": "Πολλές χώρες (και GR/CY)",
+   "wave": "gr"
+  },
+  {
+   "row": 179,
+   "pri": "Α",
+   "name": "OtterBox",
+   "net": "cj",
+   "ids": [],
+   "site": "tgw",
+   "country": "US",
+   "wave": "world"
+  },
+  {
+   "row": 180,
+   "pri": "Α",
+   "name": "Paradigit.ie",
+   "net": "awin",
+   "ids": [
+    "8912"
+   ],
+   "site": "tgw",
+   "country": "IE",
+   "wave": "world"
+  },
+  {
+   "row": 181,
+   "pri": "Α",
+   "name": "Phonecases 3D (EU)",
+   "net": "daisycon",
+   "ids": [
+    "19662"
+   ],
+   "site": "tgw",
+   "country": "EU",
+   "wave": "world"
+  },
+  {
+   "row": 182,
+   "pri": "Α",
+   "name": "Plaud (EU)",
+   "net": "daisycon",
+   "ids": [
+    "21213"
+   ],
+   "site": "tgw",
+   "country": "EU",
+   "wave": "world"
+  },
+  {
+   "row": 183,
+   "pri": "Α",
+   "name": "Quadcopter-shop (NL)",
+   "net": "daisycon",
+   "ids": [
+    "18088"
+   ],
+   "site": "tgw",
+   "country": "NL",
+   "wave": "world"
+  },
+  {
+   "row": 184,
+   "pri": "Α",
+   "name": "SharperImage.com",
+   "net": "rakuten",
+   "ids": [],
+   "site": "tgw",
+   "country": "US",
+   "wave": "world"
+  },
+  {
+   "row": 185,
+   "pri": "Α",
+   "name": "Soundcore US",
+   "net": "cj",
+   "ids": [],
+   "site": "tgw",
+   "country": "US",
+   "wave": "world"
+  },
+  {
+   "row": 186,
+   "pri": "Α",
+   "name": "Systemtreff DE",
+   "net": "awin",
+   "ids": [
+    "29783"
+   ],
+   "site": "tgw",
+   "country": "DE",
+   "wave": "world"
+  },
+  {
+   "row": 187,
+   "pri": "Α",
+   "name": "TEAC USA",
+   "net": "cj",
+   "ids": [],
+   "site": "tgw",
+   "country": "US",
+   "wave": "world"
+  },
+  {
+   "row": 188,
+   "pri": "Α",
+   "name": "Tenergy",
+   "net": "cj",
+   "ids": [
+    "1826017"
+   ],
+   "site": "tgw",
+   "country": "US",
+   "wave": "world"
+  },
+  {
+   "row": 189,
+   "pri": "Α",
+   "name": "Teufel (NL)",
+   "net": "daisycon",
+   "ids": [
+    "15574"
+   ],
+   "site": "tgw",
+   "country": "NL",
+   "wave": "world"
+  },
+  {
+   "row": 190,
+   "pri": "Α",
+   "name": "TroniTechnik DE",
+   "net": "awin",
+   "ids": [],
+   "site": "tgw",
+   "country": "DE",
+   "wave": "world"
+  },
+  {
+   "row": 191,
+   "pri": "Α",
+   "name": "www.blackview.hk",
+   "net": "awin",
+   "ids": [
+    "90283"
+   ],
+   "site": "tgw",
+   "country": "INT",
+   "wave": "world"
+  },
+  {
+   "row": 192,
+   "pri": "Α",
+   "name": "Eastpak (EU)",
+   "net": "daisycon",
+   "ids": [
+    "20076"
+   ],
+   "site": "vgw",
+   "country": "EU",
+   "wave": "world"
+  },
+  {
+   "row": 193,
+   "pri": "Α",
+   "name": "Koffer.de DE",
+   "net": "awin",
+   "ids": [],
+   "site": "vgw",
+   "country": "DE",
+   "wave": "world"
+  },
+  {
+   "row": 194,
+   "pri": "Α",
+   "name": "Nanuk (EU)",
+   "net": "daisycon",
+   "ids": [
+    "21042"
+   ],
+   "site": "vgw",
+   "country": "EU",
+   "wave": "world"
+  },
+  {
+   "row": 195,
+   "pri": "Α",
+   "name": "ABC Wigs",
+   "net": "cj",
+   "ids": [],
+   "site": "wgw",
+   "country": "US",
+   "wave": "world"
+  },
+  {
+   "row": 196,
+   "pri": "Α",
+   "name": "AMIclubwear",
+   "net": "cj",
+   "ids": [],
+   "site": "wgw",
+   "country": "US",
+   "wave": "world"
+  },
+  {
+   "row": 197,
+   "pri": "Α",
+   "name": "Anastasia Beverly Hills",
+   "net": "rakuten",
+   "ids": [],
+   "site": "wgw",
+   "country": "US",
+   "wave": "world"
+  },
+  {
+   "row": 198,
+   "pri": "Α",
+   "name": "Angeline Perfume Many GEOs",
+   "net": "admitad",
+   "ids": [],
+   "site": "wgw",
+   "country": "Πολλές χώρες",
+   "wave": "world"
+  },
+  {
+   "row": 199,
+   "pri": "Α",
+   "name": "Avocadostore DE",
+   "net": "awin",
+   "ids": [
+    "19075"
+   ],
+   "site": "wgw",
+   "country": "DE",
+   "wave": "world"
+  },
+  {
+   "row": 200,
+   "pri": "Α",
+   "name": "Bali Bras",
+   "net": "rakuten",
+   "ids": [],
+   "site": "wgw",
+   "country": "US",
+   "wave": "world"
+  },
+  {
+   "row": 201,
+   "pri": "Α",
+   "name": "BestWigOutlet.com",
+   "net": "cj",
+   "ids": [],
+   "site": "wgw",
+   "country": "US",
+   "wave": "world"
+  },
+  {
+   "row": 202,
+   "pri": "Α",
+   "name": "BrillenPlatz DE",
+   "net": "awin",
+   "ids": [],
+   "site": "wgw",
+   "country": "DE",
+   "wave": "world"
+  },
+  {
+   "row": 203,
+   "pri": "Α",
+   "name": "Buty Olivier (PL)",
+   "net": "daisycon",
+   "ids": [
+    "21299"
+   ],
+   "site": "wgw",
+   "country": "PL",
+   "wave": "world"
+  },
+  {
+   "row": 204,
+   "pri": "Α",
+   "name": "Cashmere Boutique",
+   "net": "cj",
+   "ids": [
+    "1989180"
+   ],
+   "site": "wgw",
+   "country": "US",
+   "wave": "world"
+  },
+  {
+   "row": 205,
+   "pri": "Α",
+   "name": "Caudalie USA",
+   "net": "rakuten",
+   "ids": [],
+   "site": "wgw",
+   "country": "US",
+   "wave": "world"
+  },
+  {
+   "row": 206,
+   "pri": "Α",
+   "name": "Esdemarca (INT)",
+   "net": "daisycon",
+   "ids": [
+    "22083"
+   ],
+   "site": "wgw",
+   "country": "INT",
+   "wave": "world"
+  },
+  {
+   "row": 207,
+   "pri": "Α",
+   "name": "FragranceNet.com",
+   "net": "rakuten",
+   "ids": [],
+   "site": "wgw",
+   "country": "US",
+   "wave": "world"
+  },
+  {
+   "row": 208,
+   "pri": "Α",
+   "name": "Giglio (INT)",
+   "net": "daisycon",
+   "ids": [
+    "19810"
+   ],
+   "site": "wgw",
+   "country": "INT",
+   "wave": "world"
+  },
+  {
+   "row": 209,
+   "pri": "Α",
+   "name": "Giuseppe Zanotti (EU)",
+   "net": "daisycon",
+   "ids": [
+    "15019"
+   ],
+   "site": "wgw",
+   "country": "EU",
+   "wave": "world"
+  },
+  {
+   "row": 210,
+   "pri": "Α",
+   "name": "Giuseppe Zanotti US",
+   "net": "rakuten",
+   "ids": [],
+   "site": "wgw",
+   "country": "US",
+   "wave": "world"
+  },
+  {
+   "row": 211,
+   "pri": "Α",
+   "name": "Goettgen.de",
+   "net": "awin",
+   "ids": [
+    "17453"
+   ],
+   "site": "wgw",
+   "country": "DE",
+   "wave": "world"
+  },
+  {
+   "row": 212,
+   "pri": "Α",
+   "name": "iEDM",
+   "net": "awin",
+   "ids": [],
+   "site": "wgw",
+   "country": "US",
+   "wave": "world"
+  },
+  {
+   "row": 213,
+   "pri": "Α",
+   "name": "Julep",
+   "net": "rakuten",
+   "ids": [],
+   "site": "wgw",
+   "country": "US",
+   "wave": "world"
+  },
+  {
+   "row": 214,
+   "pri": "Α",
+   "name": "Loragal (INT)",
+   "net": "daisycon",
+   "ids": [
+    "20576"
+   ],
+   "site": "wgw",
+   "country": "INT",
+   "wave": "world"
+  },
+  {
+   "row": 215,
+   "pri": "Α",
+   "name": "Maidenform",
+   "net": "rakuten",
+   "ids": [],
+   "site": "wgw",
+   "country": "US",
+   "wave": "world"
+  },
+  {
+   "row": 216,
+   "pri": "Α",
+   "name": "MicroPerfumes.com",
+   "net": "rakuten",
+   "ids": [],
+   "site": "wgw",
+   "country": "US",
+   "wave": "world"
+  },
+  {
+   "row": 217,
+   "pri": "Α",
+   "name": "Myka (EU)",
+   "net": "daisycon",
+   "ids": [
+    "18346"
+   ],
+   "site": "wgw",
+   "country": "EU",
+   "wave": "world"
+  },
+  {
+   "row": 218,
+   "pri": "Α",
+   "name": "Naghedi",
+   "net": "awin",
+   "ids": [
+    "96197"
+   ],
+   "site": "wgw",
+   "country": "US",
+   "wave": "world"
+  },
+  {
+   "row": 219,
+   "pri": "Α",
+   "name": "onehanesplace.com (Hanesbrands)",
+   "net": "rakuten",
+   "ids": [],
+   "site": "wgw",
+   "country": "US",
+   "wave": "world"
+  },
+  {
+   "row": 220,
+   "pri": "Α",
+   "name": "Princess Polly US",
+   "net": "rakuten",
+   "ids": [],
+   "site": "wgw",
+   "country": "US",
+   "wave": "world"
+  },
+  {
+   "row": 221,
+   "pri": "Α",
+   "name": "Robell (DE)",
+   "net": "daisycon",
+   "ids": [
+    "17900"
+   ],
+   "site": "wgw",
+   "country": "DE",
+   "wave": "world"
+  },
+  {
+   "row": 222,
+   "pri": "Α",
+   "name": "Robell (EU)",
+   "net": "daisycon",
+   "ids": [
+    "17901"
+   ],
+   "site": "wgw",
+   "country": "EU",
+   "wave": "world"
+  },
+  {
+   "row": 223,
+   "pri": "Α",
+   "name": "Sachin and Babi",
+   "net": "rakuten",
+   "ids": [],
+   "site": "wgw",
+   "country": "US",
+   "wave": "world"
+  },
+  {
+   "row": 224,
+   "pri": "Α",
+   "name": "Salontopper.nl",
+   "net": "daisycon",
+   "ids": [
+    "12554"
+   ],
+   "site": "wgw",
+   "country": "NL",
+   "wave": "world"
+  },
+  {
+   "row": 225,
+   "pri": "Α",
+   "name": "Stilettoschuhe.com (DE)",
+   "net": "daisycon",
+   "ids": [
+    "20162"
+   ],
+   "site": "wgw",
+   "country": "DE",
+   "wave": "world"
+  },
+  {
+   "row": 226,
+   "pri": "Α",
+   "name": "Stylevana",
+   "net": "cj",
+   "ids": [],
+   "site": "wgw",
+   "country": "INT",
+   "wave": "world"
+  },
+  {
+   "row": 227,
+   "pri": "Α",
+   "name": "Thesupermade Inc",
+   "net": "awin",
+   "ids": [
+    "70402"
+   ],
+   "site": "wgw",
+   "country": "US",
+   "wave": "world"
+  },
+  {
+   "row": 228,
+   "pri": "Α",
+   "name": "Vanilla Copenhagen (DK, SE, INT)",
+   "net": "daisycon",
+   "ids": [
+    "17415",
+    "20240",
+    "20241"
+   ],
+   "site": "wgw",
+   "country": "DK / SE / INT",
+   "wave": "world"
+  },
+  {
+   "row": 229,
+   "pri": "Α",
+   "name": "Ventis EU",
+   "net": "awin",
+   "ids": [
+    "80046"
+   ],
+   "site": "wgw",
+   "country": "EU",
+   "wave": "world"
+  },
+  {
+   "row": 230,
+   "pri": "Α",
+   "name": "Zadig&Voltaire (INT)",
+   "net": "daisycon",
+   "ids": [
+    "15679"
+   ],
+   "site": "wgw",
+   "country": "INT",
+   "wave": "world"
+  },
+  {
+   "row": 354,
+   "pri": "?",
+   "name": "Fietsparadijs.com",
+   "net": "daisycon",
+   "ids": [
+    "12168"
+   ],
+   "site": "bgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 355,
+   "pri": "?",
+   "name": "Fietstas.com",
+   "net": "daisycon",
+   "ids": [
+    "12934"
+   ],
+   "site": "bgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 356,
+   "pri": "?",
+   "name": "FRP Moto",
+   "net": "cj",
+   "ids": [],
+   "site": "bgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 357,
+   "pri": "?",
+   "name": "Motorcycleparts (CMS)",
+   "net": "cj",
+   "ids": [],
+   "site": "bgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 358,
+   "pri": "?",
+   "name": "Autelpilot",
+   "net": "awin",
+   "ids": [
+    "37618"
+   ],
+   "site": "agw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 359,
+   "pri": "?",
+   "name": "autoone",
+   "net": "awin",
+   "ids": [
+    "39418"
+   ],
+   "site": "agw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 360,
+   "pri": "?",
+   "name": "BougeRV",
+   "net": "awin",
+   "ids": [
+    "52765"
+   ],
+   "site": "agw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 361,
+   "pri": "?",
+   "name": "CarpuTech",
+   "net": "awin",
+   "ids": [],
+   "site": "agw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 362,
+   "pri": "?",
+   "name": "Enginediy",
+   "net": "awin",
+   "ids": [],
+   "site": "agw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 363,
+   "pri": "?",
+   "name": "EVDANCE",
+   "net": "awin",
+   "ids": [
+    "67740"
+   ],
+   "site": "agw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 364,
+   "pri": "?",
+   "name": "KSP Performance",
+   "net": "cj",
+   "ids": [],
+   "site": "agw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 365,
+   "pri": "?",
+   "name": "LaunchX431Online",
+   "net": "awin",
+   "ids": [],
+   "site": "agw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 366,
+   "pri": "?",
+   "name": "Nilight",
+   "net": "awin",
+   "ids": [
+    "84293"
+   ],
+   "site": "agw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 367,
+   "pri": "?",
+   "name": "Nilight",
+   "net": "cj",
+   "ids": [],
+   "site": "agw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 368,
+   "pri": "?",
+   "name": "TopOak Overland",
+   "net": "awin",
+   "ids": [
+    "108374"
+   ],
+   "site": "agw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 369,
+   "pri": "?",
+   "name": "wheelhero.com",
+   "net": "awin",
+   "ids": [],
+   "site": "agw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 370,
+   "pri": "?",
+   "name": "ARCCAPTAIN",
+   "net": "awin",
+   "ids": [],
+   "site": "cgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 371,
+   "pri": "?",
+   "name": "Earmor",
+   "net": "awin",
+   "ids": [
+    "131215"
+   ],
+   "site": "cgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 372,
+   "pri": "?",
+   "name": "dowinx",
+   "net": "awin",
+   "ids": [
+    "101221"
+   ],
+   "site": "pgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 373,
+   "pri": "?",
+   "name": "Lotana",
+   "net": "daisycon",
+   "ids": [
+    "17333"
+   ],
+   "site": "pgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 374,
+   "pri": "?",
+   "name": "OneXPlayer",
+   "net": "awin",
+   "ids": [
+    "97359"
+   ],
+   "site": "pgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 375,
+   "pri": "?",
+   "name": "Razer",
+   "net": "daisycon",
+   "ids": [
+    "13299"
+   ],
+   "site": "pgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 376,
+   "pri": "?",
+   "name": "Retrolifeplayer",
+   "net": "awin",
+   "ids": [],
+   "site": "pgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 377,
+   "pri": "?",
+   "name": "Aiper",
+   "net": "cj",
+   "ids": [],
+   "site": "ggw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 378,
+   "pri": "?",
+   "name": "CharGrilled",
+   "net": "awin",
+   "ids": [],
+   "site": "ggw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 379,
+   "pri": "?",
+   "name": "Click & Grow",
+   "net": "cj",
+   "ids": [],
+   "site": "ggw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 380,
+   "pri": "?",
+   "name": "GrandPatio",
+   "net": "awin",
+   "ids": [],
+   "site": "ggw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 381,
+   "pri": "?",
+   "name": "LetPot",
+   "net": "awin",
+   "ids": [],
+   "site": "ggw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 382,
+   "pri": "?",
+   "name": "Pergolux (INT)",
+   "net": "daisycon",
+   "ids": [
+    "23474"
+   ],
+   "site": "ggw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 383,
+   "pri": "?",
+   "name": "Serwall",
+   "net": "awin",
+   "ids": [],
+   "site": "ggw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 384,
+   "pri": "?",
+   "name": "WYBOTICS INC",
+   "net": "awin",
+   "ids": [
+    "76816"
+   ],
+   "site": "ggw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 385,
+   "pri": "?",
+   "name": "Airthereal",
+   "net": "awin",
+   "ids": [
+    "58503"
+   ],
+   "site": "hgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 386,
+   "pri": "?",
+   "name": "Alva Cookware",
+   "net": "awin",
+   "ids": [
+    "50999"
+   ],
+   "site": "hgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 387,
+   "pri": "?",
+   "name": "Aromapassions",
+   "net": "awin",
+   "ids": [],
+   "site": "hgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 388,
+   "pri": "?",
+   "name": "CanvasChamp",
+   "net": "awin",
+   "ids": [],
+   "site": "hgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 389,
+   "pri": "?",
+   "name": "Contour Living",
+   "net": "awin",
+   "ids": [
+    "87757"
+   ],
+   "site": "hgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 390,
+   "pri": "?",
+   "name": "Coolzy.com (Close Comfort)",
+   "net": "awin",
+   "ids": [],
+   "site": "hgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 391,
+   "pri": "?",
+   "name": "Craft Buddy",
+   "net": "awin",
+   "ids": [
+    "45747"
+   ],
+   "site": "hgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 392,
+   "pri": "?",
+   "name": "Craighill",
+   "net": "awin",
+   "ids": [
+    "90883"
+   ],
+   "site": "hgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 393,
+   "pri": "?",
+   "name": "Decoprof",
+   "net": "daisycon",
+   "ids": [
+    "21797"
+   ],
+   "site": "hgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 394,
+   "pri": "?",
+   "name": "Dormity.com",
+   "net": "cj",
+   "ids": [],
+   "site": "hgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 395,
+   "pri": "?",
+   "name": "Double Oak Essentials",
+   "net": "awin",
+   "ids": [
+    "110166"
+   ],
+   "site": "hgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 396,
+   "pri": "?",
+   "name": "Earthly Co.",
+   "net": "awin",
+   "ids": [
+    "41354"
+   ],
+   "site": "hgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 397,
+   "pri": "?",
+   "name": "Expand Furniture",
+   "net": "awin",
+   "ids": [
+    "97745"
+   ],
+   "site": "hgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 398,
+   "pri": "?",
+   "name": "Frizzlife",
+   "net": "awin",
+   "ids": [],
+   "site": "hgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 399,
+   "pri": "?",
+   "name": "GreatBeanBags.com",
+   "net": "awin",
+   "ids": [],
+   "site": "hgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 400,
+   "pri": "?",
+   "name": "Hcalory",
+   "net": "awin",
+   "ids": [
+    "72063"
+   ],
+   "site": "hgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 401,
+   "pri": "?",
+   "name": "Home On Center",
+   "net": "awin",
+   "ids": [
+    "131063"
+   ],
+   "site": "hgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 402,
+   "pri": "?",
+   "name": "HOROW",
+   "net": "cj",
+   "ids": [],
+   "site": "hgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 403,
+   "pri": "?",
+   "name": "HouseFloral",
+   "net": "awin",
+   "ids": [
+    "59687"
+   ],
+   "site": "hgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 404,
+   "pri": "?",
+   "name": "HTVRont",
+   "net": "awin",
+   "ids": [
+    "68106"
+   ],
+   "site": "hgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 405,
+   "pri": "?",
+   "name": "Lighting Design",
+   "net": "awin",
+   "ids": [
+    "45819"
+   ],
+   "site": "hgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 406,
+   "pri": "?",
+   "name": "Living with Luxury",
+   "net": "awin",
+   "ids": [],
+   "site": "hgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 407,
+   "pri": "?",
+   "name": "Lumary",
+   "net": "awin",
+   "ids": [
+    "98239"
+   ],
+   "site": "hgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 408,
+   "pri": "?",
+   "name": "Nilfisk",
+   "net": "cj",
+   "ids": [],
+   "site": "hgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 409,
+   "pri": "?",
+   "name": "Promeed",
+   "net": "awin",
+   "ids": [],
+   "site": "hgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 410,
+   "pri": "?",
+   "name": "Shenzhen Cangyu Technology",
+   "net": "awin",
+   "ids": [
+    "99013"
+   ],
+   "site": "hgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 411,
+   "pri": "?",
+   "name": "Sleep & Beyond",
+   "net": "awin",
+   "ids": [],
+   "site": "hgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 412,
+   "pri": "?",
+   "name": "Starlight Lighting",
+   "net": "awin",
+   "ids": [],
+   "site": "hgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 413,
+   "pri": "?",
+   "name": "The Brush & Broom",
+   "net": "awin",
+   "ids": [],
+   "site": "hgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 414,
+   "pri": "?",
+   "name": "TWOPAGES Curtains",
+   "net": "awin",
+   "ids": [],
+   "site": "hgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 415,
+   "pri": "?",
+   "name": "Vatrer",
+   "net": "awin",
+   "ids": [],
+   "site": "hgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 416,
+   "pri": "?",
+   "name": "X-Sense",
+   "net": "cj",
+   "ids": [],
+   "site": "hgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 417,
+   "pri": "?",
+   "name": "xBloom",
+   "net": "awin",
+   "ids": [],
+   "site": "hgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 418,
+   "pri": "?",
+   "name": "Momcozy",
+   "net": "rakuten",
+   "ids": [],
+   "site": "kgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 419,
+   "pri": "?",
+   "name": "Momcozy",
+   "net": "cj",
+   "ids": [],
+   "site": "kgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 420,
+   "pri": "?",
+   "name": "ANCHOR & CREW",
+   "net": "awin",
+   "ids": [
+    "131192"
+   ],
+   "site": "mgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 421,
+   "pri": "?",
+   "name": "Bellroy",
+   "net": "rakuten",
+   "ids": [],
+   "site": "mgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 422,
+   "pri": "?",
+   "name": "DEWBU",
+   "net": "awin",
+   "ids": [
+    "95277"
+   ],
+   "site": "mgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 423,
+   "pri": "?",
+   "name": "ECCO",
+   "net": "rakuten",
+   "ids": [],
+   "site": "mgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 424,
+   "pri": "?",
+   "name": "Invicta Watch Europe",
+   "net": "daisycon",
+   "ids": [
+    "18836"
+   ],
+   "site": "mgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 425,
+   "pri": "?",
+   "name": "OGStreetwear",
+   "net": "awin",
+   "ids": [
+    "131731"
+   ],
+   "site": "mgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 426,
+   "pri": "?",
+   "name": "Rogue Industries",
+   "net": "awin",
+   "ids": [],
+   "site": "mgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 427,
+   "pri": "?",
+   "name": "Skechers",
+   "net": "cj",
+   "ids": [
+    "6322281"
+   ],
+   "site": "mgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 428,
+   "pri": "?",
+   "name": "The Jacket Maker",
+   "net": "awin",
+   "ids": [
+    "90071"
+   ],
+   "site": "mgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 429,
+   "pri": "?",
+   "name": "Big Ass Dog Company",
+   "net": "awin",
+   "ids": [],
+   "site": "zgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 430,
+   "pri": "?",
+   "name": "Budget Pet Care",
+   "net": "cj",
+   "ids": [],
+   "site": "zgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 431,
+   "pri": "?",
+   "name": "Crown and Paw",
+   "net": "awin",
+   "ids": [],
+   "site": "zgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 432,
+   "pri": "?",
+   "name": "King Kanine",
+   "net": "awin",
+   "ids": [],
+   "site": "zgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 433,
+   "pri": "?",
+   "name": "Aniioki",
+   "net": "awin",
+   "ids": [],
+   "site": "sgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 434,
+   "pri": "?",
+   "name": "APE BORN Fitness",
+   "net": "awin",
+   "ids": [
+    "59683"
+   ],
+   "site": "sgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 435,
+   "pri": "?",
+   "name": "Baabuk",
+   "net": "awin",
+   "ids": [
+    "62949"
+   ],
+   "site": "sgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 436,
+   "pri": "?",
+   "name": "Baleaf",
+   "net": "awin",
+   "ids": [],
+   "site": "sgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 437,
+   "pri": "?",
+   "name": "Currex",
+   "net": "rakuten",
+   "ids": [],
+   "site": "sgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 438,
+   "pri": "?",
+   "name": "DUOTTS",
+   "net": "cj",
+   "ids": [],
+   "site": "sgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 439,
+   "pri": "?",
+   "name": "EMOKO BIKE",
+   "net": "awin",
+   "ids": [
+    "131380"
+   ],
+   "site": "sgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 440,
+   "pri": "?",
+   "name": "Fiido",
+   "net": "awin",
+   "ids": [],
+   "site": "sgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 441,
+   "pri": "?",
+   "name": "Guangzhou sameway electric bicycle",
+   "net": "awin",
+   "ids": [
+    "98095"
+   ],
+   "site": "sgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 442,
+   "pri": "?",
+   "name": "Haglöfs",
+   "net": "cj",
+   "ids": [],
+   "site": "sgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 443,
+   "pri": "?",
+   "name": "JD Sports",
+   "net": "rakuten",
+   "ids": [],
+   "site": "sgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 444,
+   "pri": "?",
+   "name": "Lacros E-Bikes",
+   "net": "awin",
+   "ids": [],
+   "site": "sgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 445,
+   "pri": "?",
+   "name": "Magicshine",
+   "net": "awin",
+   "ids": [],
+   "site": "sgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 446,
+   "pri": "?",
+   "name": "Segway Ninebot",
+   "net": "rakuten",
+   "ids": [],
+   "site": "sgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 447,
+   "pri": "?",
+   "name": "Shenzhen Lefeet Innovation Technology",
+   "net": "awin",
+   "ids": [
+    "91729"
+   ],
+   "site": "sgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 448,
+   "pri": "?",
+   "name": "Soul Insole",
+   "net": "awin",
+   "ids": [
+    "89835"
+   ],
+   "site": "sgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 449,
+   "pri": "?",
+   "name": "Sportsprofi (INT)",
+   "net": "daisycon",
+   "ids": [
+    "20822"
+   ],
+   "site": "sgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 450,
+   "pri": "?",
+   "name": "Steadfast Golf",
+   "net": "awin",
+   "ids": [],
+   "site": "sgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 451,
+   "pri": "?",
+   "name": "Super Sparrow",
+   "net": "awin",
+   "ids": [],
+   "site": "sgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 452,
+   "pri": "?",
+   "name": "VIM & VIGR",
+   "net": "awin",
+   "ids": [
+    "89767"
+   ],
+   "site": "sgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 453,
+   "pri": "?",
+   "name": "WalkHero",
+   "net": "awin",
+   "ids": [],
+   "site": "sgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 454,
+   "pri": "?",
+   "name": "Wilson (INT)",
+   "net": "daisycon",
+   "ids": [
+    "23314"
+   ],
+   "site": "sgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 455,
+   "pri": "?",
+   "name": "Yiwu Rock Sports Goods",
+   "net": "awin",
+   "ids": [
+    "58007"
+   ],
+   "site": "sgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 456,
+   "pri": "?",
+   "name": "AGM",
+   "net": "awin",
+   "ids": [],
+   "site": "tgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 457,
+   "pri": "?",
+   "name": "AKASO",
+   "net": "awin",
+   "ids": [],
+   "site": "tgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 458,
+   "pri": "?",
+   "name": "ALLPOWERS Global",
+   "net": "cj",
+   "ids": [],
+   "site": "tgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 459,
+   "pri": "?",
+   "name": "ALLPOWERS INTERNATIONAL",
+   "net": "awin",
+   "ids": [],
+   "site": "tgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 460,
+   "pri": "?",
+   "name": "AntEyeCam",
+   "net": "awin",
+   "ids": [],
+   "site": "tgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 461,
+   "pri": "?",
+   "name": "Arenti",
+   "net": "awin",
+   "ids": [
+    "58779"
+   ],
+   "site": "tgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 462,
+   "pri": "?",
+   "name": "Aurzen",
+   "net": "cj",
+   "ids": [],
+   "site": "tgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 463,
+   "pri": "?",
+   "name": "AV Access",
+   "net": "awin",
+   "ids": [],
+   "site": "tgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 464,
+   "pri": "?",
+   "name": "Bluetti",
+   "net": "cj",
+   "ids": [],
+   "site": "tgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 465,
+   "pri": "?",
+   "name": "Bond Touch",
+   "net": "awin",
+   "ids": [],
+   "site": "tgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 466,
+   "pri": "?",
+   "name": "Carverall Laser Engraving",
+   "net": "awin",
+   "ids": [
+    "129307"
+   ],
+   "site": "tgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 467,
+   "pri": "?",
+   "name": "CHASING ROV",
+   "net": "awin",
+   "ids": [
+    "123436"
+   ],
+   "site": "tgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 468,
+   "pri": "?",
+   "name": "CordBrick",
+   "net": "awin",
+   "ids": [],
+   "site": "tgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 469,
+   "pri": "?",
+   "name": "Creality",
+   "net": "cj",
+   "ids": [],
+   "site": "tgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 470,
+   "pri": "?",
+   "name": "Creality",
+   "net": "awin",
+   "ids": [],
+   "site": "tgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 471,
+   "pri": "?",
+   "name": "Dragon Touch",
+   "net": "awin",
+   "ids": [
+    "108914"
+   ],
+   "site": "tgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 472,
+   "pri": "?",
+   "name": "Enginediy",
+   "net": "awin",
+   "ids": [
+    "78982"
+   ],
+   "site": "tgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 473,
+   "pri": "?",
+   "name": "FeiyuTech",
+   "net": "awin",
+   "ids": [],
+   "site": "tgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 474,
+   "pri": "?",
+   "name": "FNTCASE",
+   "net": "awin",
+   "ids": [],
+   "site": "tgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 475,
+   "pri": "?",
+   "name": "GL Technologies (GL.iNet)",
+   "net": "awin",
+   "ids": [
+    "80509"
+   ],
+   "site": "tgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 476,
+   "pri": "?",
+   "name": "Growatt",
+   "net": "awin",
+   "ids": [],
+   "site": "tgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 477,
+   "pri": "?",
+   "name": "Hohem",
+   "net": "cj",
+   "ids": [],
+   "site": "tgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 478,
+   "pri": "?",
+   "name": "ikarao",
+   "net": "awin",
+   "ids": [],
+   "site": "tgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 479,
+   "pri": "?",
+   "name": "Kentfaith (K&F Concept)",
+   "net": "awin",
+   "ids": [],
+   "site": "tgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 480,
+   "pri": "?",
+   "name": "Lofree",
+   "net": "cj",
+   "ids": [],
+   "site": "tgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 481,
+   "pri": "?",
+   "name": "Maono",
+   "net": "awin",
+   "ids": [],
+   "site": "tgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 482,
+   "pri": "?",
+   "name": "Marshall Headphones",
+   "net": "cj",
+   "ids": [],
+   "site": "tgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 483,
+   "pri": "?",
+   "name": "Micro Computer (HK) Tech Limited",
+   "net": "awin",
+   "ids": [
+    "58515"
+   ],
+   "site": "tgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 484,
+   "pri": "?",
+   "name": "Mintiontech",
+   "net": "awin",
+   "ids": [],
+   "site": "tgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 485,
+   "pri": "?",
+   "name": "Nova3D Printer",
+   "net": "awin",
+   "ids": [
+    "52353"
+   ],
+   "site": "tgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 486,
+   "pri": "?",
+   "name": "QCY",
+   "net": "awin",
+   "ids": [],
+   "site": "tgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 487,
+   "pri": "?",
+   "name": "Remarkt",
+   "net": "daisycon",
+   "ids": [
+    "9711"
+   ],
+   "site": "tgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 488,
+   "pri": "?",
+   "name": "Revopoint 3D Technologies",
+   "net": "awin",
+   "ids": [
+    "73435"
+   ],
+   "site": "tgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 489,
+   "pri": "?",
+   "name": "Seagate",
+   "net": "rakuten",
+   "ids": [],
+   "site": "tgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 490,
+   "pri": "?",
+   "name": "SHINING 3D",
+   "net": "awin",
+   "ids": [],
+   "site": "tgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 491,
+   "pri": "?",
+   "name": "SIRUI",
+   "net": "awin",
+   "ids": [],
+   "site": "tgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 492,
+   "pri": "?",
+   "name": "TORRAS",
+   "net": "cj",
+   "ids": [],
+   "site": "tgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 493,
+   "pri": "?",
+   "name": "Twelve South",
+   "net": "awin",
+   "ids": [
+    "85771"
+   ],
+   "site": "tgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 494,
+   "pri": "?",
+   "name": "Ugreen",
+   "net": "cj",
+   "ids": [],
+   "site": "tgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 495,
+   "pri": "?",
+   "name": "VAIO",
+   "net": "cj",
+   "ids": [],
+   "site": "tgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 496,
+   "pri": "?",
+   "name": "VIVIDSTORM",
+   "net": "cj",
+   "ids": [],
+   "site": "tgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 497,
+   "pri": "?",
+   "name": "Wasserstein",
+   "net": "awin",
+   "ids": [],
+   "site": "tgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 498,
+   "pri": "?",
+   "name": "WECREAT TECH LTD",
+   "net": "awin",
+   "ids": [
+    "64056"
+   ],
+   "site": "tgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 499,
+   "pri": "?",
+   "name": "XGIMI",
+   "net": "awin",
+   "ids": [],
+   "site": "tgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 500,
+   "pri": "?",
+   "name": "FireMaple",
+   "net": "awin",
+   "ids": [],
+   "site": "vgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 501,
+   "pri": "?",
+   "name": "JanSport",
+   "net": "rakuten",
+   "ids": [],
+   "site": "vgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 502,
+   "pri": "?",
+   "name": "OutIn",
+   "net": "awin",
+   "ids": [],
+   "site": "vgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 503,
+   "pri": "?",
+   "name": "SilverAnt Outdoors",
+   "net": "awin",
+   "ids": [],
+   "site": "vgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 504,
+   "pri": "?",
+   "name": "Travel Luggage & Cabin Bags",
+   "net": "cj",
+   "ids": [],
+   "site": "vgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 505,
+   "pri": "?",
+   "name": "WATERFLY",
+   "net": "awin",
+   "ids": [
+    "54911"
+   ],
+   "site": "vgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 506,
+   "pri": "?",
+   "name": "ZERO BREEZE",
+   "net": "awin",
+   "ids": [],
+   "site": "vgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 507,
+   "pri": "?",
+   "name": "AMANDA PEARL",
+   "net": "awin",
+   "ids": [
+    "91849"
+   ],
+   "site": "wgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 508,
+   "pri": "?",
+   "name": "Anine Bing",
+   "net": "rakuten",
+   "ids": [],
+   "site": "wgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 509,
+   "pri": "?",
+   "name": "Borghese",
+   "net": "awin",
+   "ids": [],
+   "site": "wgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 510,
+   "pri": "?",
+   "name": "Chiko Shoes",
+   "net": "awin",
+   "ids": [
+    "82497"
+   ],
+   "site": "wgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 511,
+   "pri": "?",
+   "name": "Dermrays",
+   "net": "awin",
+   "ids": [
+    "69776"
+   ],
+   "site": "wgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 512,
+   "pri": "?",
+   "name": "Dvik Jewels",
+   "net": "awin",
+   "ids": [
+    "131199"
+   ],
+   "site": "wgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 513,
+   "pri": "?",
+   "name": "EPI Jewelry",
+   "net": "awin",
+   "ids": [],
+   "site": "wgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 514,
+   "pri": "?",
+   "name": "Fred de la Bretoniere",
+   "net": "daisycon",
+   "ids": [
+    "14363"
+   ],
+   "site": "wgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 515,
+   "pri": "?",
+   "name": "HottPerfume",
+   "net": "awin",
+   "ids": [],
+   "site": "wgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 516,
+   "pri": "?",
+   "name": "Ibling Jewels",
+   "net": "awin",
+   "ids": [
+    "131205"
+   ],
+   "site": "wgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 517,
+   "pri": "?",
+   "name": "Isabel Marant",
+   "net": "rakuten",
+   "ids": [],
+   "site": "wgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 518,
+   "pri": "?",
+   "name": "Magic Body Fashion",
+   "net": "daisycon",
+   "ids": [
+    "19829"
+   ],
+   "site": "wgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 519,
+   "pri": "?",
+   "name": "MelodySusie",
+   "net": "cj",
+   "ids": [],
+   "site": "wgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 520,
+   "pri": "?",
+   "name": "Mexx",
+   "net": "daisycon",
+   "ids": [
+    "15549"
+   ],
+   "site": "wgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 521,
+   "pri": "?",
+   "name": "Ophelia Eternity Jewelry",
+   "net": "awin",
+   "ids": [],
+   "site": "wgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 522,
+   "pri": "?",
+   "name": "Orolay",
+   "net": "awin",
+   "ids": [
+    "98153"
+   ],
+   "site": "wgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 523,
+   "pri": "?",
+   "name": "OUFER BODY JEWELRY",
+   "net": "awin",
+   "ids": [
+    "91941"
+   ],
+   "site": "wgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 524,
+   "pri": "?",
+   "name": "Ouros Jewels",
+   "net": "awin",
+   "ids": [],
+   "site": "wgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 525,
+   "pri": "?",
+   "name": "SHE·SAID·YES",
+   "net": "awin",
+   "ids": [
+    "67388"
+   ],
+   "site": "wgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 526,
+   "pri": "?",
+   "name": "Sin Eyewear",
+   "net": "rakuten",
+   "ids": [],
+   "site": "wgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 527,
+   "pri": "?",
+   "name": "slipintosoft",
+   "net": "awin",
+   "ids": [
+    "92305"
+   ],
+   "site": "wgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 528,
+   "pri": "?",
+   "name": "SOJOS VISION",
+   "net": "awin",
+   "ids": [
+    "96215"
+   ],
+   "site": "wgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 529,
+   "pri": "?",
+   "name": "solovedress",
+   "net": "awin",
+   "ids": [
+    "35537"
+   ],
+   "site": "wgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 530,
+   "pri": "?",
+   "name": "Stylevana (INT)",
+   "net": "daisycon",
+   "ids": [
+    "21316"
+   ],
+   "site": "wgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 531,
+   "pri": "?",
+   "name": "Stylewe",
+   "net": "awin",
+   "ids": [
+    "89215"
+   ],
+   "site": "wgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 532,
+   "pri": "?",
+   "name": "Swan & Edgar",
+   "net": "cj",
+   "ids": [],
+   "site": "wgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 533,
+   "pri": "?",
+   "name": "Tinacustom.com",
+   "net": "awin",
+   "ids": [],
+   "site": "wgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 534,
+   "pri": "?",
+   "name": "Totwoo",
+   "net": "awin",
+   "ids": [],
+   "site": "wgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 535,
+   "pri": "?",
+   "name": "TWOPAGES",
+   "net": "cj",
+   "ids": [],
+   "site": "wgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 536,
+   "pri": "?",
+   "name": "VOOGME",
+   "net": "awin",
+   "ids": [],
+   "site": "wgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 537,
+   "pri": "?",
+   "name": "VY Jewelry",
+   "net": "cj",
+   "ids": [],
+   "site": "wgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 538,
+   "pri": "?",
+   "name": "WOWANGEL (CJ)",
+   "net": "cj",
+   "ids": [],
+   "site": "wgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 539,
+   "pri": "?",
+   "name": "Yolissa Hair",
+   "net": "awin",
+   "ids": [],
+   "site": "wgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 540,
+   "pri": "?",
+   "name": "Yvette Sports",
+   "net": "awin",
+   "ids": [],
+   "site": "wgw",
+   "country": "?",
+   "wave": "world"
+  },
+  {
+   "row": 541,
+   "pri": "?",
+   "name": "ZAPAKA VINTAGE",
+   "net": "awin",
+   "ids": [
+    "91139"
+   ],
+   "site": "wgw",
+   "country": "?",
+   "wave": "world"
+  }
+ ]
+}

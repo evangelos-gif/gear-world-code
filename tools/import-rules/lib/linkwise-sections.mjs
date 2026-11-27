@@ -11,7 +11,7 @@
 //    swimsuit or goggles for swimming is water sports.
 //  - Each site keeps only what it sells: a phone shop's gifts, a battery shop's forklift batteries, a car shop's clearance
 //    corner ("Stock-Εκποίηση") stay out with the reason in the dry run.
-import { gr, R, NEVER_NAME, NEVER_CAT, NEVER_SHOPS, displayName } from './linkwise.mjs';
+import { gr, R, NEVER_NAME, NEVER_CAT, NEVER_SHOPS, NEVER_PROGRAMMES, displayName } from './linkwise.mjs';
 
 // no(): the row is left out; miss(): nothing matched in this text (the whole category path is read next).
 // gr() of lib/linkwise.mjs folds the final sigma before lower case, so an upper-case "ΜΠΑΤΑΡΙΕΣ" kept its "ς": every
@@ -197,6 +197,7 @@ export function linkwiseSection(label, name, feedCategory, source = null) {
   const site = String(label || '').toLowerCase();
   const route = source && source.sectionsFor === 'bgw-batteries' ? bgwBatteries : ROUTE[site];
   if (!route) return no(`no Greek sections for ${label}`);
+  if (source && (NEVER_PROGRAMMES.has(Number(source.advertiserId)) || NEVER_SHOPS.test(String(source.retailer || '')))) return no('never on the sites (Linkwise terms)');
   const n = g(displayName(name));
   if (!n) return no('no product name');
   if (NEVER_SHOPS.test(n)) return no('never on the sites (Linkwise terms)');

@@ -261,7 +261,9 @@ test('Winter Boots on KGW: Coes winter boots and wellies move there (add-only, s
   assert.equal(w.RULES.addOnly, true);
   const link = 'https://www.campingworld.co.uk/en/gb/Olang-Zaza-Kids-Snow-Boots/m-6096.aspx';
   assert.equal(w.productKey(col => (col === 'merchant_deep_link' ? link : '')), 'en/gb/olang-zaza-kids-snow-boots/m-6096.aspx');
-  const wc = name => w.classify({ name });
+  // Closed on 24 Nov 2026 (L225): every product is rejected; the rules of the open programme stay for a reopening.
+  assert.match(w.classify({ name: 'Olang Zaza Kids Snow Boots' }).reject, /programme closed/);
+  const wc = name => w.openClassify({ name });
   for (const n of ['Olang Zaza Kids Snow Boots', 'VW Freedom PVC Girls Wellington Boots', 'Wild Tribe Kids T-Rex Dinosaur Wellington Boots', 'Hi Tec Boys Blackout Mid Boots',
     'Regatta Kids Vendeavour Waterproof Walking Boots']) assert.deepEqual(wc(n), { site: 'kgw', siteCategory: 'Shoes', subcategory: 'Winter Boots' }, n);
   for (const n of ['Regatta Mens Samaris Walking Boots', 'Wild Tribe Kids Sandals', 'Kids Boot Socks', 'Outwell Tent']) assert.ok(wc(n).reject, n);

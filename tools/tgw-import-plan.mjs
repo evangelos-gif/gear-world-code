@@ -263,8 +263,17 @@ const pick = (rec, idxs) => {
 // ---------- Cleaning ----------
 
 const ENTITIES = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ', pound: '£', euro: '€', reg: '®', trade: '™', copy: '©' };
+// Punctuation that a shop's feed wrote in a Chinese code page and that reached us as Latin-1 (AUTO-VOX, 21 Nov 2026,
+// lessons L224: "Reversing Camera ¨C Solar Powered", "7.2¡± Split Monitor"): the dash and the quotes come back.
+const GBK_PUNCTUATION = [['¨C', '–'], ['¡±', '”'], ['¡°', '“'], ['¡¯', '’'], ['¡®', '‘'], ['¡ª', '—'], ['¡¤', '·'], ['¡­', '…']];
+export function fixGbkPunctuation(v) {
+  let t = String(v || '');
+  if (!/[¨¡]/.test(t)) return t;
+  for (const [bad, good] of GBK_PUNCTUATION) t = t.split(bad).join(good);
+  return t;
+}
 export function cleanText(v) {
-  return String(v || '')
+  return fixGbkPunctuation(v)
     .replace(/<[^>]*>/g, ' ')
     .replace(/&(#\d+|#x[0-9a-f]+|[a-z]+);/gi, (m, e) => {
       if (e[0] === '#') {
@@ -727,8 +736,12 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
   // made one category too heavy for D1). It is never read, not even with --only, and its products are left as they are.
   const allSources = resolveSources(JSON.parse(readFileSync(sourcesFile, 'utf8')).sources)
     .filter(s => s.approved && (!onlyIds || onlyIds.has(Number(s.advertiserId))));
-  const paused = allSources.filter(s => s.paused);
-  const sources = allSources.filter(s => !s.paused);
+  const paused = allSources.filter(s => s.paused && !s.closed);
+  // "closed" (lessons L225): the network closed the programme (the value says when and where it was seen). Its feed is
+  // never read, and 9999-finish.sql hides every product of that shop still shown, with --only too when it is one of the
+  // shops asked for. Nothing is deleted: a later import of a reopened shop shows its products again.
+  const closed = allSources.filter(s => s.closed);
+  const sources = allSources.filter(s => !s.paused && !s.closed);
   const runStamp = now.toISOString().replace('T', ' ').slice(0, 19);
   const archives = archiveList(archive);
   // Only a retailer whose feed was found and read gets its missing products hidden by 9999-finish.sql.
@@ -1079,8 +1092,11 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
   const bolLine = bolRows.reduce((m, p) => (!m || (p.last_seen_at && p.last_seen_at < m) ? p.last_seen_at : m), '') || runStamp;
   const advIds = [...readAdvertisers].filter(id => !bolShops.has(Number(id)));
   const bolIds = [...readAdvertisers].filter(id => bolShops.has(Number(id)));
+  const closedIds = closed.map(shopIdOf).filter(Number.isFinite);
   const finish = [
     `-- ${label} import plan ${runStamp}. NOT executed. Run only after all numbered files succeeded.`,
+    // Closed programmes (L225): all their products still shown are hidden.
+    ...(closedIds.length ? [`UPDATE products SET is_active = 0, updated_at = datetime('now') WHERE awin_advertiser_id IN (${closedIds.join(', ')}) AND is_active = 1;`] : []),
     // A retailer whose feed was not found keeps its products as they are (never hidden because a file is missing).
     ...(advIds.length ? [`UPDATE products SET is_active = 0, updated_at = datetime('now') WHERE awin_advertiser_id IN (${advIds.join(', ')}) AND is_active = 1 AND last_seen_at < ${sq(runStamp)};`] : []),
     ...(bolIds.length ? [`UPDATE products SET is_active = 0, updated_at = datetime('now') WHERE awin_advertiser_id IN (${bolIds.join(', ')}) AND is_active = 1 AND last_seen_at < ${sq(bolLine)};`] : []),
@@ -1109,6 +1125,7 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
   L.push(...feedInfo);
   for (const r of notRead) L.push(`${r}: its feed was not found (or is empty), so its products on the site are left exactly as they are.`);
   for (const r of paused) L.push(`${r.retailer}: PAUSED (${r.paused}), not read; its products on the site are left exactly as they are.`);
+  for (const r of closed) L.push(`${r.retailer}: CLOSED (${r.closed}), not read; ALL its products still shown on the site are hidden (9999-finish.sql, nothing deleted).`);
   for (const s of sources.filter(x => x.keepSiteNames)) L.push(`${s.retailer}: names and descriptions of products already on the site are kept (translated into English, lessons L79). A new product comes in with the feed's own text, to be translated.`);
   L.push('');
   L.push(`== Result: ${stats.accepted} of ${stats.rows} rows would be imported (${pct(stats.accepted, stats.rows)}) ==`);

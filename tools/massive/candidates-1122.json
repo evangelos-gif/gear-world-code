@@ -1,5 +1,5 @@
 {
-  "_comment": "Massive import of 22 Nov 2026 (owner via chat 7: every approved shop not yet on a site, UK first, then Greece and Cyprus, then the world). The 🟢 rows of the sheet «Εγκρίσεις Retailers Νοεμβρίου» (rev 37) that no site has in its sources, import rules or live database (recount 22 Nov 2026 11:50 UTC). row = sheet row; ids = network programme ids (empty: the sheet has none, the inventory looks the name up in the Awin and CJ lists); site = the sheet suggestion; wave uk / gr / world. Left out: PAOK FC (no product names, L209), Ekdromi.gr and Xenodoxeio (services), CharGrilled (offensive T-shirts, L207), and every 🟡 and 🔴 row.",
+  "_comment": "Massive import of 22 Nov 2026 (owner via chat 7: every approved shop not yet on a site, UK first, then Greece and Cyprus, then the world). The 🟢 rows of the sheet «Εγκρίσεις Retailers Νοεμβρίου» (rev 37; rows 1168-1191 of rev 39 added 23 Nov 2026, with the 8 🟢 Adtraction UK shops in wave uk, chat 7) that no site has in its sources, import rules or live database (recount 22 Nov 2026 11:50 UTC). row = sheet row; ids = network programme ids (empty: the sheet has none, the inventory looks the name up in the Awin and CJ lists); site = the sheet suggestion; wave uk / gr / world. Left out: PAOK FC (no product names, L209), Ekdromi.gr and Xenodoxeio (services), CharGrilled (offensive T-shirts, L207), and every 🟡 and 🔴 row.",
   "candidates": [
     {"row": 4, "name": "MicroPerfumes.com", "net": "rakuten", "ids": [], "site": "wgw", "country": "US", "wave": "world"},
     {"row": 5, "name": "inkClub (SE)", "net": "daisycon", "ids": ["13548"], "site": "tgw", "country": "SE", "wave": "world"},
@@ -583,6 +583,23 @@
     {"row": 1164, "name": "Autodoc", "net": "linkwise", "ids": ["13862"], "site": "agw", "country": "GR", "wave": "gr"},
     {"row": 1165, "name": "Monsterville", "net": "linkwise", "ids": ["12134"], "site": "pgw", "country": "GR", "wave": "gr"},
     {"row": 1166, "name": "House of Lamps", "net": "awin", "ids": ["130277"], "site": "hgw", "country": "US", "wave": "world"},
+    {"row": 1168, "name": "EFE Glasses", "net": "awin", "ids": ["52103"], "site": "mgw", "country": "US", "wave": "world"},
+    {"row": 1169, "name": "Enjoy The Wood", "net": "awin", "ids": [], "site": "hgw", "country": "INT", "wave": "world"},
+    {"row": 1170, "name": "AntEyeCam", "net": "awin", "ids": [], "site": "tgw", "country": "", "wave": "world"},
+    {"row": 1171, "name": "Maono", "net": "awin", "ids": [], "site": "tgw", "country": "", "wave": "world"},
+    {"row": 1173, "name": "hm-sat.de", "net": "awin", "ids": [], "site": "tgw", "country": "DE", "wave": "world"},
+    {"row": 1174, "name": "Dragon Touch", "net": "awin", "ids": ["108914"], "site": "tgw", "country": "", "wave": "world"},
+    {"row": 1175, "name": "Happy Lamps DE", "net": "awin", "ids": [], "site": "hgw", "country": "DE", "wave": "world"},
+    {"row": 1178, "name": "SWaddle AN", "net": "cj", "ids": [], "site": "kgw", "country": "US", "wave": "world"},
+    {"row": 1181, "name": "Ilks.eu", "net": "cj", "ids": [], "site": "wgw", "country": "HR", "wave": "world"},
+    {"row": 1183, "name": "Living Chic", "net": "adtraction", "ids": [], "site": "hgw", "country": "GB", "wave": "uk"},
+    {"row": 1184, "name": "Garden Chic", "net": "adtraction", "ids": [], "site": "ggw", "country": "GB", "wave": "uk"},
+    {"row": 1185, "name": "Simply Log Cabins", "net": "adtraction", "ids": [], "site": "ggw", "country": "GB", "wave": "uk"},
+    {"row": 1186, "name": "Defender Security Products UK", "net": "adtraction", "ids": [], "site": "hgw", "country": "GB", "wave": "uk"},
+    {"row": 1187, "name": "Online Bedrooms", "net": "adtraction", "ids": [], "site": "hgw", "country": "GB", "wave": "uk"},
+    {"row": 1188, "name": "Sheet Story", "net": "adtraction", "ids": [], "site": "hgw", "country": "GB", "wave": "uk"},
+    {"row": 1189, "name": "Showery", "net": "adtraction", "ids": [], "site": "hgw", "country": "GB", "wave": "uk"},
+    {"row": 1191, "name": "Tyres.net", "net": "adtraction", "ids": [], "site": "agw", "country": "GB", "wave": "uk"},
     {"row": 0, "name": "MotardInn", "net": "daisycon", "ids": ["20600"], "site": "bgw", "country": "UK", "wave": "uk"},
     {"row": 0, "name": "AUTO-VOX", "net": "awin", "ids": ["86861"], "site": "agw", "country": "UK", "wave": "uk"}
   ]

@@ -8,9 +8,12 @@
 import { promosFor, AWIN_PUBLISHER_ID } from '../../promos/promos.js';
 import { networkFor } from '../../promos/network.js';
 import { bolDelivery } from '../_shared/bol.js';
+import { waveDelivery } from '../_shared/wave-a.js';
 
 // bol.com is not listed here; its NL/BE-only line keeps a stray bol.com row out of the UK view (sites/_shared/bol.js).
 const BOL = bolDelivery();
+// Priority A of «Λείπουν 25-11» (lessons L234): ../_shared/wave-a.js.
+const WAVE_A = waveDelivery('pgw');
 
 export default {
   code: 'PGW',
@@ -58,7 +61,7 @@ export default {
   // Switzerland, Iceland, Norway and the EU except Malta), each from its own shipping page (L62).
   // AliExpress PL (Awin 12044, Polish names, prices in zloty): Poland only, so only the Poland view shows it (owner,
   // 15 Nov 2026, lessons L157, round 2); its prices get "≈ £…" (foreignCurrencies PLN).
-  deliversTo: { default: ['GB'], retailers: { 'AliExpress PL': ['PL'], VEVOR: ['EU', 'IS', 'LI', 'NO'], 'Back to the Office IE': ['IE'], MonsGeek: ['GB', 'US', 'CH', 'IS', 'NO', 'AT', 'BE', 'BG', 'HR', 'CY', 'CZ', 'DK', 'EE', 'FI', 'FR', 'DE', 'GR', 'HU', 'IE', 'IT', 'LV', 'LT', 'LU', 'NL', 'PL', 'PT', 'RO', 'SK', 'SI', 'ES', 'SE'], EKSA: ['US'], Gogamegeek: ['US'], ...BOL.retailers }, languages: { ...BOL.languages } },
+  deliversTo: { default: ['GB'], retailers: { 'AliExpress PL': ['PL'], VEVOR: ['EU', 'IS', 'LI', 'NO'], 'Back to the Office IE': ['IE'], MonsGeek: ['GB', 'US', 'CH', 'IS', 'NO', 'AT', 'BE', 'BG', 'HR', 'CY', 'CZ', 'DK', 'EE', 'FI', 'FR', 'DE', 'GR', 'HU', 'IE', 'IT', 'LV', 'LT', 'LU', 'NL', 'PL', 'PT', 'RO', 'SK', 'SI', 'ES', 'SE'], EKSA: ['US'], Gogamegeek: ['US'], ...BOL.retailers, ...WAVE_A.retailers }, languages: { ...BOL.languages, ...WAVE_A.languages } },
 
   foreignCurrencies: ['USD', 'PLN'],
   displayCurrencies: ['GBP', 'EUR', 'PLN', 'ALL', 'RON', 'RUB'],

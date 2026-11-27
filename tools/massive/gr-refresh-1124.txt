@@ -1,0 +1,230 @@
+# Greek Linkwise shops, refresh of 24 Nov 2026 (chat 7 and Julia of Linkwise, 23 Nov: products of other categories in
+# «Ομορφιά & αρώματα» of the GR view on WGW, L14). Every Linkwise programme with import rules on the older sites (224 pairs),
+# so each one gets the category rules of 23 Nov 2026 (linkwise.mjs, L220): a re-import updates the category of every
+# product still in the plan and hides the ones the rules now leave out (a rug or a lamp on Women's), with a restore point.
+# legacy-import-batch.ps1 -Pairs 'file:tools/massive/gr-refresh-1124.txt' (dry run first: it is the read-only check).
+# Left out (as in gr-wave-1122.txt): 438, 12323, 12386, 12987, 13703, 10599, 12504, 12134, 13862; 13643 and 13859 have no rules.
+lw-23:wgw  # La Redoute
+lw-100:mgw  # Z-mall
+lw-100:wgw  # Z-mall
+lw-100:kgw  # Z-mall
+lw-164:wgw  # Parabita
+lw-293:mgw  # John-Andy
+lw-361:wgw  # Zizel
+lw-381:wgw  # Lingerie Center
+lw-399:wgw  # Spartoo
+lw-399:mgw  # Spartoo
+lw-399:kgw  # Spartoo
+lw-408:kgw  # Cilek
+lw-435:wgw  # Mustshoes
+lw-10483:wgw  # Theodoras Jewellery
+lw-10553:mgw  # Prince Oliver
+lw-10600:wgw  # Kosmima24
+lw-10600:mgw  # Kosmima24
+lw-10600:kgw  # Kosmima24
+lw-10784:kgw  # Moustakas Toys
+lw-10814:hgw  # Spitishop
+lw-10818:wgw  # Letif
+lw-11036:kgw  # Babykid
+lw-11307:kgw  # Toys.gr
+lw-11355:wgw  # E-string
+lw-11388:wgw  # Pharm24
+lw-11427:mgw  # Blooza
+lw-11432:wgw  # ToRouxo.gr
+lw-11442:wgw  # IzyShoes
+lw-11532:hgw  # 24home.gr
+lw-11537:wgw  # YOUTH LAB.
+lw-11562:kgw  # Agnotis
+lw-11565:mgw  # CasualShoes
+lw-11593:wgw  # Celestino
+lw-11609:wgw  # Pharmacy Onlineshop
+lw-11641:wgw  # Tsakiris Mallas
+lw-11641:mgw  # Tsakiris Mallas
+lw-11667:mgw  # New Cult
+lw-11676:wgw  # Cherrybox
+lw-11708:wgw  # Pink Woman
+lw-11714:wgw  # Happy Sizes
+lw-11742:wgw  # The Body Shop
+lw-11757:mgw  # Classico
+lw-11764:kgw  # Energiers
+lw-11782:wgw  # Hotstyle
+lw-11815:wgw  # Verorama
+lw-11834:wgw  # Eleftheriou Online
+lw-11834:kgw  # Eleftheriou Online
+lw-11839:hgw  # Cozy cotton
+lw-11890:mgw  # SimpleWear
+lw-11890:wgw  # SimpleWear
+lw-11890:kgw  # SimpleWear
+lw-11892:hgw  # Katoikein
+lw-11920:wgw  # AmorAmor
+lw-11949:kgw  # Dpam
+lw-11983:wgw  # Envie Shoes
+lw-11998:hgw  # UrbanHouse
+lw-11999:wgw  # mat fashion
+lw-12011:wgw  # FunkyBuddha
+lw-12023:kgw  # NstNastasia
+lw-12056:kgw  # Superpanes
+lw-12071:mgw  # Tsoukalas
+lw-12115:wgw  # Handmade my day
+lw-12125:hgw  # Aithrio
+lw-12137:wgw  # Perfect Dress
+lw-12149:hgw  # Kouzinika
+lw-12180:hgw  # designdrops
+lw-12218:hgw  # Anesis Home
+lw-12237:hgw  # Primato
+lw-12261:mgw  # Markakis
+lw-12306:wgw  # Asimenio
+lw-12311:hgw  # EasyU
+lw-12315:hgw  # MagicStore
+lw-12321:wgw  # attrattivo
+lw-12338:mgw  # Clodist
+lw-12345:kgw  # Pitsiriki
+lw-12401:wgw  # Kiriakos Gofas Jewelry
+lw-12401:mgw  # Kiriakos Gofas Jewelry
+lw-12401:kgw  # Kiriakos Gofas Jewelry
+lw-12420:hgw  # Laura Ashley
+lw-12425:wgw  # Galerie de beaute
+lw-12471:wgw  # Notos
+lw-12471:mgw  # Notos
+lw-12471:kgw  # Notos
+lw-12549:wgw  # Bettinastores
+lw-12557:hgw  # Agiovlasitishome
+lw-12563:hgw  # Sticky
+lw-12569:hgw  # esmarket
+lw-12573:wgw  # Potrefashion
+lw-12575:mgw  # Parex
+lw-12606:wgw  # Anatomic Footwear
+lw-12615:mgw  # Vavoulas
+lw-12621:hgw  # Carpetlinen
+lw-12650:hgw  # HouseArt
+lw-12653:wgw  # Kostis Jewellery
+lw-12695:wgw  # Issue Fashion
+lw-12723:wgw  # ALE
+lw-12746:wgw  # Gerovital
+lw-12761:wgw  # Babylon Fashion
+lw-12779:mgw  # Yfantidis
+lw-12799:mgw  # Me and Joe
+lw-12802:wgw  # Migato
+lw-12844:wgw  # Zoniou
+lw-12858:mgw  # Abadianakis
+lw-12873:mgw  # X-Ray Shoes
+lw-12903:mgw  # Hionidis
+lw-12954:mgw  # Projectshops
+lw-12954:wgw  # Projectshops
+lw-12972:wgw  # Sante Shoes
+lw-13002:wgw  # Onlineshoes.gr
+lw-13012:wgw  # The Fashion Project
+lw-13083:wgw  # PieDini
+lw-13088:hgw  # Filinda
+lw-13088:wgw  # Filinda
+lw-13088:kgw  # Filinda
+lw-13100:wgw  # Myaroma.gr
+lw-13136:wgw  # Tzimas Cosmetics
+lw-13166:wgw  # e-kellys
+lw-13189:wgw  # Inizio
+lw-13193:hgw  # Vivento
+lw-13195:hgw  # EtherealHome
+lw-13198:wgw  # Joanna Misseli
+lw-13208:wgw  # Accessoire
+lw-13210:wgw  # Quickgel
+lw-13240:wgw  # Natural Click
+lw-13255:kgw  # Serafino Shoes
+lw-13258:mgw  # Step Store
+lw-13274:wgw  # Sou
+lw-13283:wgw  # AMMA
+lw-13292:wgw  # Be Queen Pro
+lw-13298:kgw  # Micro Scooters
+lw-13306:wgw  # Anna Raxevsky
+lw-13331:wgw  # KYANA
+lw-13333:wgw  # Dust and Cream
+lw-13361:wgw  # Living Cruelty Free
+lw-13365:wgw  # Pinguino
+lw-13371:wgw  # Orogenio
+lw-13432:wgw  # Eccentrico
+lw-13486:hgw  # Memorybox.gr
+lw-13506:kgw  # Bla Bla Toys
+lw-13513:wgw  # Theros Jewels
+lw-13527:wgw  # Aroma City
+lw-13535:wgw  # Marie Raxevsky
+lw-13541:mgw  # Explicit Poets
+lw-13562:wgw  # Zeta Curves
+lw-13578:mgw  # Red Raven Eyewear
+lw-13584:hgw  # WAT Object
+lw-13604:wgw  # epapoutsia.gr
+lw-13604:mgw  # epapoutsia.gr
+lw-13604:kgw  # epapoutsia.gr
+lw-13607:wgw  # Modivo
+lw-13607:mgw  # Modivo
+lw-13607:kgw  # Modivo
+lw-13613:wgw  # Morena Spain
+lw-13622:kgw  # lulumelon
+lw-13625:mgw  # Silenzio
+lw-13628:mgw  # Central
+lw-13631:mgw  # Wizzy
+lw-13637:mgw  # BIGBLU
+lw-13640:wgw  # Hawkins
+lw-13649:mgw  # Politikos
+lw-13649:wgw  # Politikos
+lw-13649:kgw  # Politikos
+lw-13659:wgw  # Tataropoulos
+lw-13664:wgw  # Closet22
+lw-13670:wgw  # AVGERINOS
+lw-13686:wgw  # AXNARI FASHION
+lw-13695:wgw  # Pure Natural
+lw-13700:mgw  # TOBROS
+lw-13728:wgw  # Vamp Lingerie
+lw-13746:wgw  # Aroma Oneirou
+lw-13752:wgw  # DRESS UP
+lw-13754:wgw  # Stradivarius
+lw-13758:wgw  # Stan and Stefan
+lw-13779:kgw  # Mamouth
+lw-13781:wgw  # Carelife
+lw-13794:wgw  # ZABOO.GR
+lw-13797:wgw  # Answear
+lw-13797:mgw  # Answear
+lw-13797:kgw  # Answear
+lw-13803:mgw  # SeeWhatEyeSee
+lw-13808:mgw  # Gruppo Mossialos
+lw-13808:wgw  # Gruppo Mossialos
+lw-13809:hgw  # MARIL HOME
+lw-13812:mgw  # Koutsoubidis
+lw-13815:hgw  # EFDECO
+lw-13878:wgw  # Fitrakis Shoes
+lw-13886:wgw  # COSSELIE
+lw-13908:hgw  # Inoxdesign
+lw-13910:wgw  # L ADIOPIS
+lw-13914:wgw  # Finetsato
+lw-13948:mgw  # BIG SHOES
+lw-13953:wgw  # Cuoro
+lw-13962:wgw  # Enzzo
+lw-13974:mgw  # VARDA
+lw-13990:wgw  # EMC Skin Care
+lw-13999:wgw  # Go Glam
+lw-14011:hgw  # Dendron
+lw-14021:wgw  # TWIG
+lw-14024:mgw  # B-Soft Shoes
+lw-14027:hgw  # DesignPlus
+lw-14032:ggw  # Uncle George
+lw-14035:wgw  # PELION Natural Luxury
+lw-14041:wgw  # Zebras and Libras
+lw-14043:mgw  # XXXL Leo
+lw-14067:wgw  # Bionike
+lw-14076:wgw  # W7 Makeup
+lw-14085:wgw  # Gatsas Jewellery
+lw-14088:mgw  # Gounas
+lw-14091:hgw  # alleop
+lw-14094:wgw  # Notino
+lw-14094:mgw  # Notino
+lw-14111:wgw  # iQueens
+lw-14113:hgw  # VidaXL.gr
+lw-14114:mgw  # Camper
+lw-14114:wgw  # Camper
+lw-14114:kgw  # Camper
+lw-14120:mgw  # Mengroomer
+lw-14123:kgw  # Minipini
+lw-14135:wgw  # Rodanos
+lw-14137:kgw  # So and Jos
+lw-14138:hgw  # Fillit
+lw-14151:wgw  # All About Beauty
+lw-14161:wgw  # Off The Peg by Global Influence
+lw-14174:wgw  # Dazzle

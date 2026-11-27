@@ -7,6 +7,7 @@
 //   Daisycon  tools/daisycon-feed-download.ps1 DAISYCON_<program>.csv.gz
 //   bol.com   tools/bol-feed-download.ps1      BOL_<bol category>_<country>.csv.gz (chat 9, 16 Nov 2026, lessons L154)
 //   Linkwise  tools/linkwise-feed-download.ps1 LINKWISE_<programme>.csv.gz (Greece and Cyprus, 19 Nov 2026, lessons L199)
+//   Adtraction tools/adtraction-feed-download.ps1 ADTRACTION_<programme>.csv.gz (UK programmes, 23 Nov 2026, lessons L221)
 import { isCjLink } from './cj-feed.mjs';
 
 const parse = u => { try { const x = new URL(String(u || '')); return /^https?:$/.test(x.protocol) ? x : null; } catch { return null; } };
@@ -37,8 +38,22 @@ export { BOL_SITE_ID, bolLink, isBolLink };
 export function isLinkwiseLink(u, code = '') {
   const x = parse(u);
   if (!x || x.protocol !== 'https:' || x.hostname !== 'go.linkwi.se') return false;
-  const m = /^\/z\/(\d{2,9})-\d+\/(CD\d{3,9})\/?$/.exec(x.pathname);
+  const m = /^\/z\/(\d{1,9})-\d+\/(CD\d{3,9})\/?$/.exec(x.pathname); // programme 1 to 9 digits (Tokotoukan is 5, L230)
   return Boolean(m && /^https?:\/\//i.test(x.searchParams.get('lnkurl') || '') && (!code || m[2] === code));
+}
+
+// Adtraction (lessons L221): <tracking host>/t/t?a=<programme>&as=<our channel>&t=2&tk=1&url=<shop page>. Adtraction also
+// uses the shops' own tracking domains, so the shape is checked (path /t/t, a= and as= numbers), and with a channel also
+// that the click is ours.
+export function isAdtractionLink(u, channel = '') {
+  const x = parse(u);
+  if (!x || x.protocol !== 'https:' || !/^\/t\/t\/?$/i.test(x.pathname)) return false;
+  const a = x.searchParams.get('a') || '', as = x.searchParams.get('as') || '';
+  return /^\d{2,12}$/.test(a) && /^\d{3,12}$/.test(as) && (!channel || as === String(channel));
+}
+// The standard Adtraction deep link to one page of the shop (t=2: a deep link).
+export function adtractionLink(programId, channel, page) {
+  return `https://track.adtraction.com/t/t?a=${encodeURIComponent(programId)}&as=${encodeURIComponent(channel)}&t=2&tk=1&url=${encodeURIComponent(page)}`;
 }
 
 export const NETWORKS = {
@@ -46,7 +61,8 @@ export const NETWORKS = {
   rakuten: { label: 'Rakuten', file: 'RAKUTEN', idPrefix: 'rk', isLink: isRakutenLink },
   daisycon: { label: 'Daisycon', file: 'DAISYCON', idPrefix: 'dc', isLink: isDaisyconLink },
   bol: { label: 'bol.com', file: 'BOL', idPrefix: 'bol', isLink: isBolLink },
-  linkwise: { label: 'Linkwise', file: 'LINKWISE', idPrefix: 'lw', isLink: isLinkwiseLink }
+  linkwise: { label: 'Linkwise', file: 'LINKWISE', idPrefix: 'lw', isLink: isLinkwiseLink },
+  adtraction: { label: 'Adtraction', file: 'ADTRACTION', idPrefix: 'at', isLink: isAdtractionLink }
 };
 
 export function networkOf(rules) {
@@ -57,7 +73,7 @@ export function networkOf(rules) {
 // The Awin column names the download tools write (the same as CJ's, lessons L86), and one CSV line.
 export { COLUMNS as FEED_COLUMNS, csvLine } from './cj-feed.mjs';
 
-// The shop's own page inside a tracking link (Rakuten murl=, Daisycon dl=, CJ url=), for the "shop" check of the rules.
+// The shop's own page inside a tracking link (Rakuten murl=, Daisycon dl=, CJ and Adtraction url=), for the "shop" check of the rules.
 export function pageInLink(u) {
   const x = parse(u);
   if (!x) return '';

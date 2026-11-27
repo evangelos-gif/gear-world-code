@@ -6,9 +6,12 @@ import { promosFor, AWIN_PUBLISHER_ID } from '../../promos/promos.js';
 import { networkFor } from '../../promos/network.js';
 // bol.com (NL and BE only, Dutch names, lessons L204): sites/_shared/bol.js.
 import { bolDelivery, BOL_SITES } from '../_shared/bol.js';
+import { waveDelivery } from '../_shared/wave-a.js';
 import { LINKWISE_GR } from './linkwise-gr.js';
 
 const BOL = bolDelivery(BOL_SITES.sgw);
+// Priority A of «Λείπουν 25-11» (lessons L234): ../_shared/wave-a.js.
+const WAVE_A = waveDelivery('sgw');
 
 export default {
   code: 'SGW',
@@ -57,7 +60,7 @@ export default {
   // AliExpress PL (Awin 12044, Polish names, prices in zloty): Poland only, so only the Poland view shows it (owner,
   // 15 Nov 2026, lessons L157, round 2); its prices get "≈ £…" (foreignCurrencies PLN).
   // Linkwise (Greece and Cyprus, lessons L209): ./linkwise-gr.js.
-  deliversTo: { default: ['GB'], retailers: { ...LINKWISE_GR.retailers, 'AliExpress PL': ['PL'], ...BOL.retailers }, languages: { ...LINKWISE_GR.languages, ...BOL.languages } },
+  deliversTo: { default: ['GB'], retailers: { ...LINKWISE_GR.retailers, 'AliExpress PL': ['PL'], ...BOL.retailers, ...WAVE_A.retailers }, languages: { ...LINKWISE_GR.languages, ...BOL.languages, ...WAVE_A.languages } },
 
   foreignCurrencies: ['PLN'],
   displayCurrencies: ['GBP', 'EUR', 'PLN', 'ALL', 'RON', 'RUB'],

@@ -1,0 +1,124 @@
+# Greek Linkwise shops, category fix of 23-24 Nov 2026 (chat 7 and Julia of Linkwise, L14, L223): only the 118 of the
+# 224 pairs of gr-refresh-1124.txt whose dry run (-CategoriesOnly, commit 888868ab, 23 Nov 2026 21:12-22:57) showed
+# category moves or products to hide: 19,812 moves and 10,601 hidden (no longer in the feed, or left out by the rules).
+# The other 106 pairs had nothing to change. legacy-import-batch.ps1 -Pairs 'file:tools/massive/gr-categories-1123.txt'
+# -CategoriesOnly: no new products and no prices (they wait for the next refresh). Theodoras Jewellery (lw-10483) needs a
+# normal import, not this list.
+lw-23:wgw  # La Redoute: 120 moves, 959 hidden
+lw-100:mgw  # Z-mall: 29 moves, 0 hidden
+lw-100:wgw  # Z-mall: 196 moves, 2 hidden
+lw-100:kgw  # Z-mall: 3 moves, 0 hidden
+lw-293:mgw  # John-Andy: 7 moves, 1 hidden
+lw-361:wgw  # Zizel: 593 moves, 38 hidden
+lw-399:wgw  # Spartoo: 772 moves, 1554 hidden
+lw-399:mgw  # Spartoo: 283 moves, 11 hidden
+lw-10553:mgw  # Prince Oliver: 0 moves, 3 hidden
+lw-10600:wgw  # Kosmima24: 842 moves, 19 hidden
+lw-10600:mgw  # Kosmima24: 6 moves, 0 hidden
+lw-10814:hgw  # Spitishop: 43 moves, 69 hidden
+lw-10818:wgw  # Letif: 9 moves, 1 hidden
+lw-11388:wgw  # Pharm24: 446 moves, 66 hidden
+lw-11427:mgw  # Blooza: 1 moves, 14 hidden
+lw-11442:wgw  # IzyShoes: 2 moves, 0 hidden
+lw-11532:hgw  # 24home.gr: 71 moves, 126 hidden
+lw-11537:wgw  # YOUTH LAB.: 2 moves, 0 hidden
+lw-11593:wgw  # Celestino: 10 moves, 10 hidden
+lw-11609:wgw  # Pharmacy Onlineshop: 104 moves, 32 hidden
+lw-11641:wgw  # Tsakiris Mallas: 0 moves, 79 hidden
+lw-11667:mgw  # New Cult: 25 moves, 0 hidden
+lw-11676:wgw  # Cherrybox: 64 moves, 4 hidden
+lw-11708:wgw  # Pink Woman: 2 moves, 0 hidden
+lw-11742:wgw  # The Body Shop: 1 moves, 1 hidden
+lw-11815:wgw  # Verorama: 92 moves, 23 hidden
+lw-11834:wgw  # Eleftheriou Online: 1064 moves, 127 hidden
+lw-11890:mgw  # SimpleWear: 6 moves, 0 hidden
+lw-11890:wgw  # SimpleWear: 14 moves, 1 hidden
+lw-11892:hgw  # Katoikein: 93 moves, 9 hidden
+lw-11920:wgw  # AmorAmor: 32 moves, 0 hidden
+lw-11949:kgw  # Dpam: 2 moves, 0 hidden
+lw-11999:wgw  # mat fashion: 0 moves, 1 hidden
+lw-12011:wgw  # FunkyBuddha: 8 moves, 0 hidden
+lw-12125:hgw  # Aithrio: 21 moves, 0 hidden
+lw-12149:hgw  # Kouzinika: 24 moves, 5 hidden
+lw-12180:hgw  # designdrops: 483 moves, 258 hidden
+lw-12218:hgw  # Anesis Home: 117 moves, 8 hidden
+lw-12311:hgw  # EasyU: 215 moves, 336 hidden
+lw-12338:mgw  # Clodist: 16 moves, 4 hidden
+lw-12345:kgw  # Pitsiriki: 2 moves, 0 hidden
+lw-12401:wgw  # Kiriakos Gofas Jewelry: 87 moves, 8 hidden
+lw-12401:mgw  # Kiriakos Gofas Jewelry: 17 moves, 0 hidden
+lw-12425:wgw  # Galerie de beaute: 658 moves, 25 hidden
+lw-12471:wgw  # Notos: 843 moves, 193 hidden
+lw-12471:mgw  # Notos: 215 moves, 7 hidden
+lw-12557:hgw  # Agiovlasitishome: 674 moves, 8 hidden
+lw-12563:hgw  # Sticky: 0 moves, 33 hidden
+lw-12569:hgw  # esmarket: 9 moves, 51 hidden
+lw-12575:mgw  # Parex: 18 moves, 0 hidden
+lw-12621:hgw  # Carpetlinen: 6 moves, 2 hidden
+lw-12650:hgw  # HouseArt: 5 moves, 87 hidden
+lw-12653:wgw  # Kostis Jewellery: 0 moves, 1 hidden
+lw-12746:wgw  # Gerovital: 1 moves, 0 hidden
+lw-12802:wgw  # Migato: 4 moves, 0 hidden
+lw-12844:wgw  # Zoniou: 1181 moves, 21 hidden
+lw-12903:mgw  # Hionidis: 4 moves, 4 hidden
+lw-12954:mgw  # Projectshops: 19 moves, 2 hidden
+lw-12954:wgw  # Projectshops: 129 moves, 0 hidden
+lw-13012:wgw  # The Fashion Project: 623 moves, 0 hidden
+lw-13100:wgw  # Myaroma.gr: 29 moves, 0 hidden
+lw-13136:wgw  # Tzimas Cosmetics: 3 moves, 0 hidden
+lw-13193:hgw  # Vivento: 0 moves, 73 hidden
+lw-13195:hgw  # EtherealHome: 37 moves, 10 hidden
+lw-13208:wgw  # Accessoire: 1 moves, 0 hidden
+lw-13210:wgw  # Quickgel: 0 moves, 1 hidden
+lw-13240:wgw  # Natural Click: 4 moves, 16 hidden
+lw-13292:wgw  # Be Queen Pro: 7 moves, 0 hidden
+lw-13306:wgw  # Anna Raxevsky: 163 moves, 2 hidden
+lw-13331:wgw  # KYANA: 1 moves, 0 hidden
+lw-13333:wgw  # Dust and Cream: 8 moves, 0 hidden
+lw-13361:wgw  # Living Cruelty Free: 25 moves, 0 hidden
+lw-13371:wgw  # Orogenio: 391 moves, 1 hidden
+lw-13486:hgw  # Memorybox.gr: 29 moves, 17 hidden
+lw-13527:wgw  # Aroma City: 1 moves, 0 hidden
+lw-13535:wgw  # Marie Raxevsky: 0 moves, 57 hidden
+lw-13604:wgw  # epapoutsia.gr: 132 moves, 18 hidden
+lw-13607:wgw  # Modivo: 177 moves, 0 hidden
+lw-13607:mgw  # Modivo: 14 moves, 0 hidden
+lw-13625:mgw  # Silenzio: 2 moves, 1 hidden
+lw-13628:mgw  # Central: 2 moves, 32 hidden
+lw-13631:mgw  # Wizzy: 2 moves, 1 hidden
+lw-13649:mgw  # Politikos: 13 moves, 6 hidden
+lw-13649:wgw  # Politikos: 209 moves, 4 hidden
+lw-13649:kgw  # Politikos: 73 moves, 0 hidden
+lw-13670:wgw  # AVGERINOS: 2 moves, 0 hidden
+lw-13695:wgw  # Pure Natural: 3 moves, 0 hidden
+lw-13700:mgw  # TOBROS: 1 moves, 0 hidden
+lw-13746:wgw  # Aroma Oneirou: 6 moves, 14 hidden
+lw-13752:wgw  # DRESS UP: 18 moves, 4 hidden
+lw-13754:wgw  # Stradivarius: 8 moves, 0 hidden
+lw-13758:wgw  # Stan and Stefan: 59 moves, 0 hidden
+lw-13781:wgw  # Carelife: 53 moves, 1 hidden
+lw-13797:wgw  # Answear: 4493 moves, 829 hidden
+lw-13797:mgw  # Answear: 326 moves, 15 hidden
+lw-13808:mgw  # Gruppo Mossialos: 27 moves, 1 hidden
+lw-13808:wgw  # Gruppo Mossialos: 7 moves, 12 hidden
+lw-13812:mgw  # Koutsoubidis: 1 moves, 0 hidden
+lw-13815:hgw  # EFDECO: 6 moves, 8 hidden
+lw-13908:hgw  # Inoxdesign: 0 moves, 61 hidden
+lw-13910:wgw  # L ADIOPIS: 1 moves, 0 hidden
+lw-13948:mgw  # BIG SHOES: 1 moves, 46 hidden
+lw-13974:mgw  # VARDA: 60 moves, 2 hidden
+lw-13999:wgw  # Go Glam: 11 moves, 0 hidden
+lw-14011:hgw  # Dendron: 0 moves, 10 hidden
+lw-14035:wgw  # PELION Natural Luxury: 3 moves, 0 hidden
+lw-14043:mgw  # XXXL Leo: 3 moves, 10 hidden
+lw-14067:wgw  # Bionike: 2 moves, 0 hidden
+lw-14076:wgw  # W7 Makeup: 0 moves, 1 hidden
+lw-14088:mgw  # Gounas: 11 moves, 11 hidden
+lw-14094:wgw  # Notino: 2761 moves, 2011 hidden
+lw-14094:mgw  # Notino: 52 moves, 40 hidden
+lw-14111:wgw  # iQueens: 151 moves, 10 hidden
+lw-14113:hgw  # VidaXL.gr: 95 moves, 3054 hidden
+lw-14114:mgw  # Camper: 0 moves, 8 hidden
+lw-14114:wgw  # Camper: 4 moves, 0 hidden
+lw-14137:kgw  # So and Jos: 2 moves, 11 hidden
+lw-14151:wgw  # All About Beauty: 9 moves, 0 hidden

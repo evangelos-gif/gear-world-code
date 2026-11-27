@@ -98,6 +98,14 @@ export function feedPaths({ archive, rules }) {
   return readdirSync(archive).filter(f => name.test(f)).sort().map(f => join(archive, f));
 }
 
+// Feed files downloaded more than maxAgeHours before now (lessons L236), with their download time (UTC, minutes).
+export function staleFeedFiles(paths, maxAgeHours, now = new Date()) {
+  const limit = now.getTime() - maxAgeHours * 3600 * 1000;
+  return paths.map(f => { let m = NaN; try { m = statSync(f).mtimeMs; } catch { m = NaN; } return { file: basename(f), m }; })
+    .filter(o => !(o.m >= limit))
+    .map(o => ({ file: o.file, at: Number.isFinite(o.m) ? new Date(o.m).toISOString().slice(0, 16).replace('T', ' ') + ' UTC' : 'άγνωστο' }));
+}
+
 export async function readProducts({ archive, rules }) {
   const paths = feedPaths({ archive, rules });
   const files = paths.map(f => basename(f));
@@ -186,7 +194,7 @@ export function commonVariantName(names) {
 
 // A CJ link as https (CJ answers on both).
 const httpsLink = u => String(u || '').replace(/^http:\/\//i, 'https://');
-const NETWORK_LABEL = { cj: 'CJ', rakuten: 'Rakuten', daisycon: 'Daisycon', bol: 'bol.com' };
+const NETWORK_LABEL = { cj: 'CJ', rakuten: 'Rakuten', daisycon: 'Daisycon', bol: 'bol.com', linkwise: 'Linkwise', adtraction: 'Adtraction' };
 
 const hostOf = url => { try { return new URL(url).hostname.toLowerCase(); } catch { return ''; } };
 
@@ -368,6 +376,14 @@ export async function planLegacyImport({ archive, retailer, outDir, now = new Da
   const NET = networkOf(rules);
   const read = await readProducts({ archive, rules });
   const { files, rows } = read;
+  // GW_FEED_MAX_AGE_HOURS (set by tools/legacy-import-batch.ps1 -FreshHours, lessons L236): a re-import used as a refresh
+  // takes only feed files downloaded in the last N hours. An older copy (its download failed or was refused) would write
+  // today's «Price checked» on old prices, so the shop is not imported and the report says why.
+  const maxAgeHours = Number(process.env.GW_FEED_MAX_AGE_HOURS || 0);
+  if (maxAgeHours > 0) {
+    const tooOld = staleFeedFiles(feedPaths({ archive, rules }), maxAgeHours, now);
+    if (tooOld.length) throw new Error(tooOld.map(o => `${o.file}: το feed κατέβηκε ${o.at}, πριν από πάνω από ${maxAgeHours} ώρες: δεν έγινε εισαγωγή, δεν άλλαξε τίποτα (L236)`).join('\n'));
+  }
   // rules.feedTooOld (bol.com, L204): the import refuses a feed file older than the rules allow (run the download again);
   // the dry run of tools/bol-import-plan.mjs (allowOld) makes the plan and lists them.
   const oldFiles = typeof rules.feedTooOld === 'function' ? Object.entries(read.fileStamps).filter(([, s]) => rules.feedTooOld(s, now)) : [];
@@ -549,6 +565,12 @@ export function insertSqlLimited(items, stamp, opts = {}, maxBytes = MAX_STATEME
   return insertSqlLimited(items.slice(0, half), stamp, opts, maxBytes) + insertSqlLimited(items.slice(half), stamp, opts, maxBytes);
 }
 
+// keys.json of a plan (lessons L119, L229): [awin_product_id, merchant_product_id] of each product, only on the sites whose
+// SQL updates a product found by the shop's own id (KGW, HGW, GGW, CGW); empty on MGW and WGW.
+export function planKeys(items, site) {
+  return STABLE_KEY_SITES.has(String(site || '').toLowerCase()) ? items.map(p => [p.awin_product_id, p.merchant_product_id]) : [];
+}
+
 function writeSql(dir, items, R, site, now, images = false) {
   mkdirSync(dir, { recursive: true });
   const replace = (R.keepCategory && R.replaceSubcategories && R.replaceSubcategories[site]) || [];
@@ -566,8 +588,12 @@ function writeSql(dir, items, R, site, now, images = false) {
   // The products this run keeps on the site (a refresh hides the retailer's other products: sold out or gone).
   writeFileSync(join(dir, 'ids.txt'), items.map(p => p.awin_product_id).join('\n') + (items.length ? '\n' : ''));
   // The shop's own id of each product: on a site keyed by (retailer, merchant id) the comparison with the database matches
-  // products that are already there under another Awin id (CGW, lessons L119).
-  writeFileSync(join(dir, 'keys.json'), JSON.stringify(items.map(p => [p.awin_product_id, p.merchant_product_id])));
+  // products that are already there under another Awin id (CGW, lessons L119), because there the SQL updates that row.
+  // Only there (lessons L229): on MGW and WGW the SQL upserts by awin_product_id, so a row of the same shop id under an
+  // old Awin id is NOT updated: a new row is added and the old one must be hidden like any product gone from the plan
+  // (Tsakiris Mallas GR on WGW, 24 Nov 2026: the shop changed its page addresses, 1,808 old cards with prices of 19 Nov
+  // stayed next to the new ones because the comparison counted them as "updated").
+  writeFileSync(join(dir, 'keys.json'), JSON.stringify(planKeys(items, site)));
   // The products with their planned place, for the comparison with the database (subcategory names, L56).
   writeFileSync(join(dir, 'places.json'), JSON.stringify({ replace, places: items.map(p => [p.awin_product_id, p.site_category, p.subcategory]) }));
   return out;

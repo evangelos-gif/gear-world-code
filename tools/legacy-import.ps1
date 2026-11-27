@@ -27,6 +27,7 @@ param(
     [string]$Archive = '',
     [string]$WorkDir = '',
     [string]$OutDir = '',
+    [switch]$CategoriesOnly,
     [switch]$NoClipboard
 )
 
@@ -131,10 +132,11 @@ function Invoke-Wrangler([string]$Folder, [string]$Arguments, [switch]$Retry) {
         }
         $text = (($out | ForEach-Object { "$_" }) -join "`n") -replace '\x1b\[[0-9;]*m', ''
         $result = @{ code = $code; text = $text }
-        $network = $text -match '(?i)fetch failed|connectivity issue|ECONNRESET|ETIMEDOUT|EAI_AGAIN|ENOTFOUND|socket hang up|code: 7403|code: 10000|Not currently importing anything'
+        # D1 "overloaded" (code 7429, 23 Nov 2026: Theodoras Jewellery, Rodanos, EasyU) passes after a short wait: tried again too.
+        $network = $text -match '(?i)fetch failed|connectivity issue|ECONNRESET|ETIMEDOUT|EAI_AGAIN|ENOTFOUND|socket hang up|code: 7403|code: 10000|code: 7429|Not currently importing anything'
         if ($code -eq 0 -or -not $network -or $try -eq $tries) { break }
         Say ('Προσωρινό πρόβλημα με το Cloudflare. Ξαναδοκιμάζω σε {0} δευτερόλεπτα ({1}/{2})...' -f (5 * $try), ($try + 1), $tries) 'Yellow'
-        Start-Sleep -Seconds (5 * $try)
+        if ($text -match 'code: 7429') { Start-Sleep -Seconds (20 * $try) } else { Start-Sleep -Seconds (5 * $try) }
     }
     return $result
 }
@@ -249,12 +251,21 @@ Say ('Βάση {0}: {1} ενεργά προϊόντα συνολικά, {2} απ
 
 # What the database has for this retailer, compared with the plan (read-only). Products no longer in the plan
 # (sold out in every size, or gone from the shop) are hidden after loading; nothing is deleted.
-$cur = Invoke-Wrangler $WorkDir ("d1 execute {0} --remote --json --command `"SELECT id, awin_product_id, is_active, site_category, subcategory, merchant_product_id FROM products WHERE retailer = '{1}'`"" -f $DbName, $RetailerName) -Retry
-if ($cur.code -ne 0 -or $cur.text.IndexOf('[') -lt 0) { Say 'Δεν μπόρεσα να διαβάσω τα προϊόντα του καταστήματος. Δεν άλλαξε τίποτα.' 'Red'; Say $cur.text; Finish 4 }
+# In pages of 40,000 rows by id (lessons L223, 23 Nov 2026: one answer with VidaXL.gr's 253,000 rows on HGW did not come).
+# BETWEEN, not "id >": the wrangler call refuses > < % & | ^ (they mean something else to cmd.exe).
 $diffDir = Join-Path $planDir ('diff-' + $Site)
 New-Item -ItemType Directory -Path $diffDir -Force | Out-Null
-$curFile = Join-Path $diffDir 'database.json.txt'
-[System.IO.File]::WriteAllText($curFile, $cur.text, (New-Object System.Text.UTF8Encoding($false)))
+$curFile = $diffDir
+$lastId = 0
+$page = 0
+do {
+    $page++
+    $cur = Invoke-Wrangler $WorkDir ("d1 execute {0} --remote --json --command `"SELECT id, awin_product_id, is_active, site_category, subcategory, merchant_product_id FROM products WHERE retailer = '{1}' AND id BETWEEN {2} AND 9000000000000000000 ORDER BY id LIMIT 40000`"" -f $DbName, $RetailerName, ($lastId + 1)) -Retry
+    if ($cur.code -ne 0 -or $cur.text.IndexOf('[') -lt 0) { Say 'Δεν μπόρεσα να διαβάσω τα προϊόντα του καταστήματος. Δεν άλλαξε τίποτα.' 'Red'; Say $cur.text; Finish 4 }
+    [System.IO.File]::WriteAllText((Join-Path $diffDir ('database-{0:D4}.json.txt' -f $page)), $cur.text, (New-Object System.Text.UTF8Encoding($false)))
+    $pageIds = [regex]::Matches($cur.text, '"id":\s*(\d+)')
+    if ($pageIds.Count -gt 0) { $lastId = [long]$pageIds[$pageIds.Count - 1].Groups[1].Value }
+} while ($pageIds.Count -ge 40000 -and $page -lt 100)
 # The site's own subcategory names (lessons L56): the plan should use them, not new ones.
 $subsFile = Join-Path $diffDir 'site-subcategories.json.txt'
 $subs = Invoke-Wrangler $WorkDir ("d1 execute {0} --remote --json --command `"SELECT site_category, subcategory, COUNT(*) AS n FROM products WHERE is_active = 1 GROUP BY site_category, subcategory`"" -f $DbName) -Retry
@@ -266,7 +277,18 @@ $goneN = [int]$d[3]
 $hideGone = ($d[5] -eq '1')
 $recatN = 0
 $newSubsN = 0
+$catN = 0
 if ($d.Count -ge 8) { $recatN = [int]$d[6]; $newSubsN = [int]$d[7] }
+if ($d.Count -ge 9) { $catN = [int]$d[8] }
+# -CategoriesOnly (lessons L223): only the place (category, subcategory) of the products already on the site changes,
+# and the ones the rules now leave out are hidden. No new products, no prices: a few thousand writes instead of a refresh.
+if ($CategoriesOnly) {
+    Say ('ΜΟΝΟ ΚΑΤΗΓΟΡΙΕΣ (L223): {0} προϊόντα {1} αλλάζουν κατηγορία· τα {2} νέα και οι τιμές μένουν για την επόμενη ανανέωση.' -f $catN, $RetailerName, $d[0])
+    $mv = @()
+    if (Test-Path -LiteralPath (Join-Path $diffDir 'category-moves.txt')) { $mv = @([System.IO.File]::ReadAllLines((Join-Path $diffDir 'category-moves.txt')) | Where-Object { $_ }) }
+    foreach ($line in ($mv | Select-Object -First 12)) { Say ('  {0}' -f $line) }
+    if ($mv.Count -gt 12) { Say ('  ... και άλλες {0} αλλαγές (category-moves.txt στο {1})' -f ($mv.Count - 12), $diffDir) }
+}
 if ($AddOnly) {
     $hideGone = $false
     Say ('Σύγκριση με τη βάση: {0} νέα, {1} ενημέρωση τιμής/στοιχείων, {2} επιστρέφουν.' -f $d[0], $d[1], $d[2])
@@ -287,7 +309,8 @@ if ($newSubsN -gt 0) {
 Say ''
 Say 'Τι θα γίνει με -Apply:'
 Say ('  - Σημείο επαναφοράς (Cloudflare Time Travel) της βάσης {0}, γραμμένο στο {1}' -f $DbName, (Join-Path $WorkDir 'backups'))
-Say ('  - Προσθήκη ή ενημέρωση {0} προϊόντων {1}. Δεν σβήνεται τίποτα, κανένα άλλο κατάστημα δεν αλλάζει.' -f $sp.products, $RetailerName)
+if ($CategoriesOnly) { Say ('  - Αλλαγή κατηγορίας σε {0} προϊόντα {1} (με αρχείο επαναφοράς των παλιών). Τίποτα άλλο σε αυτά δεν αλλάζει.' -f $catN, $RetailerName) }
+else { Say ('  - Προσθήκη ή ενημέρωση {0} προϊόντων {1}. Δεν σβήνεται τίποτα, κανένα άλλο κατάστημα δεν αλλάζει.' -f $sp.products, $RetailerName) }
 if ($goneN -gt 0 -and $hideGone) { Say ('  - Απόκρυψη {0} προϊόντων {1} που δεν είναι πια στο feed ή εξαντλήθηκαν (με αρχείο επαναφοράς).' -f $goneN, $RetailerName) }
 if ($recatN -gt 0) { Say ('  - Αλλαγή υποκατηγορίας σε {0} προϊόντα {1}, στα ονόματα που έχει ήδη το site (με αρχείο επαναφοράς των παλιών ονομάτων).' -f $recatN, $RetailerName) }
 if ($AddOnly) { Say ('  - Τα άλλα προϊόντα {0} στο site δεν αλλάζουν και δεν κρύβεται κανένα.' -f $RetailerName) }
@@ -342,6 +365,20 @@ if ($recatUndo) { $note = $note + "`r`n" + ('  C) only the old subcategory names
 Say ('Σημείο επαναφοράς: {0}' -f $backup) 'Green'
 
 # 5. Load. Every file is INSERT ... ON CONFLICT DO UPDATE, so repeating one after a network error is safe.
+# -CategoriesOnly: one file of UPDATEs by id (repeating it is safe too), and its rollback kept with the restore point.
+$catUndo = ''
+if ($CategoriesOnly) {
+    $files = @()
+    $catSql = Join-Path $diffDir 'recat-categories.sql'
+    if ($catN -gt 0 -and (Test-Path -LiteralPath $catSql)) {
+        $catBack = Join-Path $bdir ('{0}-{1}-categories-{2}-rollback.sql' -f $Site, $Retailer, $stamp)
+        Copy-Item -LiteralPath (Join-Path $diffDir 'rollback-categories.sql') -Destination $catBack -Force
+        $catUndo = 'npx wrangler d1 execute {0} --remote --file "{1}"' -f $DbName, $catBack
+        [System.IO.File]::AppendAllText($backup, ("`r`n" + ('  D) only the old categories of the {0} products this run moves:  {1}' -f $catN, $catUndo)), (New-Object System.Text.UTF8Encoding($false)))
+        $files = @(Get-Item -LiteralPath $catSql)
+        $quickUndo = $catUndo
+    }
+}
 $n = 0
 foreach ($f in $files) {
     $x = Invoke-Wrangler $WorkDir ('d1 execute {0} --remote --file "{1}"' -f $DbName, $f.FullName) -Retry
@@ -366,6 +403,17 @@ if ($goneN -gt 0 -and $hideGone) {
 }
 
 # 6. Check.
+if ($CategoriesOnly) {
+    if ($catUndo) { Say ('Άλλαξε η κατηγορία σε {0} προϊόντα {1}. Επαναφορά των παλιών (μόνο με έγκριση): {2}' -f $catN, $RetailerName, $catUndo) 'Green' }
+    $after = Select-Rows ("SELECT site_category, COUNT(*) AS n FROM products WHERE retailer = '{0}' AND is_active = 1 GROUP BY site_category ORDER BY n DESC" -f $RetailerName)
+    $sum = 0
+    if ($after) { foreach ($r in $after) { Say ('  {0,-26} {1}' -f $r.site_category, $r.n); $sum += [int]$r.n } }
+    $hidN = 0
+    if ($hideGone) { $hidN = $goneN }
+    Say ''
+    Say ('ΕΤΟΙΜΟ (μόνο κατηγορίες): {0} ενεργά προϊόντα {1} στο {2}, {3} άλλαξαν κατηγορία, {4} κρύφτηκαν.' -f $sum, $RetailerName, $Site.ToUpper(), $catN, $hidN) 'Green'
+    Finish 0
+}
 $after = Select-Rows ("SELECT site_category, COUNT(*) AS n FROM products WHERE retailer = '{0}' AND is_active = 1 GROUP BY site_category ORDER BY n DESC" -f $RetailerName)
 $sum = 0
 if ($after) { foreach ($r in $after) { Say ('  {0,-26} {1}' -f $r.site_category, $r.n); $sum += [int]$r.n } }

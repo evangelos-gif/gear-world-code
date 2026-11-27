@@ -183,7 +183,12 @@ foreach ($id in $ids) {
         }
         $region = Col $r '(?i)region'
         if ($missing -and $mem -match '(?i)^\s*(active|joined)\s*$') { $missingList.Add(('{0} {1} (feed {2}, {3}, προϊόντα {4})' -f $id, $name, $fid, $region, $cnt)) }
-        Say ('{0} {1}, feed {2}: μέλος: {3} | προϊόντα στο Awin: {4} | ανανέωση Awin: {5} | αντίγραφο εδώ: {6}' -f $id, $name, $fid, $mem, $cnt, $last, $localTxt)
+        # The feed's country and language from the Awin list (lessons L231: the country of a shop from its feed).
+        $lang = Col $r '(?i)^language$'
+        $more = ''
+        if ($region) { $more += (' | περιοχή: {0}' -f $region) }
+        if ($lang) { $more += (' | γλώσσα: {0}' -f $lang) }
+        Say ('{0} {1}, feed {2}: μέλος: {3} | προϊόντα στο Awin: {4} | ανανέωση Awin: {5} | αντίγραφο εδώ: {6}{7}' -f $id, $name, $fid, $mem, $cnt, $last, $localTxt, $more)
         if ($OnlyMissing -and -not $missing -and ($refreshIds -notcontains $id)) { Say '  υπάρχει εδώ: δεν ξανακατεβαίνει (-OnlyMissing).'; continue }
         if ($refreshIds -contains $id -and -not $missing) { Say '  κατεβαίνει ξανά (-Refresh).' }
         if ($fid -match '^\d+$' -and $mem -match '(?i)^\s*(active|joined)\s*$') { $todo.Add(@{ id = $id; fid = $fid; name = $name; local = $local; count = $cnt }) }

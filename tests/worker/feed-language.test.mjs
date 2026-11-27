@@ -16,6 +16,7 @@ import { FEED_LANGUAGES, feedLanguage, shownCountries, deliveryCountries, delive
 import { viewFor, hubViewFor, browseView, homeView, countryGroups, hiddenReason, retailerInView, needsUkBar, localOnlyRetailers,
   languageRetailers, LOCAL_ONLY_COUNTRIES, cacheKeyUrl } from '../../src/lib/visibility.js';
 import { TEST_DAY } from './test-clock.mjs';
+import { WAVE_A } from '../../sites/_shared/wave-a.js';
 
 const SITES = readdirSync('sites').filter(n => existsSync(`sites/${n}/site.config.js`) && existsSync(`sites/${n}/public/assets/site.js`));
 const config = {};
@@ -92,7 +93,9 @@ test('L165: the config check names a wrong feed language, one without its own co
   const BOL = ['agw', 'bgw', 'cgw', 'ggw', 'hgw', 'kgw', 'mgw', 'pgw', 'sgw', 'tgw', 'vgw', 'wgw', 'zgw'].map(s => `${s} bol.com nl`);
   assert.deepEqual(all.filter(x => !x.endsWith(' el')).sort(), [...BOL, 'agw VEVOR nl', 'cgw Reidl de', 'ggw Tuinmeubelwereld nl', 'hgw Baobab Collection fr', 'hgw Dille Kamille FR fr',
     'hgw Dille Kamille NL nl', 'hgw Kerstland nl', 'hgw La Redoute DE de', 'hgw La Redoute NL nl', 'hgw Miss Towels nl', 'hgw Westwing DE de', 'hgw Westwing ES es',
-    'hgw Westwing FR fr', 'hgw Westwing IT it', 'hgw Westwing NL nl', 'hgw WoodWick NL nl', 'mgw Uhrcenter de', 'tgw refurbed NL nl', 'wgw Uhrcenter de'].sort());
+    'hgw Westwing FR fr', 'hgw Westwing IT it', 'hgw Westwing NL nl', 'hgw WoodWick NL nl', 'mgw Uhrcenter de', 'tgw refurbed NL nl', 'wgw Uhrcenter de',
+    // + the Priority A shops in their feed's language (L234, sites/_shared/wave-a.js, tests/worker/wave-a.test.mjs).
+    ...WAVE_A.filter(e => e.language).map(e => `${e.site} ${e.retailer} ${e.language}`)].sort());
 });
 
 test('L165: a feed in another language: only the countries that speak it, never the UK, the all view or Google', () => {

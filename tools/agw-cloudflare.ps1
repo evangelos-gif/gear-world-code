@@ -511,6 +511,8 @@ switch ($Step) {
         Say 'Τι θα γίνει:'
         Say ('  - Σημείο επαναφοράς (Cloudflare Time Travel) της D1 του AGW, γραμμένο στο {0}' -f (Join-Path $WorkDir 'backups'))
         Say ('  - Φόρτωση προϊόντων: {0}' -f $head)
+        # Lessons L225: a closed programme (sources.json "closed") is not read, and ALL its products still shown are hidden.
+        foreach ($cl in @([System.IO.File]::ReadAllLines((Join-Path $planDir 'report.txt')) | Where-Object { $_ -match ': CLOSED \(' })) { Say ('  - Κλειστό πρόγραμμα (L225), κρύβονται όλα του τα προϊόντα: {0}' -f $cl) 'Yellow' }
         Say ('  - {0} αρχεία SQL, το ένα μετά το άλλο. Σταματά στο πρώτο λάθος.' -f $files.Count)
         Say '  - Αλλάζει ΜΟΝΟ η D1 του AGW. Κανένα άλλο site.'
         if (-not $Apply) { Say ''; Say 'Δοκιμή μόνο (χωρίς -Apply): δεν άλλαξε τίποτα.' 'Green'; Finish 0 }

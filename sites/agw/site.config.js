@@ -6,10 +6,13 @@ import { promosFor, AWIN_PUBLISHER_ID } from '../../promos/promos.js';
 import { networkFor } from '../../promos/network.js';
 // bol.com (NL and BE only, Dutch names, lessons L204): sites/_shared/bol.js.
 import { bolDelivery, BOL_SITES } from '../_shared/bol.js';
+import { waveDelivery } from '../_shared/wave-a.js';
 import guides from './guides.js';
 import { LINKWISE_GR } from './linkwise-gr.js';
 
 const BOL = bolDelivery(BOL_SITES.agw);
+// Priority A of «Λείπουν 25-11» (lessons L234): ../_shared/wave-a.js.
+const WAVE_A = waveDelivery('agw');
 
 export default {
   code: 'AGW',
@@ -53,7 +56,7 @@ export default {
   // Linkwise (Greece and Cyprus, lessons L209): ./linkwise-gr.js.
   deliversTo: { default: ['GB'], retailers: { ...LINKWISE_GR.retailers, 'AliExpress PL': ['PL'], 'Pneus.be': ['BE'], 'Neumaticos.es': ['ES'], 'Pneumatici.it': ['IT'], 'Tanie-Opony.pl': ['PL'], VEVOR: ['EU', 'IS', 'LI', 'NO'], Ottocast: ['DE', 'FR', 'NL', 'BE', 'AT', 'CH', 'ES', 'IT', 'PT', 'GR', 'PL', 'CZ', 'SK', 'HU', 'SE', 'FI', 'DK', 'NO', 'EE', 'LV', 'LT', 'HR', 'SI', 'BG', 'RO'], 'ReifenDirekt.at': ['AT'], 'neumaticos-online.es': ['ES'], 'Autobandenmarkt.nl': ['NL'], 'Oponytanio PL': ['PL'],
     '123pneus.be': ['BE'], 'gommadiretto.it': ['IT'], 'rengas-online.com': ['FI'], 'Elastika-Online GR': ['GR'], 'Elastiko GR': ['GR'],
-    ...BOL.retailers }, languages: { ...LINKWISE_GR.languages, VEVOR: 'nl', ...BOL.languages } },
+    ...BOL.retailers, ...WAVE_A.retailers }, languages: { ...LINKWISE_GR.languages, VEVOR: 'nl', ...BOL.languages, ...WAVE_A.languages } },
   // Lessons L107: a UK visitor sees UK retailers only, so the texts no longer say "retailers in the UK and Europe".
   retailersFromEurope: false,
 

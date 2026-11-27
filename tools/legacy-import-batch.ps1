@@ -18,6 +18,8 @@
   without -Apply its plan only, with -Apply its import (Time Travel restore point first), covered by the one phrase.
   -Pairs none: no legacy imports, only the clean-ups, -Sites and/or TGW.
   -Pairs 'file:tools/massive/gr-wave-1122.txt': the pairs from a file of this code version (one per line, '#' comments).
+  -CategoriesOnly (lessons L223): each pair only moves its products already on the site to the place the rules give
+  now and hides the ones the rules leave out (no new products, no prices); covered by the one phrase.
 
   -Tgw: also Technology Gear World, after the pairs and clean-ups. Without -Apply its read-only plan (tgw-import-plan.ps1);
   with -Apply its import (tgw-cloudflare.ps1 -Step import), covered by the one phrase.
@@ -25,6 +27,9 @@
   would write more than 90,000 rows in D1 (about 11,000 products) stops before changing anything (lessons L49).
   -Approve: the phrase given on the command line instead of typing it (tests only).
   -MinFreeMb (default 1024): with less free disk space than this nothing starts (exit 6); first pc-disk-cleanup.ps1.
+  -FreshHours N (lessons L236): every pair takes only feed files downloaded in the last N hours. A re-import used as a
+  refresh (fresh downloads first, then this batch) then never writes today's «Price checked» on an older copy whose
+  download failed or was refused: that shop is not imported (its exit is not 0 in the summary) and nothing of it changes.
 
   Report: <home>\gear-world-reports\IMPORT_BATCH_<time>.txt (also copied to the clipboard), with every pair's
   summary and the full plan of every shop.
@@ -38,9 +43,11 @@ param(
     [switch]$Tgw,
     [string]$Cleanups = '',
     [switch]$PaidPlan,
+    [switch]$CategoriesOnly,
     [string]$Sites = '',
     [string]$Approve = '',
     [int]$MinFreeMb = 1024,
+    [int]$FreshHours = 0,
     [switch]$NoClipboard
 )
 
@@ -127,6 +134,7 @@ function Normalize-Phrase([string]$s) {
 
 $mode = 'ΔΟΚΙΜΗ - ΜΟΝΟ ΑΝΑΓΝΩΣΗ'
 if ($Apply) { $mode = 'ΕΙΣΑΓΩΓΗ - μία φράση έγκρισης για όλα' }
+if ($CategoriesOnly) { $mode = $mode + ' - ΜΟΝΟ ΚΑΤΗΓΟΡΙΕΣ (L223: αλλάζει μόνο η κατηγορία όσων είναι ήδη στα sites και κρύβονται όσα δεν ανήκουν)' }
 Write-Host ''
 Write-Host ('Εισαγωγές για {0} ζευγάρια και {1} νέα sites - {2}' -f $list.Count, $siteList.Count, $mode) -ForegroundColor Cyan
 
@@ -176,6 +184,8 @@ if ($Apply) {
     Write-Host 'Έγκριση για όλα: ξεκινώ.' -ForegroundColor Green
 }
 
+# -FreshHours (L236): the planner of every pair reads it and refuses a feed file older than that.
+if ($FreshHours -gt 0) { $env:GW_FEED_MAX_AGE_HOURS = [string]$FreshHours; Write-Host ('Μόνο feeds που κατέβηκαν τις τελευταίες {0} ώρες (L236).' -f $FreshHours) -ForegroundColor Cyan }
 $results = @()
 $n = 0
 foreach ($pair in $list) {
@@ -184,6 +194,7 @@ foreach ($pair in $list) {
     Write-Host ''
     Write-Host ('===== {0}/{1}: {2} -> {3} =====' -f $n, $list.Count, $parts[0], $parts[1].ToUpper()) -ForegroundColor Cyan
     $a = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $tool, '-Retailer', $parts[0], '-Site', $parts[1], '-OutDir', $OutDir, '-NoClipboard')
+    if ($CategoriesOnly) { $a += '-CategoriesOnly' }
     if ($Archive) { $a += @('-Archive', $Archive) }
     if ($WorkDir) { $a += @('-WorkDir', $WorkDir) }
     # The one phrase covers it: the tool gets its own exact phrase (Latin EGKRINO, the same phrase without Greek letters
