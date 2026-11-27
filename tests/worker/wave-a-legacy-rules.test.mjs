@@ -32,8 +32,17 @@ test('L237: every Priority A rules file has its key, a legacy site, and the name
   }
 });
 
-test('L237: the pairs file lists every rules file once, on its own site, the two largest feeds last', async () => {
-  assert.equal(PAIRS.length, KEYS.length);
+// L238: shops whose feed is old (Awin refreshed it last on 15 May 2026, or the Daisycon feed last changed in July and
+// August): their rules are kept, but they wait in a comment of the pairs file until a check against the live shop.
+const WAITING = ['wa-airdog-us', 'wa-bioethanol-kamin-de', 'wa-bioethanolhaard-nl', 'wa-cuckoo-us', 'wa-efeglasses-us', 'wa-enjoythewood-us',
+  'wa-goally-us', 'wa-homeleader-us', 'wa-naghedi-us', 'wa-puredown-us', 'wa-sebastiancruz-us', 'wa-youcustomizeit-us'];
+
+test('L237 / L238: the pairs file lists every rules file once (except the waiting ones), on its own site, the two largest feeds last', async () => {
+  assert.equal(PAIRS.length + WAITING.length, KEYS.length);
+  for (const k of WAITING) {
+    assert.ok(KEYS.includes(k), `${k}: rules file kept`);
+    assert.ok(!PAIRS.some(p => p.startsWith(`${k}:`)), `${k}: waits (L238)`);
+  }
   assert.equal(new Set(PAIRS).size, PAIRS.length);
   for (const p of PAIRS) {
     const [key, site] = p.split(':');
