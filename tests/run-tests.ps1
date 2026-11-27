@@ -6877,6 +6877,72 @@ Check (-not (Test-Path -LiteralPath (Join-Path $dcLogs 'wrangler-old.log')) -and
 & $exe @dcArgs | Out-Null
 Check ($LASTEXITCODE -eq 0 -and (Dc-Report).Contains('Δεν υπάρχει τίποτα για σβήσιμο')) 'disk cleanup again: nothing left to delete'
 
+# 8z. gw-notify.ps1 and gw-notify-setup.ps1 (end-of-command notifications, owner 27 Nov 2026, lessons L234)
+Write-Host 'gw-notify.ps1'
+$gnTool = Join-Path (Join-Path $repo 'tools') 'gw-notify.ps1'
+$gnSetup = Join-Path (Join-Path $repo 'tools') 'gw-notify-setup.ps1'
+$gnText = [System.IO.File]::ReadAllText($gnTool)
+Check (-not ($gnText -match '(?m)^\s*exit\b') -and -not ($gnText -match '\$ErrorActionPreference\s*=\s*.Stop.')) 'gw-notify: no exit and no Stop, so it never stops or changes the command that calls it'
+$gnDry = Join-Path $work 'gn-dry.txt'
+function Gn-Dry { if (Test-Path -LiteralPath $gnDry) { $x = [System.IO.File]::ReadAllText($gnDry, [System.Text.Encoding]::UTF8); Remove-Item -LiteralPath $gnDry -Force; return @($x.Split("`n")) }; return @() }
+& $exe -NoProfile -ExecutionPolicy Bypass -File $gnTool -Name 'Τεστ εντολή' -Code 0 -Quiet -NoPopup -DryRunFile $gnDry | Out-Null
+$gnLines = @(Gn-Dry)
+Check ($LASTEXITCODE -eq 0 -and $gnLines.Count -eq 1 -and $gnLines[0] -eq ('Gear World ' + [char]0x2013 + ' Τεστ εντολή: ΕΤΟΙΜΟ')) 'gw-notify: code 0 gives «Gear World – <name>: ΕΤΟΙΜΟ», exit 0'
+& $exe -NoProfile -ExecutionPolicy Bypass -File $gnTool -Name 'Τεστ εντολή' -Code 5 -Quiet -NoPopup -DryRunFile $gnDry | Out-Null
+$gnLines = @(Gn-Dry)
+Check ($LASTEXITCODE -eq 0 -and $gnLines.Count -eq 1 -and $gnLines[0].EndsWith('Τεστ εντολή: ΣΦΑΛΜΑ')) 'gw-notify: code 5 gives ΣΦΑΛΜΑ and still exits 0'
+& $exe -NoProfile -ExecutionPolicy Bypass -File $gnTool -Name 'x' -Phone -Quiet -NoPopup -TopicFile (Join-Path $work 'gn-none\ntfy-topic.dat') -DryRunFile $gnDry | Out-Null
+$gnLines = @(Gn-Dry)
+Check ($LASTEXITCODE -eq 0 -and $gnLines.Count -eq 1) 'gw-notify -Phone without a topic: sends nothing, exit 0'
+$gnRules = [System.IO.File]::ReadAllText((Join-Path $repo 'CLAUDE.md'))
+Check ($gnRules.Contains("gw-notify.ps1'; if (Test-Path `$nf) { powershell -NoProfile -ExecutionPolicy Bypass -File `$nf -Name") -and -not $gnRules.Contains('-Failed:')) 'CLAUDE.md: the notify line for every command (with -Code, not -Failed:)'
+if ($isWin) {
+    Write-Host 'gw-notify-setup.ps1 (DPAPI)'
+    $gnHome = Join-Path $work 'gn-home'
+    $gnTools = Join-Path $gnHome 'gear-world-tools'
+    $gnSec = Join-Path $gnHome 'gear-world-secrets'
+    $gnRep = Join-Path $gnHome 'gear-world-reports'
+    $gnArgs = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $gnSetup, '-ToolsDir', $gnTools, '-SecretsDir', $gnSec, '-OutDir', $gnRep, '-NoClipboard', '-NoNotify', '-NoWait', '-NoTest')
+    function Gn-Report { $f = @(Get-ChildItem -LiteralPath $gnRep -File -Filter 'NOTIFY_SETUP_*.txt' -ErrorAction SilentlyContinue | Sort-Object LastWriteTime, Name | Select-Object -Last 1); if ($f.Count -eq 1) { return [System.IO.File]::ReadAllText($f[0].FullName, [System.Text.Encoding]::UTF8) }; return '' }
+    function Gn-Topic { $p = Join-Path $gnSec 'ntfy-topic.dat'; if (-not (Test-Path -LiteralPath $p)) { return '' }; $s = ConvertTo-SecureString ([System.IO.File]::ReadAllText($p).Trim()); return [System.Runtime.InteropServices.Marshal]::PtrToStringBSTR([System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($s)) }
+    & $exe @gnArgs | Out-Null
+    Check ($LASTEXITCODE -eq 0 -and (Gn-Report).Contains('Μόνο ανάγνωση') -and -not (Test-Path -LiteralPath $gnTools) -and -not (Test-Path -LiteralPath $gnSec)) 'notify setup read-only: exit 0, plan only, nothing written'
+    & $exe @gnArgs -Apply -Approve 'ΕΓΚΡΙΝΩ ΕΙΔΟΠΟΙΗΣΗ' | Out-Null
+    Check ($LASTEXITCODE -eq 1 -and -not (Test-Path -LiteralPath $gnSec)) 'notify setup with a wrong phrase: exit 1, nothing written'
+    Start-Sleep -Milliseconds 1100
+    $gnScreen = (& $exe @gnArgs -Apply -Approve 'egkrino eidopoihseis ntfy' 2>&1 | Out-String)
+    $gnT1 = Gn-Topic
+    $gnRep1 = Gn-Report
+    Check ($LASTEXITCODE -eq 0 -and $gnRep1.Contains('ΕΤΟΙΜΟ: οι ειδοποιήσεις στήθηκαν')) 'notify setup with the phrase (Latin form): exit 0'
+    Check ((Test-Path -LiteralPath (Join-Path $gnTools 'gw-notify.ps1')) -and (Get-FileHash -LiteralPath (Join-Path $gnTools 'gw-notify.ps1')).Hash -eq (Get-FileHash -LiteralPath $gnTool).Hash) 'notify setup: gw-notify.ps1 copied to gear-world-tools'
+    Check ($gnT1 -match '^gw(-[a-hj-km-np-z2-9]{4}){5}$') 'notify setup: a random topic gw-xxxx-xxxx-xxxx-xxxx-xxxx without i, l, o, 0, 1'
+    Check ($gnScreen.Contains($gnT1) -and -not $gnRep1.Contains($gnT1) -and -not ($gnRep1 -match 'gw(-[a-z0-9]{4}){5}')) 'notify setup: the topic is shown on the screen only, never in the report'
+    Check (-not ([System.IO.File]::ReadAllText((Join-Path $gnSec 'ntfy-topic.dat'))).Contains($gnT1)) 'notify setup: the topic file is encrypted (DPAPI)'
+    Start-Sleep -Milliseconds 1100
+    & $exe @gnArgs -Apply -Approve 'ΕΓΚΡΙΝΩ ΕΙΔΟΠΟΙΗΣΕΙΣ NTFY' | Out-Null
+    Check ($LASTEXITCODE -eq 0 -and (Gn-Topic) -eq $gnT1 -and @(Get-ChildItem -LiteralPath $gnTools -Filter 'gw-notify.ps1.bak-*').Count -eq 1) 'notify setup again: same topic (the phone stays subscribed), old script backed up'
+    Start-Sleep -Milliseconds 1100
+    & $exe @gnArgs -Apply -Approve 'ΕΓΚΡΙΝΩ ΕΙΔΟΠΟΙΗΣΕΙΣ NTFY' -NewTopic | Out-Null
+    $gnT2 = Gn-Topic
+    Check ($LASTEXITCODE -eq 0 -and $gnT2 -ne $gnT1 -and $gnT2 -match '^gw(-[a-z0-9]{4}){5}$' -and @(Get-ChildItem -LiteralPath $gnSec -Filter 'ntfy-topic.dat.bak-*').Count -eq 1) 'notify setup -NewTopic: a new topic, the old file backed up'
+    Start-Sleep -Milliseconds 1100
+    $gnScreen = (& $exe @gnArgs -ShowTopic 2>&1 | Out-String)
+    Check ($LASTEXITCODE -eq 0 -and $gnScreen.Contains($gnT2) -and -not (Gn-Report).Contains($gnT2)) 'notify setup -ShowTopic: on the screen, not in the report'
+    $gnFile = Join-Path $gnSec 'ntfy-topic.dat'
+    & $exe -NoProfile -ExecutionPolicy Bypass -File $gnTool -Name 'Εισαγωγή Priority A 12345' -Code 0 -Phone -Quiet -NoPopup -TopicFile $gnFile -DryRunFile $gnDry | Out-Null
+    $gnLines = @(Gn-Dry)
+    $gnSent = ''
+    $gnJson = $null
+    if ($gnLines.Count -eq 3) { $gnSent = $gnLines[1] + "`n" + $gnLines[2]; try { $gnJson = ($gnLines[2] | ConvertFrom-Json) } catch { } }
+    Check ($LASTEXITCODE -eq 0 -and $gnLines.Count -eq 3 -and $gnLines[1] -eq 'https://ntfy.sh' -and $gnJson -and $gnJson.topic -eq $gnT2 -and $gnJson.title -eq 'Gear World' -and ([string]$gnJson.message) -match '^Τελείωσε \d\d:\d\d$') 'gw-notify -Phone: to ntfy.sh, only «Τελείωσε HH:mm» with the title Gear World'
+    Check (-not $gnSent.Contains('Priority') -and -not $gnSent.Contains('12345')) 'gw-notify -Phone: never the command name or its numbers'
+    & $exe -NoProfile -ExecutionPolicy Bypass -File $gnTool -Name 'x' -Code 3 -Phone -Quiet -NoPopup -TopicFile $gnFile -DryRunFile $gnDry | Out-Null
+    $gnLines = @(Gn-Dry)
+    $gnJson = $null
+    if ($gnLines.Count -eq 3) { try { $gnJson = ($gnLines[2] | ConvertFrom-Json) } catch { } }
+    Check ($LASTEXITCODE -eq 0 -and $gnJson -and ([string]$gnJson.message) -match '^Σφάλμα \d\d:\d\d$') 'gw-notify -Phone with code 3: only «Σφάλμα HH:mm»'
+}
+
 Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue
 
 Write-Host ''
