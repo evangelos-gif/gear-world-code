@@ -3,8 +3,8 @@
 // αύριο με το all updates», with the UK, Ireland, Greece and Cyprus as the markets to fill first.
 // Feed facts (download of 26 Nov 2026, read 27 Nov 2026): 15 feeds, about 2.8 GB; every row in GBP, English names,
 // product pages on www.aliexpress.com/item/<number>.html with AliExpress's own affiliate query (kept: keepQuery).
-// The first wave reads only the five smaller feeds (443,000 rows, 294,000 different items): the ten big ones (200 to
-// 300 MB each) wait for a second wave with its own dry run.
+// The first wave reads three feeds that Awin refreshed this week (263,000 rows); the big ones (200 to 300 MB each) wait
+// for a second wave with its own dry run, and the old ones (last refreshed in 2025 or August 2026) are never read.
 // - One card per AliExpress item (its page number); at most 300 cards a subcategory, fewer where a site's category is
 //   already full (L164, L183), so a marketplace adds variety without burying the other shops.
 // - Never: adult products, smoking and vaping, weapons, medicines and supplements, tattoos, contact lenses, costumes,
@@ -17,8 +17,11 @@
 import { join } from 'node:path';
 import { rulesOf, noSale, SERVICE, PART, hgwPlace, wgwFashion, mgwFashion, audience, shoeSub, W, clean } from './lib/wave-a.mjs';
 
-// The five feeds of the first wave (data_feed_id).
-export const FEEDS = Object.freeze([103140, 103143, 102500, 97499, 115677]);
+// The feeds of the first wave (data_feed_id): only ones Awin refreshed in the last days (download report of 27 Nov 2026:
+// 103140 and 103143 on 27 Nov, 115677 on 24 Nov). Feed 102500 (last refreshed by Awin on 3 Nov 2025) and 97499 (14 Aug
+// 2026) are old copies whose prices are not true now, so they stay out (L238: only true prices).
+export const FEEDS = Object.freeze([103140, 103143, 115677]);
+export const OLD_FEEDS = Object.freeze([102500, 102509, 97499]);
 
 export const RULES = rulesOf({
   key: 'aliexpress-uk', advertiserId: 7035, retailer: 'AliExpress UK', currency: 'GBP',

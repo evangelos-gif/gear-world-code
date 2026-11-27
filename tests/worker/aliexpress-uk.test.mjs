@@ -11,7 +11,7 @@ const place = (name, feedCategory = '') => {
 };
 const site = name => import(`../../sites/${name}/site.config.js`).then(m => m.default);
 
-test('L239: the rules of AliExpress UK: Awin 7035 in pounds, four older sites, five feeds, caps per subcategory', () => {
+test('L239: the rules of AliExpress UK: Awin 7035 in pounds, four older sites, three fresh feeds, caps per subcategory', () => {
   const R = ali.RULES;
   assert.equal(R.key, 'aliexpress-uk');
   assert.equal(R.advertiserId, 7035);
@@ -24,7 +24,9 @@ test('L239: the rules of AliExpress UK: Awin 7035 in pounds, four older sites, f
   assert.ok(R.shop.test('https://www.aliexpress.com/item/1005006051018604.html?isdl=y&aff_fsk=x'));
   assert.ok(!R.shop.test('https://pl.aliexpress.com/item/1005006051018604.html'));
   const files = ali.feedFiles('/x');
-  assert.equal(files.length, 5);
+  assert.equal(files.length, 3);
+  // L238: the feeds Awin last refreshed in 2025 or August 2026 are never read (their prices are not true now).
+  for (const old of ali.OLD_FEEDS) assert.ok(!ali.FEEDS.includes(old) && !files.some(f => f.endsWith(`_${old}.csv.gz`)), String(old));
   assert.ok(files.every(f => /AWIN_7035_\d+\.csv\.gz$/.test(f)));
   assert.equal(ali.productKey(k => (k === 'merchant_deep_link' ? 'https://www.aliexpress.com/item/1005007174665510.html?src=AWINUK2' : '')), '1005007174665510');
 });
