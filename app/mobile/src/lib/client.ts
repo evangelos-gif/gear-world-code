@@ -17,6 +17,14 @@ export function megaStoresUrl(country: string, phoneRegion?: string | null): str
   return MEGA_STORES_URL + (MEGA_STORES_PAGES[code] ?? '');
 }
 
+/**
+ * The Mega Stores card on Home shows only where Mega Stores has a page for the person's country: its main page says
+ * "No store of Mega Stores is listed for your country yet" (checked 25/11/2026), so the UK and Cyprus wait for theirs.
+ */
+export function hasMegaStoresPage(country: string, phoneRegion?: string | null): boolean {
+  return megaStoresUrl(country, phoneRegion) !== MEGA_STORES_URL;
+}
+
 /** The countries the app is published in (Google Play and App Store, 23/11/2026). */
 export const DELIVERY_COUNTRIES = ['GB', 'GR', 'CY', 'PL', 'US', 'DE'] as const;
 export type Country = (typeof DELIVERY_COUNTRIES)[number];

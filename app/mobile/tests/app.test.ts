@@ -12,7 +12,7 @@ import {
 } from '../src/lib/api.ts';
 import {
   clientHeaders, setClientVersion, isShown, parseAppConfig, setHiddenRetailers, setDeliveryCountry, deliveryCountry, DELIVERY_COUNTRIES,
-  COUNTRY_NAMES, MEGA_STORES_URL, megaStoresUrl
+  COUNTRY_NAMES, MEGA_STORES_URL, megaStoresUrl, hasMegaStoresPage
 } from '../src/lib/client.ts';
 import { daysBetween, isFresh, setAlert, checkAlerts, keepSaved, parseAlerts, MAX_ALERTS } from '../src/lib/alerts.ts';
 import { RELEASE_KEYS, RELEASE_STRINGS } from '../src/i18n/release-strings.ts';
@@ -677,6 +677,7 @@ test('texts: the 1.0.2 texts exist in all 11 languages, same placeholders, no sh
 test('Mega Stores and Amazon: Mega Stores opens in the phone browser, and no Amazon link is in the app', () => {
   const read = (f: string) => readFileSync(new URL(f, import.meta.url), 'utf8');
   for (const f of ['../src/app/(tabs)/settings.tsx', '../src/components/footer.tsx']) {
+    // (the Home card has its own check below)
     const src = read(f);
     assert.match(src, /openInBrowser\(megaStoresUrl\(country, phoneRegion\(\)\)\)/, `${f}: Mega Stores opens in the phone's browser`);
     assert.ok(!/openSheet\((MEGA_STORES_URL|megaStoresUrl)/.test(src), `${f}: never in a sheet inside the app`);
@@ -692,6 +693,15 @@ test('Mega Stores and Amazon: Mega Stores opens in the phone browser, and no Ama
   assert.equal(megaStoresUrl('', 'de'), 'https://megastoresgearworld.com/de/', 'Automatic: the phone\'s country');
   assert.equal(megaStoresUrl('', ''), MEGA_STORES_URL);
   assert.equal(megaStoresUrl('', null), MEGA_STORES_URL);
+  // The card on Home shows only where Mega Stores has a page (its main page says "no store for your country yet").
+  for (const c of ['GR', 'DE', 'US', 'PL']) assert.ok(hasMegaStoresPage(c), c);
+  for (const c of ['GB', 'CY']) assert.ok(!hasMegaStoresPage(c), c);
+  const card = readFileSync(new URL('../src/components/mega-stores-card.tsx', import.meta.url), 'utf8');
+  assert.match(card, /openInBrowser\(megaStoresUrl\(country, region\)\)/, 'the Home card opens the browser');
+  assert.match(card, /if \(!hasMegaStoresPage\(country, region\)\) return null;/);
+  assert.ok(!/openSheet/.test(card), 'never inside the app');
+  assert.match(readFileSync(new URL('../src/app/(tabs)/index.tsx', import.meta.url), 'utf8'), /<MegaStoresCard \/>/);
+  assert.ok(hasMegaStoresPage('', 'gr') && !hasMegaStoresPage('', 'GB') && !hasMegaStoresPage('', null));
   const app = JSON.parse(read('../app.json')).expo;
   assert.equal(JSON.stringify(app).includes('megastoresgearworld'), false, 'no App Links / Universal Links for Mega Stores');
   // No Amazon address anywhere in the app's code or settings.

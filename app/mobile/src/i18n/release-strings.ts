@@ -4,11 +4,13 @@
 // (lessons L107, Manager 24/11/2026). Idea 17 Α of chat 8 (owner 25/11/2026): a greeting for the time of day, a
 // friendlier "nothing found" and one plain sentence on how Gear World works.
 // Version 1.0.3, Idea 17 Γ (owner 25/11/2026): the Appearance choice (Dark, Light, Same as the phone).
+// Mega Stores card on Home (owner 27/11/2026): it opens megastoresgearworld.com in the phone's browser («Α»).
 export const RELEASE_KEYS = [
   'alertOn', 'alertOff', 'alertHint', 'alertTitle', 'alertBody', 'alertsOff', 'openSettings', 'alertChannel', 'alertTag',
   'deliverTitle', 'deliverAuto', 'deliverHint',
   'greetMorning', 'greetAfternoon', 'greetEvening', 'noResultsHelp', 'noResultsCountry', 'howWeSell',
-  'appearanceTitle', 'themeDark', 'themeLight', 'themeSystem'
+  'appearanceTitle', 'themeDark', 'themeLight', 'themeSystem',
+  'megaText', 'megaCta'
 ] as const;
 
 export type ReleaseKey = (typeof RELEASE_KEYS)[number];
@@ -36,7 +38,9 @@ export const RELEASE_STRINGS: Record<string, Record<ReleaseKey, string>> = {
     appearanceTitle: "Appearance",
     themeDark: "Dark",
     themeLight: "Light",
-    themeSystem: "Same as the phone"
+    themeSystem: "Same as the phone",
+    megaText: "The big retailers of your country in one place.",
+    megaCta: "Enter Mega Stores"
   },
   'el-GR': {
     alertOn: 'Ειδοποίηση τιμής: ενεργή',
@@ -60,7 +64,9 @@ export const RELEASE_STRINGS: Record<string, Record<ReleaseKey, string>> = {
     appearanceTitle: "Εμφάνιση",
     themeDark: "Σκούρο",
     themeLight: "Ανοιχτό",
-    themeSystem: "Όπως το κινητό"
+    themeSystem: "Όπως το κινητό",
+    megaText: "Τα μεγάλα καταστήματα της χώρας σας σε ένα σημείο.",
+    megaCta: "Μπείτε στο Mega Stores"
   },
   'de-DE': {
     alertOn: 'Preisalarm an',
@@ -84,7 +90,9 @@ export const RELEASE_STRINGS: Record<string, Record<ReleaseKey, string>> = {
     appearanceTitle: "Darstellung",
     themeDark: "Dunkel",
     themeLight: "Hell",
-    themeSystem: "Wie das Handy"
+    themeSystem: "Wie das Handy",
+    megaText: "Die großen Händler Ihres Landes an einem Ort.",
+    megaCta: "Zu Mega Stores"
   },
   'fr-FR': {
     alertOn: 'Alerte prix activée',
@@ -108,7 +116,9 @@ export const RELEASE_STRINGS: Record<string, Record<ReleaseKey, string>> = {
     appearanceTitle: "Apparence",
     themeDark: "Sombre",
     themeLight: "Clair",
-    themeSystem: "Comme le téléphone"
+    themeSystem: "Comme le téléphone",
+    megaText: "Les grands marchands de votre pays, au même endroit.",
+    megaCta: "Entrer dans Mega Stores"
   },
   'it-IT': {
     alertOn: 'Avviso prezzo attivo',
@@ -132,7 +142,9 @@ export const RELEASE_STRINGS: Record<string, Record<ReleaseKey, string>> = {
     appearanceTitle: "Aspetto",
     themeDark: "Scuro",
     themeLight: "Chiaro",
-    themeSystem: "Come il telefono"
+    themeSystem: "Come il telefono",
+    megaText: "I grandi rivenditori del tuo paese, in un unico posto.",
+    megaCta: "Entra in Mega Stores"
   },
   'es-ES': {
     alertOn: 'Aviso de precio activado',
@@ -156,7 +168,9 @@ export const RELEASE_STRINGS: Record<string, Record<ReleaseKey, string>> = {
     appearanceTitle: "Apariencia",
     themeDark: "Oscuro",
     themeLight: "Claro",
-    themeSystem: "Como el móvil"
+    themeSystem: "Como el móvil",
+    megaText: "Los grandes vendedores de tu país, en un solo lugar.",
+    megaCta: "Entrar en Mega Stores"
   },
   'pt-PT': {
     alertOn: 'Alerta de preço ativo',
@@ -180,7 +194,9 @@ export const RELEASE_STRINGS: Record<string, Record<ReleaseKey, string>> = {
     appearanceTitle: "Aspeto",
     themeDark: "Escuro",
     themeLight: "Claro",
-    themeSystem: "Como o telemóvel"
+    themeSystem: "Como o telemóvel",
+    megaText: "Os grandes vendedores do seu país, num só lugar.",
+    megaCta: "Entrar na Mega Stores"
   },
   'nl-NL': {
     alertOn: 'Prijsmelding aan',
@@ -204,7 +220,9 @@ export const RELEASE_STRINGS: Record<string, Record<ReleaseKey, string>> = {
     appearanceTitle: "Weergave",
     themeDark: "Donker",
     themeLight: "Licht",
-    themeSystem: "Zoals de telefoon"
+    themeSystem: "Zoals de telefoon",
+    megaText: "De grote verkopers van uw land op één plek.",
+    megaCta: "Naar Mega Stores"
   },
   'sq-AL': {
     alertOn: 'Njoftimi i çmimit aktiv',
@@ -228,7 +246,9 @@ export const RELEASE_STRINGS: Record<string, Record<ReleaseKey, string>> = {
     appearanceTitle: "Pamja",
     themeDark: "E errët",
     themeLight: "E çelët",
-    themeSystem: "Si telefoni"
+    themeSystem: "Si telefoni",
+    megaText: "Shitësit e mëdhenj të vendit tuaj në një vend.",
+    megaCta: "Hyni në Mega Stores"
   },
   'ro-RO': {
     alertOn: 'Alertă de preț activă',
@@ -252,7 +272,9 @@ export const RELEASE_STRINGS: Record<string, Record<ReleaseKey, string>> = {
     appearanceTitle: "Aspect",
     themeDark: "Întunecat",
     themeLight: "Luminos",
-    themeSystem: "Ca telefonul"
+    themeSystem: "Ca telefonul",
+    megaText: "Marii comercianți din țara ta, într-un singur loc.",
+    megaCta: "Intră în Mega Stores"
   },
   'ru-RU': {
     alertOn: 'Уведомление о цене включено',
@@ -276,6 +298,8 @@ export const RELEASE_STRINGS: Record<string, Record<ReleaseKey, string>> = {
     appearanceTitle: "Тема",
     themeDark: "Тёмная",
     themeLight: "Светлая",
-    themeSystem: "Как на телефоне"
+    themeSystem: "Как на телефоне",
+    megaText: "Крупные продавцы вашей страны в одном месте.",
+    megaCta: "Перейти в Mega Stores"
   }
 };

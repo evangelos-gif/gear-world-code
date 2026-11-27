@@ -10,6 +10,7 @@ import { Newsletter } from '@/components/newsletter';
 import { SearchBox } from '@/components/search-box';
 import { SeasonBanner } from '@/components/season-banner';
 import { LanguageButton } from '@/components/language-button';
+import { MegaStoresCard } from '@/components/mega-stores-card';
 import { BrandBar, Chip, Screen, Txt } from '@/components/ui';
 import { WorldCard } from '@/components/world-card';
 import { useI18n } from '@/i18n';
@@ -73,6 +74,9 @@ export default function Home() {
           </View>
 
           <SeasonBanner hasDeals={shownDeals.length > 0} dealsLoaded={dealsLoaded} seasonsOn={seasonsOn} onTarget={goTo} />
+
+          {/* Mega Stores, high on Home with its own button (owner 27/11/2026); it opens the browser («Α»). */}
+          <MegaStoresCard />
 
           {shownDeals.length ? (
             <View style={s.section} onLayout={remember('deals')}>
