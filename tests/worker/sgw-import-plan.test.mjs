@@ -168,16 +168,13 @@ test('sources: the first-wave shops are approved, VEVOR waits for the second wav
     // bol.com Sport (L204): approved but paused until the removal tool and the daily refresh (tests/worker/bol-import.test.mjs).
     'bol.com',
     // Linkwise, Greece and Cyprus (21 Nov 2026, L209): Greek shops, placed by tools/import-rules/lib/linkwise-sections.mjs.
-    'Athlos Sport GR', 'e-tennis GR', 'Mandellos Sports GR', 'SportsPoint GR', 'Slamdunk GR', 'Rundome GR', 'Siontis Athletics GR', 'Kalousos GR', 'Vactive GR', 'Carpe Diem GR', 'Mybrand.shoes GR', 'Vasiliki World GR', 'The Lady GR', 'Proteinstar GR', 'EMW GR',
-    // Priority A (L234, 26 Nov 2026): two US sport shops in English, the US only (sites/_shared/wave-a.js).
-    'Anta Sports America US', 'House of Scuba US']);
+    'Athlos Sport GR', 'e-tennis GR', 'Mandellos Sports GR', 'SportsPoint GR', 'Slamdunk GR', 'Rundome GR', 'Siontis Athletics GR', 'Kalousos GR', 'Vactive GR', 'Carpe Diem GR', 'Mybrand.shoes GR', 'Vasiliki World GR', 'The Lady GR', 'Proteinstar GR', 'EMW GR']);
   assert.equal(src.find(s => s.retailer === 'VEVOR').approved, false);
   for (const r of ['Coes', 'Joybuy']) assert.equal(src.find(s => s.retailer === r).sectionHints, false, r);
   // Sport-only shops (Beyond Shakers, Bern Helmets, Fitness Options: 8 Nov 2026) need no sport sections.
   // Sport and Leisure UK and aZengear (8 Nov 2026): sport shops whose whole feed is sport or fitness; the DENY rules keep
   // their trampolines, kids' cars and pool covers out.
-  // Anta Sports America (a sportswear brand) and House of Scuba (diving only), Priority A (L234): their whole feed is sport.
-  for (const s of src.filter(x => x.approved && !x.rulesFrom && !x.sections && !x.network && !['Beyond Shakers', 'Bern Helmets', 'Fitness Options', 'Sport and Leisure UK', 'aZengear', 'TENWAYS', 'Anta Sports America US', 'House of Scuba US'].includes(x.retailer))) assert.ok(s.allowPaths && s.allowPaths.length, s.retailer);
+  for (const s of src.filter(x => x.approved && !x.rulesFrom && !x.sections && !x.network && !['Beyond Shakers', 'Bern Helmets', 'Fitness Options', 'Sport and Leisure UK', 'aZengear', 'TENWAYS'].includes(x.retailer))) assert.ok(s.allowPaths && s.allowPaths.length, s.retailer);
   // AliExpress PL (L157 round 2): placed by its own sections (tools/import-rules/lib/aliexpress-sections.mjs), not by paths.
   assert.equal(src.find(s => s.retailer === 'AliExpress PL').sections, 'aliexpress-pl');
   // Olight UK (9 Nov 2026): only its torch sections; weapon lights, sights, rail mounts, pens and promotions out.

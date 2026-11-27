@@ -45,36 +45,29 @@ export const LEGACY_NAME = /^[A-Za-z0-9 .-]{2,40}$/;
 // VGW Koffer.de DE.
 // Also left out: SGW OpticsPlanet Dvor US (row 142: 586,090 products, rifle scopes and other weapon accessories, which
 // Google Ads does not allow; it needs a filter first).
+// 27 Nov 2026, chat 3's dry run (plan, blocks 19:40 and ~21:30, lessons L237, L238): a line only for the 43 shops imported
+// on 28 Nov 2026 (tools/massive/wave-a-legacy-1128.txt and -Sites 'agw:104895,tgw:59271+8912'). The others wait, with
+// their line out: no products for rooms to rent (DirectWonen.nl), feeds too big without a filter (meubelo.nl, moebel.de),
+// samples only (MicroPerfumes.com), no photos (ssimder), refused (Rasendoktor), Polish (Biokominek-Shop), German or Dutch
+// names the older sites cannot sort yet (Gereedschapspecialist, InterGard, Orchideen Klusmann, Mein kleines Baby, Mijn
+// Hummeltje, Spelhuis, Modellbau-Universe, Bamboo Basics, Shoes4Gentlemen, Timeshop24, Van Arendonk BE and NL, Avocadostore,
+// BrillenPlatz, Goettgen.de, Robell, Salontopper.nl, Stilettoschuhe.com), and feeds last updated in May to August, so no true
+// price (L238: CUCKOO, Enjoy The Wood, HOMELEADER, Puredown, Silicon Valley Air Expert, YouCustomizeIt, Goally, EFE Glasses,
+// Sebastian Cruz Couture, Naghedi, Bioethanol-Kamin-Shop, Bioethanolhaard-Shop; on the new-engine sites AstroAI, Eonon,
+// Lectron, SEALIGHT, Dowinx, Anta Sports America, House of Scuba, Aurzen, EcoFlow, MUNBYN, NIIMBOTS; Plaud DE not planned).
 const SRC = 'chat 3, 26 Nov 2026 (tools/massive/wave-a-1126.json)';
 
 export const WAVE_A = Object.freeze([
   // AGW
-  { site: 'agw', retailer: 'AstroAI US', countries: ['US'], row: 4, source: SRC },
-  { site: 'agw', retailer: 'Eonon US', countries: ['US'], row: 5, source: SRC },
-  { site: 'agw', retailer: 'Lectron US', countries: ['US'], row: 7, source: SRC },
   { site: 'agw', retailer: 'Rexing US', countries: ['US'], row: 11, source: SRC },
-  { site: 'agw', retailer: 'SEALIGHT US', countries: ['US'], row: 12, source: SRC },
-  // CGW
-  { site: 'cgw', retailer: 'Gereedschapspecialist NL', countries: ['NL'], language: 'nl', row: 18, source: SRC },
-  { site: 'cgw', retailer: 'ssimder welding equipment inc US', countries: ['US'], row: 19, source: SRC },
   // GGW
-  { site: 'ggw', retailer: 'InterGard Heim und Garten DE', countries: ['DE'], language: 'de', row: 31, source: SRC },
-  { site: 'ggw', retailer: 'Orchideen Klusmann DE', countries: ['DE'], language: 'de', row: 33, source: SRC },
-  { site: 'ggw', retailer: 'Rasendoktor DE', countries: ['DE'], language: 'de', row: 34, source: SRC },
   { site: 'ggw', retailer: 'WILDGUARDER US', countries: ['US'], row: 37, source: SRC },
   // HGW
   { site: 'hgw', retailer: '1-800Lighting US', countries: ['US'], row: 38, source: SRC },
   { site: 'hgw', retailer: 'ARIEL Bath US', countries: ['US'], row: 39, source: SRC },
-  { site: 'hgw', retailer: 'Bioethanol-Kamin-Shop DE', countries: ['DE'], language: 'de', row: 41, source: SRC },
-  { site: 'hgw', retailer: 'Bioethanolhaard-Shop NL', countries: ['NL'], language: 'nl', row: 42, source: SRC },
-  { site: 'hgw', retailer: 'Biokominek-Shop PL', countries: ['PL'], language: 'pl', row: 43, source: SRC },
   { site: 'hgw', retailer: 'COSORI DE', countries: ['DE'], language: 'de', row: 46, source: SRC },
-  { site: 'hgw', retailer: 'CUCKOO Electronics America', countries: ['US', 'CA', 'MX'], row: 47, source: SRC },
   { site: 'hgw', retailer: 'Dekotopia DE', countries: ['DE'], language: 'de', row: 49, source: SRC },
-  { site: 'hgw', retailer: 'DirectWonen.nl NL', countries: ['NL'], language: 'nl', row: 50, source: SRC },
-  { site: 'hgw', retailer: 'Enjoy The Wood US', countries: ['US'], row: 51, source: SRC },
   { site: 'hgw', retailer: 'FUFUandGAGA US', countries: ['US'], row: 54, source: SRC },
-  { site: 'hgw', retailer: 'HOMELEADER INC US', countries: ['US'], row: 57, source: SRC },
   { site: 'hgw', retailer: 'HOMSEE US', countries: ['US'], row: 58, source: SRC },
   { site: 'hgw', retailer: 'House of Lamps US', countries: ['US'], row: 59, source: SRC },
   { site: 'hgw', retailer: 'Janine DE', countries: ['DE'], language: 'de', row: 60, source: SRC },
@@ -85,71 +78,36 @@ export const WAVE_A = Object.freeze([
   { site: 'hgw', retailer: 'Levoit DE', countries: ['DE'], language: 'de', row: 66, source: SRC },
   { site: 'hgw', retailer: 'Matten Welt DE', countries: ['DE'], language: 'de', row: 69, source: SRC },
   { site: 'hgw', retailer: 'Maytag US', countries: ['US'], row: 70, source: SRC },
-  { site: 'hgw', retailer: 'meubelo.nl NL', countries: ['NL'], language: 'nl', row: 71, source: SRC },
-  { site: 'hgw', retailer: 'moebel.de DE', countries: ['DE'], language: 'de', row: 72, source: SRC },
   { site: 'hgw', retailer: 'NORMA24 DE', countries: ['DE'], language: 'de', row: 74, source: SRC },
   { site: 'hgw', retailer: 'Profichemie.com DE', countries: ['DE'], language: 'de', row: 75, source: SRC },
-  { site: 'hgw', retailer: 'Puredown.Inc US', countries: ['US'], row: 77, source: SRC },
   { site: 'hgw', retailer: 'Sanifun - Online-sanitairkopen.nl NL', countries: ['NL'], language: 'nl', row: 79, source: SRC },
   { site: 'hgw', retailer: 'sheepworld DE', countries: ['DE'], language: 'de', row: 82, source: SRC },
-  { site: 'hgw', retailer: 'Silicon Valley Air Expert Inc US', countries: ['US'], row: 83, source: SRC },
   { site: 'hgw', retailer: 'Vincasa DE', countries: ['DE'], language: 'de', row: 86, source: SRC },
   { site: 'hgw', retailer: 'Whirlpool USA', countries: ['US'], row: 89, source: SRC },
-  { site: 'hgw', retailer: 'YouCustomizeIt US', countries: ['US'], row: 90, source: SRC },
   // KGW
   { site: 'kgw', retailer: 'Baker Ross IE', countries: ['IE'], row: 91, source: SRC },
-  { site: 'kgw', retailer: 'Goally US', countries: ['US'], row: 93, source: SRC },
-  { site: 'kgw', retailer: 'Mein kleines Baby DE', countries: ['DE'], language: 'de', row: 97, source: SRC },
-  { site: 'kgw', retailer: 'Mijn Hummeltje NL', countries: ['NL'], language: 'nl', row: 99, source: SRC },
-  { site: 'kgw', retailer: 'Spelhuis BE', countries: ['BE'], language: 'nl', row: 103, source: SRC },
   { site: 'kgw', retailer: 'Tushbaby US', countries: ['US'], row: 105, source: SRC },
   { site: 'kgw', retailer: 'Zulily US', countries: ['US'], row: 106, source: SRC },
-  { site: 'kgw', retailer: 'Modellbau-Universe DE', countries: ['DE'], language: 'de', row: 107, source: SRC },
   // MGW
-  { site: 'mgw', retailer: 'Bamboo Basics BE', countries: ['BE'], language: 'nl', row: 108, source: SRC },
   { site: 'mgw', retailer: 'Bruno Marc US', countries: ['US'], row: 109, source: SRC },
   { site: 'mgw', retailer: 'ECKO UNLTD US', countries: ['US'], row: 111, source: SRC },
-  { site: 'mgw', retailer: 'EFE Glasses US', countries: ['US'], row: 112, source: SRC },
   { site: 'mgw', retailer: 'Hanes.com US', countries: ['US'], row: 114, source: SRC },
-  { site: 'mgw', retailer: 'Sebastian Cruz Couture US', countries: ['US'], row: 116, source: SRC },
-  { site: 'mgw', retailer: 'Shoes4Gentlemen DE', countries: ['DE'], language: 'de', row: 117, source: SRC },
-  { site: 'mgw', retailer: 'Timeshop24 DE', countries: ['DE'], language: 'de', row: 119, source: SRC },
-  { site: 'mgw', retailer: 'Van Arendonk BE', countries: ['BE'], language: 'nl', row: 121, source: SRC },
-  { site: 'mgw', retailer: 'Van Arendonk NL', countries: ['NL'], language: 'nl', row: 122, source: SRC },
-  // PGW
-  { site: 'pgw', retailer: 'Dowinx US', countries: ['US'], row: 22, source: SRC },
-  // SGW
-  { site: 'sgw', retailer: 'Anta Sports America US', countries: ['US'], row: 134, source: SRC },
-  { site: 'sgw', retailer: 'House of Scuba US', countries: ['US'], row: 138, source: SRC },
   // TGW
-  { site: 'tgw', retailer: 'Aurzen US', countries: ['US'], row: 159, source: SRC },
   { site: 'tgw', retailer: 'BLUETTI US', countries: ['US'], row: 161, source: SRC },
-  { site: 'tgw', retailer: 'EcoFlow US', countries: ['US'], row: 165, source: SRC },
-  { site: 'tgw', retailer: 'MUNBYN LLC US', countries: ['US'], row: 176, source: SRC },
-  { site: 'tgw', retailer: 'NIIMBOTS US', countries: ['US'], row: 177, source: SRC },
   { site: 'tgw', retailer: 'Paradigit.ie IE', countries: ['IE'], row: 180, source: SRC },
-  { site: 'tgw', retailer: 'Plaud DE', countries: ['DE'], row: 182, source: SRC },
   // WGW
   { site: 'wgw', retailer: 'AMIclubwear US', countries: ['US'], row: 196, source: SRC },
-  { site: 'wgw', retailer: 'Avocadostore DE', countries: ['DE'], language: 'de', row: 199, source: SRC },
   { site: 'wgw', retailer: 'Bali Bras US', countries: ['US'], row: 200, source: SRC },
-  { site: 'wgw', retailer: 'BrillenPlatz DE', countries: ['DE'], language: 'de', row: 202, source: SRC },
   { site: 'wgw', retailer: 'Cashmere Boutique US', countries: ['US'], row: 204, source: SRC },
   { site: 'wgw', retailer: 'Caudalie USA', countries: ['CA', 'US'], row: 205, source: SRC },
   { site: 'wgw', retailer: 'FragranceNet.com US', countries: ['US'], row: 207, source: SRC },
   { site: 'wgw', retailer: 'Giuseppe Zanotti US', countries: ['US'], row: 210, source: SRC },
-  { site: 'wgw', retailer: 'Goettgen.de DE', countries: ['DE'], language: 'de', row: 211, source: SRC },
   { site: 'wgw', retailer: 'iEDM US', countries: ['US'], row: 212, source: SRC },
   { site: 'wgw', retailer: 'Julep US', countries: ['US'], row: 213, source: SRC },
   { site: 'wgw', retailer: 'Maidenform US', countries: ['US'], row: 215, source: SRC },
-  { site: 'wgw', retailer: 'MicroPerfumes.com US', countries: ['US'], row: 216, source: SRC },
-  { site: 'wgw', retailer: 'Naghedi US', countries: ['US'], row: 218, source: SRC },
   { site: 'wgw', retailer: 'onehanesplace.com US', countries: ['US'], row: 219, source: SRC },
   { site: 'wgw', retailer: 'Princess Polly US', countries: ['US'], row: 220, source: SRC },
-  { site: 'wgw', retailer: 'Robell DE', countries: ['DE'], language: 'de', row: 221, source: SRC },
   { site: 'wgw', retailer: 'Sachin and Babi US', countries: ['US'], row: 223, source: SRC },
-  { site: 'wgw', retailer: 'Salontopper.nl NL', countries: ['NL'], language: 'nl', row: 224, source: SRC },
-  { site: 'wgw', retailer: 'Stilettoschuhe.com DE', countries: ['DE'], language: 'de', row: 225, source: SRC },
 ].map(e => Object.freeze({ ...e, countries: Object.freeze([...e.countries]) })));
 
 // { retailers, languages } of one site, spread into its deliversTo.

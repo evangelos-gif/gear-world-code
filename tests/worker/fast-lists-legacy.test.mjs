@@ -17,7 +17,6 @@ import { viewFor, homeView, cacheKeyUrl } from '../../src/lib/visibility.js';
 import { isDbBusy, staleKeyUrl } from '../../src/lib/http.js';
 import { writeCosts } from '../../tools/legacy-refresh-plan.mjs';
 import { TEST_DAY } from './test-clock.mjs';
-import { withoutWaveA } from './without-wave-a.mjs';
 
 const read = f => readFileSync(f, 'utf8');
 const NOW = Date.parse(`${TEST_DAY}T12:00:00Z`);
@@ -246,14 +245,11 @@ test('L193: a big category is walked in its sort\'s own index (no sort of the ca
   }
 });
 
-test('L193: two names of one category (WGW Watches) are merged walks; a collection of 6 names (WGW Gifts for Her) in groups of 5 (D1 takes 5 SELECTs in one UNION ALL)', async t => {
-  // WGW as it was before Priority A (L234): with its 20 more names hidden in the UK view the walk of the 6 names is 92,000
-  // characters, over D1_SQL_CHARS, and the page takes the plain query (the same cards, L202). Next step: one hidden list
-  // per statement (chat 4, after Cyber Monday).
-  const real = config.wgw;
-  const site = withoutWaveA('wgw', real);
-  config.wgw = site;
-  t.after(() => { config.wgw = real; });
+test('L193: two names of one category (WGW Watches) are merged walks; a collection of 6 names (WGW Gifts for Her) in groups of 5 (D1 takes 5 SELECTs in one UNION ALL)', async () => {
+  // The real WGW, Priority A included (L234, 28 Nov 2026: 13 more names hidden in the UK view): the walk of the 6 names is
+  // 89,419 characters, just inside D1_SQL_CHARS. A few more hidden names and it takes the plain query (the same cards,
+  // L202): then this test fails, and the next step is one hidden list per statement (chat 4).
+  const site = config.wgw;
   db.useLayout(site);
   const { fast, slow } = shop('wgw', 31, 3000);
   const gifts = site.categories.find(c => c.collection).slug;

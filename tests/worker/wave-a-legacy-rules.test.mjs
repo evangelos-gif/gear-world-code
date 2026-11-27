@@ -25,7 +25,11 @@ test('L237: every Priority A rules file has its key, a legacy site, and the name
     const site = r.RULES.sites[0];
     assert.ok(LEGACY_SITES.includes(site), `${key}: ${site} is one of the older sites`);
     assert.match(r.RULES.retailer, LEGACY_NAME, `${key}: a name tools/legacy-import.ps1 accepts`);
-    assert.ok(WAVE_A.some(e => e.site === site && e.retailer === r.RULES.retailer), `${key}: "${r.RULES.retailer}" has a delivery line on ${site}`);
+    // A shop of the pairs file has its delivery line; one that waits (L238, a comment in the pairs file) has none until it is
+    // imported (chat 4, 27 Nov 2026: no line for a shop that is not imported, L234).
+    const line = WAVE_A.some(e => e.site === site && e.retailer === r.RULES.retailer);
+    if (PAIRS.some(p => p.split(':')[0] === key)) assert.ok(line, `${key}: "${r.RULES.retailer}" has a delivery line on ${site}`);
+    else assert.equal(line, false, `${key}: "${r.RULES.retailer}" waits, so no delivery line on ${site} yet`);
     assert.ok(r.RULES.shop instanceof RegExp, `${key}: shop pattern`);
     assert.ok(r.RULES.maxPrice > r.RULES.minPrice, `${key}: prices`);
     assert.equal(typeof r.classify, 'function', `${key}: classify`);
