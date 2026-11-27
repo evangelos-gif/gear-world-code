@@ -1,0 +1,90 @@
+# Refresh of the shops of other networks (CJ, Rakuten, Daisycon, Adtraction) on the six older sites, 26 Nov 2026,
+# before Black Friday (lessons L236): the weekly -Stale refresh reads only Awin feeds. Fresh downloads first, then
+# legacy-import-batch.ps1 -Pairs 'file:tools/massive/refresh-nonawin-1126.txt' -FreshHours 8: a re-import updates price,
+# stock and «Price checked» of every product in the plan and hides the ones gone from the feed (not more than half),
+# each pair with its own restore point; a pair whose feed was not downloaded in the last 8 hours changes nothing.
+# The Greek Linkwise shops (203 rules, about 1.46 million products) are not here: their own refresh is planned apart.
+amoremall-us:wgw  # cj 7468134 Amore Mall
+aosom-us:hgw  # cj 5360120 Aosom
+aosom-us:ggw  # cj 5360120 Aosom
+baobab-eu:hgw  # daisycon 18705 Baobab Collection
+bcbabycare-us:kgw  # cj 7582444 BC Babycare
+bioethanol-uk:hgw  # daisycon 15514 Bioethanol-fireplace.co.uk
+bioethanol-uk:ggw  # daisycon 15514 Bioethanol-fireplace.co.uk
+bloomingdales-uk:wgw  # rakuten 37206 Bloomingdales
+bloomingdales-uk:mgw  # rakuten 37206 Bloomingdales
+bloomingdales-uk:hgw  # rakuten 37206 Bloomingdales
+bloomingdales-uk:kgw  # rakuten 37206 Bloomingdales
+clickandgrow:ggw  # cj 4297609 Click and Grow
+coofandy-us:mgw  # cj 7636568 COOFANDY
+cottonon-uk:wgw  # rakuten 41440 Cotton On
+cottonon-uk:mgw  # rakuten 41440 Cotton On
+cottonon-uk:kgw  # rakuten 41440 Cotton On
+defender-uk:hgw  # adtraction 1974721411 Defender
+destira-us:kgw  # cj 6153681 Destira
+dhgate-kids-boots:kgw  # cj 3992613 DHgate
+diecast:kgw  # cj 2357926 Diecast Models Wholesale
+dillekamille-fr:hgw  # daisycon 7739 Dille Kamille FR
+dillekamille-nl:hgw  # daisycon 7059 Dille Kamille NL
+dreampairs:wgw  # cj 6258731 Dream Pairs
+dreampairs:mgw  # cj 6258731 Dream Pairs
+dreampairs:kgw  # cj 6258731 Dream Pairs
+ecosmetics-us:wgw  # cj 5384937 eCosmetics
+ecosmetics-us:mgw  # cj 5384937 eCosmetics
+ekster-uk:mgw  # rakuten 53020 Ekster UK
+elegantshowers-uk:hgw  # daisycon 21657 Elegant Showers
+foreo:wgw  # cj 5755636 FOREO
+fragranceoutlet-us:wgw  # cj 8022845 Fragrance Outlet
+fragranceoutlet-us:mgw  # cj 8022845 Fragrance Outlet
+fragranceshop-us:wgw  # cj 7287203 FragranceShop.com
+fragranceshop-us:mgw  # cj 7287203 FragranceShop.com
+gardenchic-uk:ggw  # adtraction 2039557167 Garden Chic
+gardenchic-uk:hgw  # adtraction 2039557167 Garden Chic
+haglofs:mgw  # cj 5531758 Haglofs
+haglofs:wgw  # cj 5531758 Haglofs
+hometex-int:hgw  # daisycon 21120 HOME-TEX
+invicta-eu:mgw  # daisycon 18836 Invicta Stores
+invicta-eu:wgw  # daisycon 18836 Invicta Stores
+jeulia:wgw  # cj 4675103 Jeulia
+jeulia:mgw  # cj 4675103 Jeulia
+kaiyababy:kgw  # cj 8022425 Kaiya Baby
+karcher:hgw  # cj 5030015 Karcher UK
+karcher:ggw  # cj 5030015 Karcher UK
+kerstland-nl:hgw  # daisycon 22097 Kerstland
+kidinn:kgw  # daisycon 20605 KidInn
+kincmo:hgw  # cj 7961854 Kincmo
+laredoute-de:hgw  # daisycon 22318 La Redoute DE
+laredoute-nl:hgw  # daisycon 16029 La Redoute NL
+maceoo:mgw  # cj 5504360 Maceoo
+misstowels-nl:hgw  # daisycon 21226 Miss Towels
+mova-us:hgw  # cj 7906138 MOVA
+mova-us:ggw  # cj 7906138 MOVA
+onlinebedrooms-uk:hgw  # adtraction 2066244013 Online Bedrooms
+opi-uk:wgw  # rakuten 47972 OPI UK
+opticabassol-uk:wgw  # daisycon 19032 Optica Bassol
+opticabassol-uk:mgw  # daisycon 19032 Optica Bassol
+perfumania-us:wgw  # cj 904674 Perfumania
+perfumania-us:mgw  # cj 904674 Perfumania
+sheetstory-uk:hgw  # adtraction 1876393696 Sheet Story
+showery-uk:hgw  # adtraction 1888673499 Showery
+swan-edgar:mgw  # cj 7983236 Swan and Edgar
+swan-edgar:wgw  # cj 7983236 Swan and Edgar
+switchbot:hgw  # cj 5661292 SwitchBot
+temu-us:wgw  # daisycon 18371 TEMU
+temu-us:mgw  # daisycon 18371 TEMU
+temu-us:kgw  # daisycon 18371 TEMU
+temu-us:hgw  # daisycon 18371 TEMU
+temu-us:ggw  # daisycon 18371 TEMU
+timberland-uk:mgw  # daisycon 15048 Timberland UK
+tuinmeubelwereld-nl:ggw  # daisycon 19167 Tuinmeubelwereld
+westwing-de:hgw  # daisycon 20705 Westwing DE
+westwing-es:hgw  # daisycon 20708 Westwing ES
+westwing-fr:hgw  # daisycon 20706 Westwing FR
+westwing-it:hgw  # daisycon 20707 Westwing IT
+westwing-nl:hgw  # daisycon 17294 Westwing NL
+whamond-uk:wgw  # rakuten 54390 W. Hamond
+whamond-uk:mgw  # rakuten 54390 W. Hamond
+woodwick-nl:hgw  # daisycon 21919 WoodWick NL
+xplora:kgw  # cj 5175167 XPLORA UK
+xpluswear:wgw  # daisycon 20417 Xpluswear
+zepter-eu:hgw  # cj 7341377 Zepter
