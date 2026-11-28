@@ -160,7 +160,7 @@ test('every site category has rules, and the menu order matches the site', () =>
 test('sources: the first-wave shops are approved, VEVOR waits for the second wave, sport sections only (L65)', () => {
   const src = JSON.parse(readFileSync('sites/sgw/sources.json', 'utf8')).sources;
   const approved = src.filter(s => s.approved).map(s => s.retailer);
-  assert.deepEqual(approved, ['Coes', 'Joybuy', 'Plusshop UK', 'Bazta UK', 'Beyond Shakers', 'Bern Helmets', 'Fitness Options', 'Sport and Leisure UK', 'aZengear', 'Olight UK', 'AliExpress PL', 'TENWAYS',
+  assert.deepEqual(approved, ['Coes', 'Joybuy', 'Plusshop UK', 'Bazta UK', 'Beyond Shakers', 'Bern Helmets', 'Fitness Options', 'Sport and Leisure UK', 'aZengear', 'Olight UK', 'AliExpress PL', 'AliExpress UK', 'TENWAYS',
     // Daisycon Wave 3 (chat 9, 17 Nov 2026, L170): the Tradeinn sport shops, English feeds in pounds.
     'GoalInn', 'RunnerInn', 'SmashInn', 'SnowInn', 'SwimInn', 'TrainInn', 'XtremeInn', 'DiveInn',
     // Phase 1 of the mass import (21 Nov 2026, L207): Liforme (yoga mats) and three more Tradeinn sport shops.

@@ -1,0 +1,11 @@
+# AliExpress UK (Awin 7035) on the older sites (owner, 27-28 Nov 2026, lessons L239, L241): one line per site for
+# tools/legacy-import-batch.ps1 -Pairs 'file:tools/massive/aliexpress-uk-1128.txt'. Three fresh feeds of the 15
+# (tools/import-rules/aliexpress-uk.mjs FEEDS, never the old ones, L238). The newer sites (TGW, AGW, SGW, BGW, PGW,
+# ZGW, VGW) take the same feeds through their sources.json ("sections": "aliexpress-uk") with -Sites '<site>:7035'.
+aliexpress-uk:wgw
+aliexpress-uk:mgw
+aliexpress-uk:kgw
+aliexpress-uk:hgw
+# Garden and Construction Gear World (L241): their own rules file, the same shop and feeds.
+aliexpress-uk-gc:ggw
+aliexpress-uk-gc:cgw
