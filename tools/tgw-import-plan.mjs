@@ -18,6 +18,7 @@ import * as TGW_RULES from '../sites/tgw/category-rules.js';
 import { normalizeGtin } from '../src/lib/gtin.js';
 import { slugify, truncate } from '../src/lib/text.js';
 import { aliexpressSection } from './import-rules/lib/aliexpress-sections.mjs';
+import { aliexpressUkSection } from './import-rules/lib/aliexpress-uk-sections.mjs';
 import { bolSection, bolEan, bolStamp, bolTooOld, oldFileMessage } from './import-rules/lib/bol-nl.mjs';
 import { linkwiseSection } from './import-rules/lib/linkwise-sections.mjs';
 import { NETWORKS } from './network-links.mjs';
@@ -875,21 +876,28 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
         const categoryPaths = map.merchantCategory.map(i => cleanText(rec[i])).filter(Boolean).join(' | ');
         // "sections": "aliexpress-pl" (owner, 15 Nov 2026, L157): the Polish shop's own sections place the product, with an
         // English subcategory and a shortened name (tools/import-rules/lib/aliexpress-sections.mjs); the site rules read English.
+        // "sections": "aliexpress-uk" (owner, 28 Nov 2026, L241): AliExpress UK's English sections, the same way
+        // (tools/import-rules/lib/aliexpress-uk-sections.mjs), with the card's brand.
         // "sections": "bol-nl" (lessons L204): bol.com's Dutch names, placed by tools/import-rules/lib/bol-nl.mjs (the
         // category of the row, or of the file, routes it; the GS1 path and the name place it); its name without the size.
         // "sections": "linkwise-gr" (lessons L209): a Greek Linkwise shop, placed by its category path and Greek name
         // (tools/import-rules/lib/linkwise-sections.mjs), with an English subcategory.
         const cls = source.sections === 'linkwise-gr' ? linkwiseSection(label, name, merchantCategory || awinCategory, source)
           : source.sections === 'aliexpress-pl' ? aliexpressSection(label, name, merchantCategory)
+          : source.sections === 'aliexpress-uk' ? aliexpressUkSection(label, name, merchantCategory, brand)
           : source.sections === 'bol-nl' ? bolSection(label, name, { categoryId: pick(rec, map.bolCategory) || String(source.advertiserId), gpc: pick(rec, map.bolGpc) || awinCategory, search: source.bolSearch || '' })
           : loose ? classify(name, '', '', source)
             : classify(name, `${merchantCategory || awinCategory} ${merchantCategory ? awinCategory : ''}`.trim(), categoryPaths, source);
         if (!cls.ok) { reject(cls.reason, cls.reason.startsWith('not for UK') ? `${short}  [${notUkHint(name)}]` : short); continue; }
         if (cls.name) name = cls.name;
+        // AliExpress UK (L241): the card's brand is the seller's own, or "AliExpress" for none or a well-known one.
+        if (typeof cls.brand === 'string') brand = cls.brand;
         if (!Number.isFinite(price) || price <= 0) { reject('no price', short); continue; }
         if (price < QUALITY.minPrice || price > QUALITY.maxPrice) { reject('price out of range', short); continue; }
         // A shop's own lowest price, in its currency (AliExpress PL: zl 10, about GBP 2, as round 1; below that single screws and stickers, L157).
         if (source.minPrice && price < source.minPrice) { reject(`price under ${source.minPrice} ${source.currency || ''}`.trim(), short); continue; }
+        // A shop's own highest price (AliExpress UK, L241: over £1,500 a marketplace price looks wrong).
+        if (source.maxPrice && price > source.maxPrice) { reject(`price over ${source.maxPrice} ${source.currency || ''}`.trim(), short); continue; }
         // After the second import (24 Oct 2026, lessons L53): Back to the Office priced "Western Digital WD80EFPX internal hard drive
         // 8 TB" at 838.99 (usually about 200) and a 22 TB disk at 5,761.99. Such a price is an error: visitors would think the site
         // overcharges. A hard disk dearer than 60 per TB (and than 150) is left out.
