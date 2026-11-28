@@ -110,7 +110,7 @@ test('10 categories, as the owner chose (31 Oct 2026), in the menu order of the 
 
 test('sources: the TGW shops with their filters, GamingKit on since it joined (L131), VEVOR off (L63, L79), no text of another site', () => {
   const src = JSON.parse(readFileSync('sites/pgw/sources.json', 'utf8')).sources;
-  assert.deepEqual(src.filter(s => s.approved).map(s => s.retailer), ['Joybuy', 'Back to the Office', 'PCHUB.UK', 'PcNova (IT-Supplies)', 'GamingKit', 'Plusshop UK', 'Bazta UK', 'AKKO', 'Back to the Office IE', 'MonsGeek', 'AliExpress PL', 'EKSA', 'Gogamegeek',
+  assert.deepEqual(src.filter(s => s.approved).map(s => s.retailer), ['Joybuy', 'Back to the Office', 'PCHUB.UK', 'PcNova (IT-Supplies)', 'GamingKit', 'Plusshop UK', 'Bazta UK', 'AKKO', 'Back to the Office IE', 'MonsGeek', 'AliExpress PL', 'AliExpress UK', 'EKSA', 'Gogamegeek',
     // Priority A (L234, 26 Nov 2026): Dowinx, gaming chairs, the US only (sites/_shared/wave-a.js).
     'Dowinx US']); // AliExpress PL: L157 round 2; AKKO: 8 Nov 2026, GamingKit: 14 Nov 2026, round 2c: 14 Nov 2026 (L144)
   assert.equal(src.find(s => s.retailer === 'Back to the Office IE').rulesFrom, 61655, 'the Irish shop takes the UK shop\'s rules');

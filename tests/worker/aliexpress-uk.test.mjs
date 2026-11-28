@@ -93,7 +93,7 @@ test('L239: Home Gear World leaves out appliances, desks, covers, foreign plugs 
   ]) assert.match(place(name, cat), /^out: /, name);
 });
 
-test('L239: AliExpress UK is shown in the UK (the sites\' default delivery), and the pairs file has the four sites', async () => {
+test('L239 / L241: AliExpress UK is shown in the UK (the sites\' default delivery), and the pairs file has the six older sites', async () => {
   for (const s of ['wgw', 'mgw', 'kgw', 'hgw']) {
     const cfg = await site(s);
     assert.deepEqual(cfg.deliversTo.default, ['GB'], s);
@@ -101,5 +101,5 @@ test('L239: AliExpress UK is shown in the UK (the sites\' default delivery), and
     assert.equal(isShown(viewFor(cfg, 'GB', Date.parse('2026-11-28T09:00:00Z')), { retailer: 'AliExpress UK', last_seen_at: '2026-11-28 08:00:00' }), true, s);
   }
   const pairs = readFileSync('tools/massive/aliexpress-uk-1128.txt', 'utf8').split('\n').map(l => l.split('#')[0].trim()).filter(Boolean);
-  assert.deepEqual(pairs, ['aliexpress-uk:wgw', 'aliexpress-uk:mgw', 'aliexpress-uk:kgw', 'aliexpress-uk:hgw']);
+  assert.deepEqual(pairs, ['aliexpress-uk:wgw', 'aliexpress-uk:mgw', 'aliexpress-uk:kgw', 'aliexpress-uk:hgw', 'aliexpress-uk-gc:ggw', 'aliexpress-uk-gc:cgw']);
 });

@@ -183,7 +183,7 @@ test('every site category has rules, and the menu order matches the site', () =>
 test('sources: the first-wave shops are approved, VEVOR waits for the second wave, motorbike sections only (L65)', () => {
   const src = JSON.parse(readFileSync('sites/bgw/sources.json', 'utf8')).sources;
   const approved = src.filter(s => s.approved).map(s => s.retailer);
-  assert.deepEqual(approved, ['Tooled Up', 'My Tool Shed', 'Joybuy', 'Webbs Motorcycles', 'SGS Engineering', 'Plusshop UK', 'Bazta UK', 'iHoverboard', 'AliExpress PL', 'Chromeburner', 'Alpinestars', 'MotardInn',
+  assert.deepEqual(approved, ['Tooled Up', 'My Tool Shed', 'Joybuy', 'Webbs Motorcycles', 'SGS Engineering', 'Plusshop UK', 'Bazta UK', 'iHoverboard', 'AliExpress PL', 'AliExpress UK', 'Chromeburner', 'Alpinestars', 'MotardInn',
     // Linkwise, Greece (L209): EMW's electric motorbikes, Motovyzas, the motorbike batteries of ZAPS and Battery Park.
     'EMW GR', 'Motovyzas GR', 'ZAPS Batteries GR', 'Battery Park GR']); // phase 1 of the mass import (L207): Alpinestars UK, MotardInn; // iHoverboard: 14 Nov 2026 (L131); AliExpress PL: round 2 of L157; Chromeburner: Daisycon UK feed (L170)
   assert.equal(src.find(s => s.retailer === 'Webbs Motorcycles').motoShop, true);
