@@ -708,6 +708,10 @@ const STORE_SITES_READ = 6;
 const STORE_PER_SITE = 8;
 const STORE_KEEP = 24;
 const STORE_TIMEOUT_MS = 4000;
+// A store's own categories (owner, 28 Nov 2026, lessons L242: AliExpress UK "με δικές του κατηγορίες σαν ολοκληρωμένο
+// κατάστημα"): 48 products a page, read live from the Gear World sites of the category, up to 20 pages.
+export const STORE_CAT_PER_PAGE = 48;
+export const STORE_CAT_MAX_PAGE = 20;
 // Product photos that open (owner, 21 Nov 2026, lessons L211: a CasualShoes card showed an empty photo, 404 at the store).
 const PHOTO_TIMEOUT_MS = 2500;
 // No photo check starts after this (the rest stay): a store page waits at most about 4 + 2.5 seconds for its photos,
@@ -874,6 +878,9 @@ async function readSiteProducts(store, w, deps, extra = null) {
   u.searchParams.set('deliver_to', productCountry(store));
   u.searchParams.set('badges', '1');
   u.searchParams.set('limit', String((extra && extra.limit) || STORE_PER_SITE));
+  // One category of the site and one page of it (the store's own categories, L242).
+  if (extra && extra.category) u.searchParams.set('category', String(extra.category).slice(0, 80));
+  if (extra && Number(extra.page) > 1) u.searchParams.set('page', String(Math.min(STORE_CAT_MAX_PAGE, Number(extra.page))));
   // A search among the store's own products (the showcase, L221), never sent to the site's AI translation.
   if (extra && extra.q) {
     u.searchParams.set('q', String(extra.q).slice(0, 80));
@@ -886,7 +893,10 @@ async function readSiteProducts(store, w, deps, extra = null) {
     if (!res || res.status !== 200) throw new Error(`HTTP ${res && res.status}`);
     const data = await res.json();
     const rows = data && Array.isArray(data.products) ? data.products : [];
-    return rows.map(p => cleanStoreProduct(p, store, w)).filter(Boolean);
+    const out = rows.map(p => cleanStoreProduct(p, store, w)).filter(Boolean);
+    // How many the site gave before our own checks (a next page of a category, L242).
+    out.given = rows.length;
+    return out;
   } finally {
     clearTimeout(timer);
   }
@@ -1041,6 +1051,58 @@ export async function storeProducts(site, store, deps = {}, ctx = null) {
   const put = keepCopy(seen.products, ttlFor(seen.products, seen.blocked, seen.late));
   if (later) ctx.waitUntil(put); else await put;
   return { products: seen.products, cached: false };
+}
+
+// ---------------- The store's own categories (owner, 28 Nov 2026, lessons L242) ----------------
+// A store of the Gear World sites with `categories` ([{ slug, name, from: [[site code, category slug or null], ...] }])
+// gets a page per category, /stores/<store>/<category>/: the store's products in that category of those Gear World
+// sites (null: all of the store's products on that site), read live like its other products (photo, name, brand, the
+// Gear World product page; never a price, never /out/ or /go/), one site after another, 48 a page with ?page=2..20.
+// The names are the store's own (translate="no"), as the catalogue of a direct store keeps them (L228).
+export function storeCategories(store) {
+  const codes = new Set((store && store.sites) || []);
+  return ((store && store.categories) || []).filter(k => k && /^[a-z0-9-]{2,40}$/.test(String(k.slug || '')) && k.slug !== 'c' && k.name
+    && Array.isArray(k.from) && k.from.length >= 1 && k.from.length <= STORE_SITES_READ
+    && k.from.every(([code, cat]) => codes.has(code) && gearWorldFor(code) && (cat === null || /^[a-z0-9-]{2,60}$/.test(String(cat)))));
+}
+export const storeCategoryCacheKey = (site, store, cat, pageNo) => `${storeCacheKey(site, store)}&part=cat&cat=${encodeURIComponent(cat.slug)}&p=${pageNo}`;
+export async function storeCategoryProducts(site, store, cat, pageNo = 1, deps = {}, ctx = null) {
+  const cache = deps.cache || null;
+  const key = storeCategoryCacheKey(site, store, cat, pageNo);
+  if (cache) {
+    try {
+      const hit = await cache.match(key);
+      if (hit) {
+        const data = await hit.json();
+        if (data && Array.isArray(data.products)) return { products: data.products, more: Boolean(data.more), cached: true };
+      }
+    } catch { /* a broken copy is read again from the sites */ }
+  }
+  const per = Math.min(60, Math.ceil(STORE_CAT_PER_PAGE / cat.from.length));
+  const fetcher = deps.fetch || ((...a) => fetch(...a));
+  const results = await Promise.allSettled(cat.from.map(([code, slug]) => readSiteProducts(store, gearWorldFor(code),
+    { ...deps, fetch: fetcher, userAgent: storeUserAgent(site) }, { category: slug || '', page: pageNo, limit: per })));
+  const lists = results.map(r => (r.status === 'fulfilled' ? r.value : []));
+  const failed = results.some(r => r.status !== 'fulfilled');
+  // A next page when a site gave a full page (a product it left out, such as one out of stock, counts as given).
+  const more = pageNo < STORE_CAT_MAX_PAGE && results.some(r => r.status === 'fulfilled' && r.value.given >= per);
+  const candidates = mixStoreProducts(lists, STORE_CAT_PER_PAGE);
+  let products = candidates;
+  let late = false;
+  if (deps.photoFetch) {
+    const seen = await keepOpenPhotos(candidates, deps.photoFetch, STORE_CAT_PER_PAGE, {
+      timeoutMs: deps.photoTimeoutMs, userAgent: storeUserAgent(site), limit: deps.photoLimit || null, deadlineMs: deps.photoDeadlineMs || PHOTO_DEADLINE_MS
+    });
+    products = seen.products;
+    late = Boolean(seen.blocked || seen.late);
+  }
+  const ttl = !products.length ? 60 : (failed || late) ? 600 : 3600;
+  if (cache) {
+    const res = new Response(JSON.stringify({ products, more }), { headers: { 'Content-Type': 'application/json', 'Cache-Control': `public, max-age=${ttl}` } });
+    const put = Promise.resolve().then(() => cache.put(key, res)).catch(() => { /* the next visit reads the sites again */ });
+    if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(put); else await put;
+  }
+  return { products, more, cached: false };
 }
 
 // The showcase of a store (owner, 23 Nov 2026: "no prices, only bundles and ideas", lessons L221): its `showcase` sets
@@ -1333,6 +1395,63 @@ export function storeElsewherePage(c, store) {
   });
 }
 
+// The world photos of the Gear World sites (the gift guides' own photos, L191) on the cards of a store's categories.
+const WORLD_PHOTOS = new Set(['CGW', 'HGW', 'KGW', 'MGW', 'PGW', 'SGW', 'TGW', 'WGW', 'ZGW']);
+const storeCatHref = (c, store, k, pageNo = 1) => c.href(`/stores/${store.slug}/${k.slug}/${pageNo > 1 ? `?page=${pageNo}` : ''}`);
+function storeCatTile(c, store, k) {
+  const code = k.from[0][0];
+  return html`<li><a class="cat-tile" href="${storeCatHref(c, store, k)}">${WORLD_PHOTOS.has(code) ? html`<img src="${asset(c.site, `worlds/${code.toLowerCase()}.jpg`)}" alt="" width="300" height="200" loading="lazy" decoding="async">` : html`<span class="cat-noimg" aria-hidden="true"></span>`}<span class="cat-text"><span class="cat-name" translate="no">${k.name}</span></span></a></li>`;
+}
+export function storeCategorySection(c, store, here = '') {
+  const cats = storeCategories(store);
+  if (!cats.length) return '';
+  return html`<section class="wrap section" aria-labelledby="cats-h">
+  <h2 id="cats-h">${c.t('Categories of {0}', keep(store.name))}</h2>
+  <p class="section-lede">${c.t('Each product opens its page on a Gear World site, which shows the price, the stock and where {0} delivers.', keep(store.name))}</p>
+  <ul class="cat-grid">${cats.filter(k => k.slug !== here).map(k => storeCatTile(c, store, k))}</ul>
+</section>`;
+}
+const storeProductCard = (c, p) => {
+  const w = gearWorldFor(p.site);
+  return html`<li class="pcard">
+    <a class="pcard-photo" href="${c.gw(p.url)}" rel="noopener" target="_blank"><img src="${p.image}" alt="${p.name}" width="240" height="240" loading="lazy" decoding="async" referrerpolicy="no-referrer"></a>
+    <h2 class="pcard-name" translate="no">${p.name}</h2>
+    ${p.brand ? html`<p class="pcard-brand" translate="no">${p.brand}</p>` : ''}
+    <p class="pcard-site">${c.t('On {0}', keep(w.name))}</p>
+    <a class="btn btn-gw pcard-btn" href="${c.gw(p.url)}" rel="noopener" target="_blank"><span>${c.t('See it on {0}', keep(w.name))}</span></a>
+  </li>`;
+};
+// One category of a store (L242): its products from the Gear World sites, 48 a page, then the other categories.
+export function storeCategoryPage(c, store, k, products, pageNo = 1, more = false) {
+  const { site, t, tx } = c;
+  const path = `/stores/${store.slug}/${k.slug}/`;
+  return shell(c, {
+    title: tx('{0} on {1}', `${k.name} · ${store.name}`, site.name),
+    description: `${tx(store.line)} ${tx('Product photos from the Gear World sites, each with its Gear World product page.')}`,
+    path,
+    robots: pageNo > 1 ? 'noindex, follow' : '',
+    body: html`
+<section class="hero hero-small"><div class="wrap">
+  <p class="eyebrow"><a href="${c.href('/#stores')}">${storesLabel(c)}</a> › <a href="${c.href(`/stores/${store.slug}/`)}"><span translate="no">${store.name}</span></a></p>
+  <div class="store-title">${storeLogo(site, store, 'store-logo')}<h1 translate="no">${k.name}</h1></div>
+  <p class="lede">${t('Each product opens its page on a Gear World site, which shows the price, the stock and where {0} delivers.', keep(store.name))}</p>
+</div></section>
+<section class="wrap section">${storeDisclosure(c)}</section>
+<section class="wrap section" aria-label="${tx('Products')}">
+  ${products.length
+    ? html`<ul class="pcards">${products.map(p => storeProductCard(c, p))}</ul>`
+    : html`<p class="empty">${t('Products could not be loaded just now. The links below open {0} on each Gear World site.', keep(store.name))}</p>`}
+  <p class="cat-pages">${pageNo > 1 ? html`<a href="${storeCatHref(c, store, k)}">${t('Back to the first page')}</a>` : ''}${pageNo > 1 && more ? ' · ' : ''}${more ? html`<a href="${storeCatHref(c, store, k, pageNo + 1)}" rel="next">${t('Next page')}</a>` : ''}</p>
+</section>
+${storeCategorySection(c, store, k.slug)}
+<section class="wrap section">
+  <ul class="site-links">${[...new Set(k.from.map(x => x[0]))].map(gearWorldFor).filter(Boolean).map(w => html`<li>
+    <a href="${c.gw(retailerSearchUrl(store, w))}"><span>${t('All {0} products on {1}', keep(store.name), keep(w.name))}</span></a>
+  </li>`)}</ul>
+  <p><a href="${c.href(`/stores/${store.slug}/`)}">${t('All the categories of {0}', keep(store.name))}</a> · <a href="${c.href('/#stores')}">${t('All stores')}</a></p>
+</section>`
+  });
+}
 export function storePage(c, store, products, now = Date.now(), showcase = null) {
   const { site, t, tx } = c;
   const worlds = store.sites.map(gearWorldFor).filter(Boolean);
@@ -1353,6 +1472,7 @@ export function storePage(c, store, products, now = Date.now(), showcase = null)
   ${started ? html`<p class="count bf-when" data-end="${started.hide}">${bfWhen(c, started)}</p>` : ''}
 </div></section>
 <section class="wrap section">${storeDisclosure(c)}</section>
+${storeCategorySection(c, store)}
 ${showcaseSections(c, store, showcase)}
 ${codes.length ? html`<section class="wrap section store-codes" aria-labelledby="codes-h">
   <h2 id="codes-h">${t('Codes from {0}', keep(store.name))}</h2>
@@ -1934,7 +2054,9 @@ function notFoundPage(c, path) {
 export function pagePaths(site, mode = 'off', lw = '') {
   // Only the stores of the UK page, the one Google reads (L195, L210): a store listed for other countries only (the Greek
   // ones) would show Google its "not listed for your country" page.
-  const stores = (site.stores || []).filter(s => (s.amazon ? mode === 'on' : Array.isArray(s.sites) && s.sites.length && deliversHere(s, VIEW_BASE) && storeListed(site, s))).map(s => `/stores/${s.slug}/`);
+  const ukStores = (site.stores || []).filter(s => (s.amazon ? mode === 'on' : Array.isArray(s.sites) && s.sites.length && deliversHere(s, VIEW_BASE) && storeListed(site, s)));
+  // And the first page of each of their own categories (L242).
+  const stores = ukStores.flatMap(s => [`/stores/${s.slug}/`, ...storeCategories(s).map(k => `/stores/${s.slug}/${k.slug}/`)]);
   // Each edition's home page and store pages (L214).
   const editions = openEditions(site, lw).flatMap(e => [`${e.prefix}/`, ...editionStores(site, e, lw).map(s => `${e.prefix}/stores/${s.slug}/`)]);
   return ['/', ...stores, ...editions, ...site.guides.map(g => `/guides/${g.slug}/`), `/guides/${site.checks.slug}/`, ...Object.keys(LEGAL)];
@@ -2132,6 +2254,23 @@ export function createGuidesWorker(site, deps = {}) {
       }
       if (url.pathname === '/guides' || url.pathname === '/guides/') return redirect(`https://${site.domain}${keepLang('/#guides')}`, 302);
       if (url.pathname === '/stores' || url.pathname === '/stores/') return redirect(`https://${site.domain}${keepLang('/#stores')}`, 302);
+      // A store's own category (L242): /stores/<store>/<category>/, ?page=2..20.
+      const km = url.pathname.match(/^\/stores\/([a-z0-9-]+)\/([a-z0-9-]+)\/?$/);
+      const kStore = km && stores.get(km[1]);
+      const kCat = kStore && !kStore.amazon && !isDirectStore(kStore) && storeCategories(kStore).find(k => k.slug === km[2]);
+      if (kCat) {
+        if (!url.pathname.endsWith('/')) { url.pathname = `${url.pathname}/`; return redirect(url.toString(), 301); }
+        if (!deliversHere(kStore, country)) return page(storeElsewherePage(ctxFor(`/stores/${kStore.slug}/`), kStore));
+        const raw = url.searchParams.get('page') || '1';
+        const pageNo = /^\d{1,2}$/.test(raw) ? Number(raw) : 0;
+        if (pageNo < 1 || pageNo > STORE_CAT_MAX_PAGE) return page(notFoundPage(ctxFor(url.pathname), url.pathname), 404);
+        const inHere = storeIn(kStore, country);
+        let got = { products: [], more: false };
+        try { got = await storeCategoryProducts(site, inHere, kCat, pageNo, runtime(), ctx); } catch { got = { products: [], more: false }; }
+        // A page after the last one: not found (never an empty page for Google).
+        if (pageNo > 1 && !got.products.length) return page(notFoundPage(ctxFor(url.pathname), url.pathname), 404);
+        return page(storeCategoryPage(ctxFor(`/stores/${kStore.slug}/${kCat.slug}/`), inHere, kCat, got.products, pageNo, got.more));
+      }
       const sm = url.pathname.match(/^\/stores\/([a-z0-9-]+)\/?$/);
       if (sm && stores.has(sm[1])) {
         const store = stores.get(sm[1]);

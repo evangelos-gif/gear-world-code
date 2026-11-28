@@ -16,7 +16,7 @@ const BF = readFileSync('sites/gwh/public/black-friday/index.html', 'utf8');
 const WORKER = readFileSync('sites/gwh/worker.js', 'utf8');
 const BROWSER = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1';
 const QA = 'GearWorldQA-bot/1.0 (+read-only check)';
-const UK_SLUGS = ['amazon', 'joybuy', 'tooled-up', 'my-tool-shed', 'pchub-uk', 'gs-workwear', 'back-to-the-office', 'dhgate'];
+const UK_SLUGS = ['amazon', 'aliexpress-uk', 'joybuy', 'tooled-up', 'my-tool-shed', 'pchub-uk', 'gs-workwear', 'back-to-the-office', 'dhgate'];
 const GR_NAMES = ['Kouzinika GR', 'Katoikein GR', 'Minipini GR', 'XXXL Leo GR', 'CasualShoes GR', 'Parex GR', 'Tsakiris Mallas GR'];
 
 function req(path, { cc, ua = BROWSER, headers = {}, method = 'GET' } = {}) {

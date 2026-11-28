@@ -72,6 +72,39 @@ export default {
   // text badge with the name.
   stores: [
     { slug: 'amazon', name: 'Amazon', amazon: true, line: 'Searches on amazon.co.uk for the ideas in our gift guides.' },
+    // AliExpress UK (Awin 7035, owner 28 Nov 2026: «ναι», lessons L241, L242): on all 13 sites since the import of 28 Nov
+    // 2026, second after Amazon (owner: «δεύτερο μετά το Amazon»), with its own categories (owner: «με δικές του
+    // κατηγορίες σαν ολοκληρωμένο κατάστημα»): each one a page of its products on the Gear World sites named in `from`
+    // ([site, category slug of that site], null: all of them on that site). `sites` by number of its products there
+    // (the store page reads the first 6). No logo yet: a text badge.
+    { slug: 'aliexpress-uk', name: 'AliExpress UK', sites: ['TGW', 'AGW', 'SGW', 'HGW', 'WGW', 'BGW', 'KGW', 'MGW', 'ZGW', 'GGW', 'PGW', 'CGW', 'VGW'],
+      deliversTo: ['GB'], line: 'Tech, car, sports, home and fashion products from many independent sellers.', logo: '',
+      categories: [
+        { slug: 'phones-smartwatches', name: 'Phones & Smartwatches', from: [['TGW', 'phones-smartwatches']] },
+        { slug: 'computers-tablets', name: 'Computers & Tablets', from: [['TGW', 'laptops-computing']] },
+        { slug: 'headphones-speakers', name: 'Headphones & Speakers', from: [['TGW', 'audio']] },
+        { slug: 'gaming', name: 'Gaming', from: [['PGW', 'controllers'], ['PGW', 'consoles'], ['PGW', 'components'], ['PGW', 'monitors']] },
+        { slug: 'smart-home', name: 'Smart Home & Wi-Fi', from: [['TGW', 'smart-home-wifi']] },
+        { slug: 'cameras-drones', name: 'Cameras & Drones', from: [['TGW', 'cameras-drones']] },
+        { slug: 'chargers-cables-storage', name: 'Chargers, Cables & Storage', from: [['TGW', 'accessories-storage']] },
+        { slug: 'tv-home-cinema', name: 'TV & Home Cinema', from: [['TGW', 'tv-home-cinema']] },
+        { slug: 'womens-fashion', name: "Women's Fashion", from: [['WGW', null]] },
+        { slug: 'mens-fashion', name: "Men's Fashion", from: [['MGW', null]] },
+        { slug: 'home-kitchen', name: 'Home & Kitchen', from: [['HGW', null]] },
+        { slug: 'kids-toys', name: 'Kids & Toys', from: [['KGW', null]] },
+        { slug: 'car-electronics', name: 'Car Electronics', from: [['AGW', 'car-electronics']] },
+        { slug: 'car-interior-exterior', name: 'Car Interior & Exterior', from: [['AGW', 'interior-comfort'], ['AGW', 'roof-towing-exterior']] },
+        { slug: 'car-parts-tools-care', name: 'Car Parts, Tools & Care', from: [['AGW', 'parts-maintenance'], ['AGW', 'garage-tools-equipment'], ['AGW', 'diagnostics-battery'], ['AGW', 'car-care-detailing'], ['AGW', 'tyres-wheels'], ['AGW', 'safety-winter']] },
+        { slug: 'motorbike-scooter', name: 'Motorbike & Scooter', from: [['BGW', null]] },
+        { slug: 'cycling', name: 'Cycling', from: [['SGW', 'cycling']] },
+        { slug: 'fitness-sport', name: 'Fitness & Sport', from: [['SGW', 'fitness-gym'], ['SGW', 'racket-sports'], ['SGW', 'football-team-sports'], ['SGW', 'golf-skate-more'], ['SGW', 'water-sports'], ['SGW', 'running']] },
+        { slug: 'camping-outdoors', name: 'Camping & Outdoors', from: [['SGW', 'hiking-climbing-winter']] },
+        { slug: 'sportswear', name: 'Sportswear & Sports Shoes', from: [['SGW', 'sportswear-shoes-bags']] },
+        { slug: 'garden', name: 'Garden', from: [['GGW', null]] },
+        { slug: 'tools-diy', name: 'Tools & DIY', from: [['CGW', null]] },
+        { slug: 'pets', name: 'Pets', from: [['ZGW', null]] },
+        { slug: 'travel-luggage', name: 'Travel & Luggage', from: [['VGW', null]] }
+      ] },
     { slug: 'joybuy', name: 'Joybuy', sites: ['WGW', 'TGW', 'MGW', 'HGW', 'KGW', 'ZGW', 'SGW', 'AGW', 'PGW', 'VGW', 'CGW', 'BGW'], deliversTo: ['GB'],
       line: 'Tech, home, beauty, toys, pet and sports products.', logo: 'logos/joybuy.png', logoSize: [168, 168] },
     { slug: 'tooled-up', name: 'Tooled Up', sites: ['CGW', 'AGW', 'GGW', 'BGW'], deliversTo: ['GB'],

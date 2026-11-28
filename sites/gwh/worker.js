@@ -1678,6 +1678,8 @@ export const QA_BOT = /^GearWorldQA-bot\//;
 export const QA_COUNTRY_HEADER = "X-GW-QA-Country";
 export const MEGA_BAR_STORES = [
   { slug: "amazon", name: "Amazon", deliversTo: ["GB"] },
+  // AliExpress UK (owner, 28 Nov 2026, lessons L242): second, right after Amazon.
+  { slug: "aliexpress-uk", name: "AliExpress UK", deliversTo: ["GB"] },
   { slug: "joybuy", name: "Joybuy", deliversTo: ["GB"] },
   { slug: "tooled-up", name: "Tooled Up", deliversTo: ["GB"] },
   { slug: "my-tool-shed", name: "My Tool Shed", deliversTo: ["GB"] },

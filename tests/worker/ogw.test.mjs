@@ -244,7 +244,8 @@ test('addresses: www, final slash, unknown pages, methods, robots, sitemap and v
   // Since L232 the six new editions too: each home page and its store pages (tests/worker/ogw-editions-l232.test.mjs).
   const newEditions = EDITIONS.filter(e => e.minStores).reduce((n, e) => n + 1 + editionStores(site, e).length, 0);
   assert.equal(newEditions, 7 + 46);
-  assert.equal((x.text.match(/<loc>/g) || []).length, ALL_PAGES.length - NEW_STORES.length - Object.keys(GREEK).length + 1 + 1 + Object.keys(GREEK).length + newEditions, 'the UK view, Amazon, /gr/ and the editions of L232');
+  assert.equal((x.text.match(/<loc>/g) || []).length, ALL_PAGES.length - NEW_STORES.length - Object.keys(GREEK).length + 1 + 1 + Object.keys(GREEK).length + newEditions
+    + site.stores.find(t => t.slug === 'aliexpress-uk').categories.length, 'the UK view, Amazon, /gr/, the editions of L232 and the categories of AliExpress UK (L242)');
   for (const p of UK_STORE_PAGES) assert.ok(x.text.includes(`<loc>https://megastoresgearworld.com${p}</loc>`), `sitemap: ${p}`);
   for (const slug of Object.keys(GREEK)) {
     assert.ok(!x.text.includes(`<loc>https://megastoresgearworld.com/stores/${slug}/</loc>`), `sitemap: not the UK address of ${slug} (Google reads the UK page, L210)`);
@@ -254,7 +255,8 @@ test('addresses: www, final slash, unknown pages, methods, robots, sitemap and v
   for (const env of [OFF, PRE]) {
     const t = (await get('/sitemap.xml', env)).text;
     assert.ok(!/amazon/i.test(t), 'no Amazon page in the sitemap without the live Amazon links');
-    assert.equal((t.match(/<loc>/g) || []).length, ALL_PAGES.length - NEW_STORES.length - Object.keys(GREEK).length + 1 + Object.keys(GREEK).length + newEditions, 'with /gr/ and its store pages (L214), and the editions of L232');
+    assert.equal((t.match(/<loc>/g) || []).length, ALL_PAGES.length - NEW_STORES.length - Object.keys(GREEK).length + 1 + Object.keys(GREEK).length + newEditions
+      + site.stores.find(t => t.slug === 'aliexpress-uk').categories.length, 'with /gr/ and its store pages (L214), the editions of L232 and the categories of AliExpress UK (L242)');
   }
   x = await defaultWorker.fetch(new Request(`${LIVE}/api/version`), { GW_COMMIT: 'ab'.repeat(20) });
   assert.deepEqual(await x.json(), { commit: 'ab'.repeat(20) }, 'the version for the live guard (L156)');
@@ -324,9 +326,9 @@ const GW_HOSTS = new Set(GEAR_WORLDS.map(w => new URL(w.url).hostname));
 const STORE_BANNED = /£|\$|€|\bGBP\b|\d\s?%|12\.34|99\.99|\bdeals?\b|\bsale\b|\bsave\b|\bshop\b|buy now|\bcart\b|\bofficial\b|\bpartners?\b|lowest price|free delivery/i;
 
 test('stores: config, order, logos as the stores give them, the world photos of the Amazon page', () => {
-  assert.deepEqual(site.stores.map(s => s.slug), ['amazon', 'joybuy', 'tooled-up', 'my-tool-shed', 'pchub-uk', 'gs-workwear', 'back-to-the-office', 'dhgate',
+  assert.deepEqual(site.stores.map(s => s.slug), ['amazon', 'aliexpress-uk', 'joybuy', 'tooled-up', 'my-tool-shed', 'pchub-uk', 'gs-workwear', 'back-to-the-office', 'dhgate',
     'kotsovolos-gr', 'public-gr', 'sephora-gr', 'e-shop-gr', 'ab-gr', ...Object.keys(GREEK), ...NEW_STORES.map(s => s.slug)], 'the 5 direct stores of L226 before the 7 Greek stores (owner, 24 Nov 2026), then the stores of the editions of L232');
-  assert.deepEqual(site.stores.map(s => s.name), ['Amazon', 'Joybuy', 'Tooled Up', 'My Tool Shed', 'PCHUB.UK', 'GS Workwear', 'Back to the Office', 'DHgate',
+  assert.deepEqual(site.stores.map(s => s.name), ['Amazon', 'AliExpress UK', 'Joybuy', 'Tooled Up', 'My Tool Shed', 'PCHUB.UK', 'GS Workwear', 'Back to the Office', 'DHgate',
     'Κωτσόβολος', 'Public', 'Sephora', 'e-shop.gr', 'ΑΒ Βασιλόπουλος',
     'Kouzinika GR', 'Katoikein GR', 'Minipini GR', 'XXXL Leo GR', 'CasualShoes GR', 'Parex GR', 'Tsakiris Mallas GR', ...NEW_STORES.map(s => s.name)]);
   const codes = new Set(GEAR_WORLDS.map(w => w.code));
@@ -345,6 +347,9 @@ test('stores: config, order, logos as the stores give them, the world photos of 
   assert.ok(!amazon.logo, 'Amazon: text only (Trademark Guidelines)');
   assert.equal(site.amazon.linkImage, '', 'the Amazon image slot stays empty until Amazon supplies the file');
   assert.equal(site.stores.find(s => s.slug === 'dhgate').logo, '', 'DHgate: text badge');
+  // AliExpress UK (L241): the UK only, on all 13 sites, a text badge.
+  const ali = site.stores.find(s => s.slug === 'aliexpress-uk');
+  assert.deepEqual([ali.name, ali.deliversTo, ali.logo, ali.sites.length], ['AliExpress UK', ['GB'], '', 13]);
   for (const g of site.guides) assert.ok(statSync(`sites/ogw/public/assets/${guideImage(g)}`).size > 0 && allowed.includes(`assets/${guideImage(g)}`), `${g.slug}: its Gear World photo`);
   assert.equal(guideImage(site.guides[0]), 'worlds/mgw.jpg');
 });

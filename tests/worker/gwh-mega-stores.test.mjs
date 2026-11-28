@@ -13,7 +13,8 @@ const PUB = 'sites/gwh/public';
 const read = rel => readFileSync(`${PUB}/${rel}`, 'utf8');
 const html = read('index.html');
 const css = read('hub-v2.css');
-const STORES = [['amazon', 'Amazon'], ['joybuy', 'Joybuy'], ['tooled-up', 'Tooled Up'], ['my-tool-shed', 'My Tool Shed'], ['pchub-uk', 'PCHUB.UK'],
+// AliExpress UK second, after Amazon (owner, 28 Nov 2026, L242): a text pill.
+const STORES = [['amazon', 'Amazon'], ['aliexpress-uk', 'AliExpress UK'], ['joybuy', 'Joybuy'], ['tooled-up', 'Tooled Up'], ['my-tool-shed', 'My Tool Shed'], ['pchub-uk', 'PCHUB.UK'],
   ['gs-workwear', 'GS Workwear'], ['back-to-the-office', 'Back to the Office'], ['dhgate', 'DHgate']];
 const LOGOS = { joybuy: 'joybuy.png', 'tooled-up': 'tooled-up.png', 'my-tool-shed': 'my-tool-shed.png', 'pchub-uk': 'pchub-uk.png', 'gs-workwear': 'gs-workwear.jpg', 'back-to-the-office': 'back-to-the-office.png' };
 const start = html.indexOf('<div class="gwh2-mega-wrap">');
@@ -38,7 +39,7 @@ test('L192: the bar is the first thing in <main>, above the search, and ONE plai
   assert.match(bar, /<span class="gwh2-mega-line" data-gwh2="megaLine">Big stores in one place →<\/span>/);
 });
 
-test('L192: 8 store names in order, each with data-store, never translated; the copy and the strip are aria-hidden', () => {
+test('L192, L242: 9 store names in order, each with data-store, never translated; the copy and the strip are aria-hidden', () => {
   const strip = bar.slice(bar.indexOf('<span class="gwh2-mega-strip" aria-hidden="true">')).replace(/<!--[\s\S]*?-->/g, '');
   assert.ok(strip.length > 0 && bar.includes('<span class="gwh2-mega-strip" aria-hidden="true">'), 'the moving strip is decorative');
   const lists = strip.split('<span class="gwh2-mega-list').slice(1);
@@ -46,7 +47,7 @@ test('L192: 8 store names in order, each with data-store, never translated; the 
   assert.ok(lists[1].startsWith(' gwh2-mega-copy" aria-hidden="true">'), 'the copy is aria-hidden');
   for (const list of lists) {
     const pills = [...list.matchAll(/<span class="gwh2-mega-pill[^"]*" data-store="([a-z-]+)"[^>]*translate="no">([\s\S]*?)<\/span>\s*(?=<span class="gwh2-mega-pill|<\/span>)/g)];
-    assert.deepEqual(pills.map(m => m[1]), STORES.map(s => s[0]), 'the 8 stores in the owner\'s order');
+    assert.deepEqual(pills.map(m => m[1]), STORES.map(s => s[0]), 'the 9 stores in the owner\'s order');
     pills.forEach((m, i) => {
       const [slug, name] = STORES[i];
       const inner = m[2];
