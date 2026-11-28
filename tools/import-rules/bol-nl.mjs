@@ -6,9 +6,11 @@
 // The feed files: BOL_<category>_NL.csv.gz and BOL_0_NL-<search>.csv.gz of tools/bol-feed-download.ps1 in the archive.
 // Shown only to visitors from the Netherlands and Belgium, in Dutch (site.config deliversTo, sites/_shared/bol.js).
 //
-// PAUSED: the plan (dry run) works, but tools/legacy-import.ps1 stops before any change while RULES.paused is set: the
-// import comes only after the removal tool (tools/bol-remove.ps1) and the daily price refresh (bol.com's terms 3.6), and
-// with the owner's ΕΓΚΡΙΝΩ ALL IMPORTS. Taking the line out is the change that allows it.
+// NOT PAUSED since 28 Nov 2026 (lessons L243): the removal tool (tools/bol-remove.ps1) and the daily price refresh
+// (gear-world-bol-refresh, bol.com's terms 3.6) are live, so tools/legacy-import.ps1 loads a plan of these rules, with the
+// owner's ΕΓΚΡΙΝΩ ALL IMPORTS, only through the bol.com gate (tools/lib/bol-guard.ps1: the refresh switch on, a successful
+// refresh run in the last 2 hours, files at most 12 hours old). These rules are used only by a pair that names them
+// ("bol-nl:<site>"), never by another shop's import or refresh.
 import { readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { BOL_FILE, BOL_SOURCES, BOL_SEARCHES, LEGACY_SITES, BOL_RETAILER, bolPlace, bolBaseName, FASHION_CATEGORY_IDS, bolEan, bolStamp, bolTooOld, oldFileMessage } from './lib/bol-nl.mjs';
@@ -30,8 +32,7 @@ export const RULES = {
   // cheapest size WITH its own link, EAN and key (review of 6954a135: a joined card kept the first row's link and EAN,
   // and the daily refresh, which finds a row by its EAN, then wrote the dearer size's price on it).
   sameNameCheapest: true,
-  sameNameCheapestReason: 'the same name in another size at a higher price (the cheapest size is kept, with its own link and EAN)',
-  paused: 'bol.com (L204): the import waits for tools/bol-remove.ps1 and the daily price refresh (gear-world-bol-refresh) to be live, then ΕΓΚΡΙΝΩ ALL IMPORTS'
+  sameNameCheapestReason: 'the same name in another size at a higher price (the cheapest size is kept, with its own link and EAN)'
 };
 
 // The files of every bol.com category and search: clearly gendered clothing of the other categories (a men's jacket in

@@ -5,8 +5,8 @@
 // to Cloudflare or to a database; the SQL files the planners write are never run by this tool.
 //   older-sites/   tools/legacy-import-plan.mjs with tools/import-rules/bol-nl.mjs (HGW, CGW, GGW, WGW, MGW, KGW)
 //   agw/ vgw/ sgw/ zgw/   tools/tgw-import-plan.mjs with the bol.com entries of sites/<site>/sources.json ("sections":
-//                  "bol-nl"); those entries are "paused" there, so no import of those sites reads them: this plan reads
-//                  them anyway (a copy of the entries without "paused", in the plan's own folder).
+//                  "bol-nl"); those entries are "onlyWhenNamed" there (L243: only an import with -Only <id> reads them,
+//                  never a full import of the site): this plan reads them anyway (a copy without that mark, in its own folder).
 //   summary.txt    the short report for the owner and the Manager. A feed file older than 12 hours is planned all the
 //                  same here, and listed: the import itself refuses it (run the download again first).
 //
@@ -36,11 +36,11 @@ export function bolFiles(archives) {
   return out;
 }
 
-// The bol.com entries of a newer site's sources.json, without "paused" (only for this plan).
+// The bol.com entries of a newer site's sources.json, without "paused" or "onlyWhenNamed" (only for this plan, L243).
 export function bolSourcesOf(site, root = ROOT) {
   const file = join(root, 'sites', site, 'sources.json');
   const list = JSON.parse(readFileSync(file, 'utf8')).sources.filter(s => s.network === 'bol');
-  return list.map(s => { const c = { ...s }; delete c.paused; return c; });
+  return list.map(s => { const c = { ...s }; delete c.paused; delete c.onlyWhenNamed; return c; });
 }
 
 export async function planBol({ archive, outDir, now = new Date(), root = ROOT }) {
@@ -66,7 +66,7 @@ export async function planBol({ archive, outDir, now = new Date(), root = ROOT }
     const dir = join(outDir, s);
     mkdirSync(dir, { recursive: true });
     const sourcesFile = join(dir, 'sources-bol.json');
-    writeFileSync(sourcesFile, JSON.stringify({ _comment: `bol.com plan ${now.toISOString()} (tools/bol-import-plan.mjs): the bol.com entries of sites/${s}/sources.json, read although paused there`, sources }, null, 2));
+    writeFileSync(sourcesFile, JSON.stringify({ _comment: `bol.com plan ${now.toISOString()} (tools/bol-import-plan.mjs): the bol.com entries of sites/${s}/sources.json, read here without an -Only (L243)`, sources }, null, 2));
     const rules = await import(pathToFileURL(join(root, 'sites', s, 'category-rules.js')).href);
     const r = await planImport({ archive, sourcesFile, outDir: dir, now, rules, label: s.toUpperCase(), allowOldBol: true });
     oldFiles.push(...r.stats.oldBolFiles);
@@ -121,7 +121,7 @@ function renderSummary({ files, sites, legacyRows, legacyLeft, newLeft, now, old
   for (const [why, n] of Object.entries(newLeft).sort((a, b) => b[1] - a[1]).slice(0, 25)) L.push(`  ${fmt(n)}  ${why}`);
   L.push('', 'Κανόνες: μόνο NL και BE (στο HGW μόνο NL), στα ολλανδικά· χωρίς μάρκα και «πριν» τιμή· ίδιο όνομα σε άλλο μέγεθος = μία κάρτα·',
     'ποτέ τα απαγορευμένα (πυρομαχικά, CD keys, φάρμακα κατοικιδίων με συνταγή, στολές ενηλίκων ...). Ό,τι δεν μπαίνει με σιγουριά μένει έξω.',
-    'Η εισαγωγή είναι ΣΕ ΑΝΑΜΟΝΗ: μόνο μετά το tools/bol-remove.ps1 και την καθημερινή ανανέωση, με ΕΓΚΡΙΝΩ ALL IMPORTS.');
+    'Η εισαγωγή (L243): ζευγάρια bol-nl:<site> και -Sites agw:43646,vgw:15270,sgw:14648,zgw:12748, μέσα σε 12 ώρες από τη λήψη, με ΕΓΚΡΙΝΩ ALL IMPORTS.');
   return L.join('\n') + '\n';
 }
 const count = subs => Object.values(subs).reduce((a, l) => a + l.length, 0);

@@ -742,7 +742,10 @@ export async function planImport({ archive, sourcesFile, outDir, now = new Date(
   // never read, and 9999-finish.sql hides every product of that shop still shown, with --only too when it is one of the
   // shops asked for. Nothing is deleted: a later import of a reopened shop shows its products again.
   const closed = allSources.filter(s => s.closed);
-  const sources = allSources.filter(s => !s.paused && !s.closed);
+  // "onlyWhenNamed" (lessons L243, bol.com): read only by an import that names the shop (--only <id>), never by a full
+  // import of the site. bol.com's files must be at most 12 hours old when they load (L204), so a full import days after the
+  // download would stop on them; its rows on the site are kept fresh by gear-world-bol-refresh (L205), not by an import.
+  const sources = allSources.filter(s => !s.paused && !s.closed && (!s.onlyWhenNamed || onlyIds));
   const runStamp = now.toISOString().replace('T', ' ').slice(0, 19);
   const archives = archiveList(archive);
   // Only a retailer whose feed was found and read gets its missing products hidden by 9999-finish.sql.

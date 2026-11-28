@@ -8,8 +8,8 @@
   products WOULD go on the 10 sites that list bol.com, and why the others are left out (tools/bol-import-plan.mjs:
   the older sites with tools/import-rules/bol-nl.mjs, AGW VGW SGW ZGW with the bol.com entries of their sources.json).
   It writes the SQL that WOULD load them, but it does NOT run it and does NOT contact Cloudflare or D1.
-  The import itself is paused (the rules and the sources say so): it comes only after tools/bol-remove.ps1 and the
-  daily refresh are live, with ΕΓΚΡΙΝΩ ALL IMPORTS.
+  The import is a separate step (lessons L243): tools/legacy-import-batch.ps1 with the pairs bol-nl:<site> and
+  -Sites agw:43646,vgw:15270,sgw:14648,zgw:12748, within 12 hours of the download, with ΕΓΚΡΙΝΩ ALL IMPORTS.
 
   Output: <home>\gear-world-reports\BOL_IMPORT_PLAN_<time>\summary.txt (also copied to the clipboard), with the full
           plan of every site next to it.
@@ -71,7 +71,7 @@ if (-not $NoClipboard) {
 Write-Host ''
 Write-Host $summary
 Write-Host ('ΕΝΤΑΞΕΙ - Η αναφορά γράφτηκε: {0}' -f $summaryPath) -ForegroundColor Green
-Write-Host 'Τίποτα δεν φορτώθηκε. Τα αρχεία SQL απλώς ετοιμάστηκαν για αργότερα (η εισαγωγή είναι σε αναμονή).'
+Write-Host 'Τίποτα δεν φορτώθηκε (μόνο σχέδιο). Η εισαγωγή είναι ξεχωριστό βήμα, με ΕΓΚΡΙΝΩ ALL IMPORTS (L243).'
 if ($copied) {
     Write-Host 'Αντιγράφηκε στο πρόχειρο. Πήγαινε στη συζήτηση με το Claude και πάτα Ctrl+V.' -ForegroundColor Green
 }

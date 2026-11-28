@@ -1,7 +1,8 @@
 // bol.com NL import plumbing (lessons L204): the routing (the one list of src/lib/bol-lists.js, L205), the banned lists, the
 // places on the 10 sites, one card per size, no brand, no "was" price, and the dry run of all 10 sites at once
-// (tools/bol-import-plan.mjs) on synthetic feed files written with the download's own row code. Nothing is imported:
-// the bol.com entries are paused in sources.json and in the rules, and tools/legacy-import.ps1 stops on a paused plan.
+// (tools/bol-import-plan.mjs) on synthetic feed files written with the download's own row code. Nothing is imported here.
+// Since 28 Nov 2026 (L243) the import is no longer paused: the older sites load a "bol-nl:<site>" pair through the bol.com
+// gate, and the newer sites read their bol.com entry only when an import names it (-Only <id>, "onlyWhenNamed").
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, writeFileSync, readFileSync, readdirSync, existsSync } from 'node:fs';
@@ -33,8 +34,8 @@ test('L204 + L205: every category and search of src/lib/bol-lists.js has its Gea
   assert.deepEqual([...B.LEGACY_SITES, ...B.NEW_SITES].sort(), [...B.BOL_SITES].sort());
 });
 
-test('L204: the import waits: paused in the rules of the older sites and in sources.json of AGW, VGW, SGW and ZGW', () => {
-  assert.match(RULES.RULES.paused, /bol-remove\.ps1/);
+test('L243: the import goes: not paused in the rules of the older sites; AGW, VGW, SGW and ZGW read bol.com only when named', () => {
+  assert.ok(!('paused' in RULES.RULES), 'the older sites: tools/legacy-import.ps1 loads it (after the bol.com gate)');
   assert.equal(RULES.RULES.retailer, 'bol.com');
   assert.equal(RULES.RULES.currency, 'EUR');
   assert.equal(RULES.RULES.network, 'bol');
@@ -45,14 +46,14 @@ test('L204: the import waits: paused in the rules of the older sites and in sour
     const cat = B.BOL_SOURCES.find(x => x.site === s);
     assert.equal(String(e.advertiserId), cat.id, s);
     assert.ok(new RegExp(e.file).test(`BOL_${cat.id}_NL.csv.gz`) && !new RegExp(e.file).test(`BOL_${cat.id}_BE.csv.gz`), s);
-    assert.ok(e.paused && e.approved && e.sections === 'bol-nl' && e.retailer === 'bol.com' && e.currency === 'EUR' && e.country === 'NL' && e.ignoreWasPrice, s);
-    assert.deepEqual(bolSourcesOf(s).map(x => 'paused' in x), [false], `${s}: the dry run reads it`);
+    assert.ok(!e.paused && /-Only <id>/.test(e.onlyWhenNamed) && e.approved && e.sections === 'bol-nl' && e.retailer === 'bol.com' && e.currency === 'EUR' && e.country === 'NL' && e.ignoreWasPrice, s);
+    assert.deepEqual(bolSourcesOf(s).map(x => 'paused' in x || 'onlyWhenNamed' in x), [false], `${s}: the dry run reads it`);
   }
   for (const s of ['tgw', 'bgw', 'pgw', ...B.LEGACY_SITES]) {
     const src = JSON.parse(read(`sites/${s}/sources.json`)).sources;
     assert.ok(!src.some(x => x.network === 'bol' || x.retailer === 'bol.com'), `${s}: no bol.com source`);
   }
-  // tools/legacy-import.ps1: a paused plan changes nothing (before its restore point and its first write).
+  // tools/legacy-import.ps1: a paused plan (any shop, L146) still changes nothing (before its restore point and its first write).
   const li = read('tools/legacy-import.ps1');
   const iPaused = li.indexOf("-contains 'paused') -and $plan.paused");
   assert.ok(iPaused > 0 && iPaused < li.indexOf('d1 time-travel info') && iPaused < li.indexOf('--remote --file'));
@@ -208,7 +209,7 @@ test('L204: the dry run of the 10 sites: counts per site and category, sizes joi
   assert.match(sql('cgw'), /'Safety Boots', 'Safety Shoes', NULL, 'Safety Jogger werkschoenen S3'/);
   assert.equal((sql('cgw').match(/'Safety Jogger werkschoenen S3'/g) || []).length, 2, 'two sizes, one card');
   const plan = JSON.parse(read(join(out, 'older-sites', 'plan.json')));
-  assert.match(plan.paused, /bol-remove\.ps1/, 'tools/legacy-import.ps1 stops on it');
+  assert.equal(plan.paused, undefined, 'L243: not paused: tools/legacy-import.ps1 loads it, after the bol.com gate');
   // The newer sites: brand and was price empty, gtin 13 digits, the date and in_stock as the refresh reads them.
   const agw = readdirSync(join(out, 'agw', 'sql')).filter(f => /^\d{4}\.sql$/.test(f)).map(f => read(join(out, 'agw', 'sql', f))).join('\n');
   assert.match(agw, /'bol\.com', 'car-electronics', 'Dash Cams', NULL, 'Nextbase 322GW Dashcam - Full HD'/);
@@ -221,12 +222,21 @@ test('L204: the dry run of the 10 sites: counts per site and category, sizes joi
   for (const s of ['agw', 'vgw', 'sgw', 'zgw']) assert.ok(read(join(out, s, 'report.txt')).length > 100, s);
 });
 
-test('L204: the normal import of a newer site never reads the bol.com file while it is paused', async () => {
+test('L243: a full import of a newer site never reads the bol.com file; an import that names it (-Only 43646) does', async () => {
   const dir = archive();
   const out = mkdtempSync(join(tmpdir(), 'agw-plan-'));
-  const r = await planImport({ archive: dir, sourcesFile: 'sites/agw/sources.json', outDir: out, rules: AGW_RULES, label: 'AGW', only: ['43646'] });
+  // Days after the download (the real clock): a full import of AGW neither reads nor refuses the old bol.com file.
+  const r = await planImport({ archive: dir, sourcesFile: 'sites/agw/sources.json', outDir: out, rules: AGW_RULES, label: 'AGW' });
   assert.equal(r.products.filter(p => p.retailer === 'bol.com').length, 0);
-  assert.ok(!existsSync(join(out, 'sql', '0001.sql')) || !read(join(out, 'sql', '0001.sql')).includes('bol.com'));
+  assert.equal(r.stats.oldBolFiles.length, 0);
+  assert.ok(!existsSync(join(out, 'bol.txt')), 'no bol.com in a full import: no gate needed');
+  // Named, within 12 hours of the download: read, and marked for the gate (bol.txt).
+  const named = mkdtempSync(join(tmpdir(), 'agw-named-'));
+  const n = await planImport({ archive: dir, sourcesFile: 'sites/agw/sources.json', outDir: named, now: new Date('2026-11-22T07:00:00Z'), rules: AGW_RULES, label: 'AGW', only: ['43646'] });
+  assert.ok(n.products.filter(p => p.retailer === 'bol.com').length > 0);
+  assert.match(read(join(named, 'bol.txt')), /bol\.com sources in this plan: 43646\n/);
+  // Named, 13 hours after the download: refused (run the download again first).
+  await assert.rejects(planImport({ archive: dir, sourcesFile: 'sites/agw/sources.json', outDir: mkdtempSync(join(tmpdir(), 'agw-old-')), now: new Date('2026-11-22T19:00:01Z'), rules: AGW_RULES, label: 'AGW', only: ['43646'] }));
 });
 
 test('L204 (review of L205): the retailer is exactly "bol.com" in every SQL row, and no site has another spelling of it', async () => {
@@ -317,9 +327,9 @@ test('L204 + L205 (re-review): no bol.com row is loaded while the refresh kill s
   const on = mkdtempSync(join(tmpdir(), 'gate-on-'));
   await planImport({ archive: dir, sourcesFile: sf, outDir: on, now, rules: AGW_RULES, label: 'AGW' });
   assert.match(read(join(on, 'bol.txt')), /bol\.com sources in this plan: 43646\nbol\.com products: 2\n/);
-  const paused = mkdtempSync(join(tmpdir(), 'gate-off-'));
-  await planImport({ archive: dir, sourcesFile: 'sites/agw/sources.json', outDir: paused, now, rules: AGW_RULES, label: 'AGW', only: ['43646'] });
-  assert.ok(!existsSync(join(paused, 'bol.txt')), 'paused in sources.json: not read, no gate needed');
+  const full = mkdtempSync(join(tmpdir(), 'gate-off-'));
+  await planImport({ archive: dir, sourcesFile: 'sites/agw/sources.json', outDir: full, now, rules: AGW_RULES, label: 'AGW' });
+  assert.ok(!existsSync(join(full, 'bol.txt')), 'onlyWhenNamed (L243): a full import does not read it, no gate needed');
   // ... and the import step of each site tool reads the switch then, before the approval, the restore point and the SQL.
   for (const s of ['tgw', 'agw', 'vgw', 'sgw', 'zgw', 'bgw', 'pgw']) {
     const t = read(`tools/${s}-cloudflare.ps1`);

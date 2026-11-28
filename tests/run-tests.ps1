@@ -7455,8 +7455,8 @@ writeFileSync(join(dir, 'BOL_11764_NL.csv.gz'), gzipSync(csvLine(BOL_COLUMNS) + 
         Check ($code -eq 16 -and (BGateReport).Contains('παλιότερα από 12 ώρες τώρα που φορτώνονται') -and -not ((BGateCalls) -match '--file|time-travel')) 'bol.com gate: files older than 12 hours when it loads (the plan made earlier): refused, exit 16'
         $code = Run-BGate '1' $bgateApply 'ok'
         $r = BGateReport
-        Check ($code -eq 15 -and $r.Contains('ΑΝΟΙΧΤΟΣ') -and $r.Contains('έτρεξε με επιτυχία') -and $r.Contains('νεότερα από 12 ώρες: ΕΝΤΑΞΕΙ') -and $r.Contains('ΥΠΕΝΘΥΜΙΣΗ: το Price Watch') -and $r.Contains('ΣΕ ΑΝΑΜΟΝΗ') -and -not ((BGateCalls) -match '--file|time-travel')) 'bol.com gate, switch on, a good run, fresh files: passes, reminds of Price Watch, then the import is still paused (exit 15), nothing loaded'
-        Check ($r.IndexOf('ΑΝΟΙΧΤΟΣ') -lt $r.IndexOf('ΣΕ ΑΝΑΜΟΝΗ')) 'bol.com gate: the switch is read before anything else of the import'
+        Check ($code -eq 4 -and $r.Contains('ΑΝΟΙΧΤΟΣ') -and $r.Contains('έτρεξε με επιτυχία') -and $r.Contains('νεότερα από 12 ώρες: ΕΝΤΑΞΕΙ') -and $r.Contains('ΥΠΕΝΘΥΜΙΣΗ: το Price Watch') -and -not $r.Contains('ΣΕ ΑΝΑΜΟΝΗ') -and $r.Contains('Δεν μπόρεσα να διαβάσω τη βάση') -and -not ((BGateCalls) -match '--file|time-travel')) 'bol.com gate, switch on, a good run, fresh files: passes, reminds of Price Watch, and the import goes on (L243: not paused) to its read-only look at the database (the fake wrangler stops it there: exit 4), nothing loaded'
+        Check ($r.IndexOf('ΑΝΟΙΧΤΟΣ') -ge 0 -and $r.IndexOf('ΑΝΟΙΧΤΟΣ') -lt $r.IndexOf('Δεν μπόρεσα να διαβάσω τη βάση')) 'bol.com gate: the switch is read before anything else of the import'
     } finally {
         $env:PATH = $oldPath
         Remove-Item Env:\GW_FAKE_STATE -ErrorAction SilentlyContinue
