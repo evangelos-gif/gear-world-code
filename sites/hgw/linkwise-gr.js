@@ -37,6 +37,7 @@ const retailers = {
   'VidaXL.gr GR': ['GR'], // 14113
   'Vivento GR': ['GR'], // 13193
   'WAT Object GR': ['GR'], // 13584
+  'Yolenis GR': ['GR'], // 10981
 };
 export const LINKWISE_GR = {
   retailers,
