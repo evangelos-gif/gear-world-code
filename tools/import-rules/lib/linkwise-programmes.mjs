@@ -26,6 +26,7 @@ export const PROGRAMMES = [
   { id: 10784, name: 'Moustakas Toys', site: 'kgw', cc: ['GR'] },
   { id: 10814, name: 'Spitishop', site: 'hgw', cc: ['GR', 'CY'] },
   { id: 10818, name: 'Letif', site: 'wgw', cc: ['GR'] },
+  { id: 10981, name: 'Yolenis', site: 'hgw', cc: ['GR'] },
   { id: 11036, name: 'Babykid', site: 'kgw', cc: ['GR'] },
   { id: 11307, name: 'Toys.gr', site: 'kgw', cc: ['GR'] },
   { id: 11355, name: 'E-string', site: 'wgw', cc: ['GR', 'CY'] },
