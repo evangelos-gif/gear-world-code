@@ -105,13 +105,13 @@ test('L204: each site\'s own category and subcategory, from the GS1 path first, 
     ['vgw', 'Samsonite koffer 55 cm handbagage', '', 'luggage-suitcases', 'Suitcases', true],
     ['sgw', 'Kettlebell 12 kg gietijzer', '', 'fitness-gym', 'Weights', true],
     ['sgw', 'Wilson tennisracket pro', '', 'racket-sports', 'Rackets', true],
-    ['cgw', 'Bosch Professional GSR 12V-15 accuschroefboormachine - incl. 2 accu', '', 'Power Tools', 'Drills & Drivers', true],
+    ['cgw', 'Bosch Professional GSR 12V-15 accuschroefboormachine - incl. 2 accu', '', 'Power Tools', 'Power Tools', true],
     ['cgw', 'Safety Jogger werkschoenen S3', '', 'Safety Boots', 'Safety Shoes', true],
-    ['cgw', 'Werkhandschoenen maat 10 - 12 paar', '', 'PPE', 'Work Gloves', true],
-    ['cgw', 'Stanley waterpas 60 cm', '', 'Hand Tools', 'Measuring Tools', true],
-    ['ggw', 'Gardena tuinslang 20 m', '', 'Watering & Irrigation', 'Hoses & reels', true],
+    ['cgw', 'Werkhandschoenen maat 10 - 12 paar', '', 'Workwear', 'Work Gloves', true],
+    ['cgw', 'Stanley waterpas 60 cm', '', 'Hand Tools', 'Hand Tools', true],
+    ['ggw', 'Gardena tuinslang 20 m', '', 'Watering & Irrigation', 'Hose Pipes', true],
     ['ggw', 'Bosch accu heggenschaar 18V', '', 'Power Garden Tools', 'Hedge Trimmers', true],
-    ['ggw', 'Wolf-Garten heggenschaar handmatig', '', 'Garden Tools', 'Pruning', true],
+    ['ggw', 'Wolf-Garten heggenschaar handmatig', '', 'Garden Tools', 'Garden Shears', true],
     ['zgw', 'Hondenmand orthopedisch', '', 'beds-crates', 'Beds & Crates', true],
     ['zgw', 'Kattenbakvulling 10 liter', '', 'cats', 'Cat Litter & Trays', true],
     ['zgw', 'Kippenhok met ren', '', 'birds', 'Chickens & Poultry', true],
@@ -120,8 +120,8 @@ test('L204: each site\'s own category and subcategory, from the GS1 path first, 
     ['wgw', 'Gouden oorbellen', '', "Women's Jewellery", 'Earrings', true],
     ['mgw', 'Heren overhemd slim fit', '', 'Clothing', 'Shirts', true],
     ['mgw', 'Heren sneakers wit', '', 'Shoes', 'Trainers', true],
-    ['kgw', 'Meisjes jurk feest', '', 'Clothing', 'Dresses', true],
-    ['kgw', 'Kinder rugzak dino', '', 'Accessories', 'Bags', true]
+    ['kgw', 'Meisjes jurk feest', '', 'Clothing', 'Clothing', true],
+    ['kgw', 'Kinder rugzak dino', '', 'Accessories', 'Accessories', true]
   ];
   for (const [site, name, gpc, cat, sub, doubt] of want) {
     const p = P(site, name, gpc);
@@ -165,12 +165,12 @@ function archive(stamp = '2026-11-22T06:00:00.000Z') {
   writeFeed(dir, 'BOL_43646_NL.csv.gz', '43646', 'Auto & Motor', [product('Nextbase 322GW Dashcam - Full HD', 129.99, ['Auto & Motor', 'Auto-elektronica', 'Dashcams']),
     product('Rubber automatten set universeel - 4 delig', 24.95), product('Motorhelm integraal - Maat L', 89), product('Luchtbuks kogels 4.5 mm', 9.99)]);
   writeFeed(dir, 'BOL_11764_NL.csv.gz', '11764', 'Koken & Tafelen', [product('Tefal koekenpan 28 cm', 34.99, ['Koken & Tafelen', 'Pannen', 'Koekenpannen'])]);
-  writeFeed(dir, 'BOL_12001_NL.csv.gz', '12001', 'Huishouden', [product('Philips Airfryer XL HD9270 - 6,2 L', 149), product('Dyson V15 steelstofzuiger', 599)]);
+  writeFeed(dir, 'BOL_12001_NL.csv.gz', '12001', 'Huishouden', [product('Philips Airfryer XL HD9270 - 6,2 L', 149, ['Kitchen Appliances', 'Airfryers']), product('Dyson V15 steelstofzuiger', 599, ['Vacuum Cleaners', 'Steelstofzuigers'])]);
   writeFeed(dir, 'BOL_15270_NL.csv.gz', '15270', 'Kamperen & Outdoor', [product('Coleman koepeltent 4 persoons', 119)]);
   writeFeed(dir, 'BOL_14648_NL.csv.gz', '14648', 'Sport', [product('Kettlebell 12 kg gietijzer', 39.95), product('Proteïne shake chocolade 1 kg', 29.95)]);
-  writeFeed(dir, 'BOL_14035_NL.csv.gz', '14035', 'Wonen', [product('Sierkussen velours groen 45x45 cm', 19.99)]);
-  writeFeed(dir, 'BOL_13155_NL.csv.gz', '13155', 'Klussen', [product('Bosch Professional GSR 12V-15 accuschroefboormachine - incl. 2 accu', 179), product('Muurverf wit 10 liter', 49)]);
-  writeFeed(dir, 'BOL_12974_NL.csv.gz', '12974', 'Tuin', [product('Gardena tuinslang 20 m', 39.99)]);
+  writeFeed(dir, 'BOL_14035_NL.csv.gz', '14035', 'Wonen', [product('Sierkussen velours groen 45x45 cm', 19.99, ['Home Decor', 'Sierkussens'])]);
+  writeFeed(dir, 'BOL_13155_NL.csv.gz', '13155', 'Klussen', [product('Bosch Professional GSR 12V-15 accuschroefboormachine - incl. 2 accu', 179, ['Power Tools', 'Boormachines']), product('Muurverf wit 10 liter', 49)]);
+  writeFeed(dir, 'BOL_12974_NL.csv.gz', '12974', 'Tuin', [product('Gardena tuinslang 20 m', 39.99, ['Garden Watering', 'Tuinslangen'])]);
   writeFeed(dir, 'BOL_12748_NL.csv.gz', '12748', 'Dieren', [product('Hondenmand orthopedisch - Maat L', 49.95), product('Hondenmand orthopedisch - Maat M', 39.95),
     product('Ontwormingsmiddel hond - op recept', 19.95)]);
   writeFeed(dir, 'BOL_46673_NL.csv.gz', '46673', 'Damesmode', [product('Zomerjurk dames bloemen - Maat 38', 39.99), product('Zomerjurk dames bloemen - Maat 40', 34.99),
@@ -360,9 +360,9 @@ test('L204 (first real download, 20 Nov 2026): the name places it, gendered clot
     ['46673', 'Skechers KEEPSAKES COZY - COZY MINI Dames Instappers - Taupe', 'wgw Shoes / Shoes'],
     ['47024', 'JACK&JONES ESSENTIALS - JJEBRADLEY SWEAT CREW NOOS Heren Trui', 'mgw Clothing / Knitwear'],
     // Gendered clothing of other categories goes to the fashion site its words say (the category's own site first).
-    ['15270', 'Jack Wolfskin Heren Softshell Jas - Zwart', 'mgw Clothing / Jackets & Coats'],
+    ['15270', 'Jack Wolfskin Heren Softshell Jas - Zwart', 'mgw Clothing / Jackets'],
     ['14648', 'Dames winterjas gewatteerd - Maat M', 'wgw Clothing / Jackets & Coats'],
-    ['14648', 'Legging - Maat 140/146', 'kgw Clothing / Trousers'],
+    ['14648', 'Legging - Maat 140/146', 'kgw Clothing / Clothing'],
     ['14648', 'Heren hardloopschoenen Pegasus - Maat 44', 'sgw running / Running'],
     ['46673', 'FALKE Huissokken baby roze - maat 74-80', 'kgw Clothing / Socks'],
     ['46673', 'Heren overhemd slim fit - Maat L', 'mgw Clothing / Shirts'],
@@ -372,10 +372,12 @@ test('L204 (first real download, 20 Nov 2026): the name places it, gendered clot
     // Tuin: no party items. Klussen: what is not DIY stays out, home products go to Home Gear World.
     ['12974', 'Feest lampion rood 10 stuks', 'out: a party item (not a garden product)'],
     ['12974', 'Feestartikelen verjaardag set', 'out: a party item (not a garden product)'],
-    ['13155', 'Badmat antislip 60x90 cm', 'hgw Bedding & Bath / Bath Mat'],
+    // L243: Klussen's home product goes to HGW only when bol.com's own path agrees (else out, never a name-only guess).
+    ['13155', 'Badmat antislip 60x90 cm', 'out: not a DIY tool or hardware (Klussen)'],
     ['13155', 'Verpakkingstape transparant 6 rollen', 'out: not a DIY tool or hardware (Klussen)'],
     ['13155', 'Anker SOLIX Solarbank 2 E1600 Pro thuisbatterij 7 kWh', 'out: a home battery or energy storage (not a DIY tool)'],
-    ['13155', 'Bosch Professional GSR 12V-15 accuschroefboormachine - incl. 2 accu', 'cgw Power Tools / Drills & Drivers'],
+    // L243: without bol.com's path a name-only guess on an older site is out; with it, CGW's own broad group.
+    ['13155', 'Bosch Professional GSR 12V-15 accuschroefboormachine - incl. 2 accu', 'out: placed only by the bol.com category, no clear word in the name (left out, L243)'],
     ['12748', 'Royal Canin S/O Moderate Calorie kattenvoer', 'out: banned on every Gear World site (pet prescription medicine)']
   ];
   for (const [c, n, w] of want) assert.equal(at(c, n), w, n);
@@ -389,7 +391,7 @@ test('L204 (first real download, 20 Nov 2026): the name places it, gendered clot
   writeFeed(dir, 'BOL_46673_NL.csv.gz', '46673', 'Damesmode', [39.99, 34.99, 36.5, 41].map(pr => product('Skechers KEEPSAKES COZY - COZY MINI Dames Instappers - Taupe', pr)));
   writeFeed(dir, 'BOL_47024_NL.csv.gz', '47024', 'Herenmode', [49.99, 44.99, 47, 49.99].map(pr => product('JACK&JONES ESSENTIALS - JJEBRADLEY SWEAT CREW NOOS Heren Trui', pr)));
   writeFeed(dir, 'BOL_15270_NL.csv.gz', '15270', 'Kamperen & Outdoor', [product('Jack Wolfskin Heren Softshell Jas - Zwart', 99), product('Coleman koepeltent 4 persoons', 119)]);
-  writeFeed(dir, 'BOL_12974_NL.csv.gz', '12974', 'Tuin', [product('Feest lampion rood 10 stuks', 9.99), product('Gardena tuinslang 20 m', 39.99)]);
+  writeFeed(dir, 'BOL_12974_NL.csv.gz', '12974', 'Tuin', [product('Feest lampion rood 10 stuks', 9.99), product('Gardena tuinslang 20 m', 39.99, ['Garden Watering', 'Tuinslangen'])]);
   const { planLegacyImport } = await import('../../tools/legacy-import-plan.mjs');
   const r = await planLegacyImport({ archive: dir, retailer: 'bol-nl', outDir: mkdtempSync(join(tmpdir(), 'bol-real-p-')), now: new Date('2026-11-22T07:00:00Z') });
   const names = s => r.accepted[s].map(p => `${p.product_name} ${p.price}`);
@@ -455,4 +457,49 @@ test('L204 (review of 6954a135): a bare number is a size only for clothing and s
   assert.equal(card.affiliate_url, cheap.aw_deep_link, 'the link of the 34.99 size');
   assert.equal(card.awin_product_id, `bol1559450:${B.bolEan(cheap.ean)}`, 'the key of the 34.99 size');
   assert.ok(Object.keys(r.rejected).some(k => /another size at a higher price/.test(k)));
+});
+
+test('L243 (dry run of 28 Nov 2026): the older sites get their OWN subcategory names, never a near-copy', () => {
+  const P = (site, name) => { const p = B.placeBol(site, { name }); return p.reject ? `out: ${p.reject}` : `${p.cat} / ${p.sub}`; };
+  // GGW: the names the site already has (Garden Blowers, not Leaf Blowers; Parasols, gazebos & shade, not Parasols ...).
+  assert.equal(P('ggw', 'BLACK+DECKER 3000W Bladblazer'), 'Power Garden Tools / Garden Blowers');
+  assert.equal(P('ggw', 'Einhell accu kettingzaag'), 'Power Garden Tools / Chainsaws & Accessories');
+  assert.equal(P('ggw', 'Gardena robotmaaier'), 'Power Garden Tools / Lawnmowers & Accessories');
+  assert.equal(P('ggw', 'Zweefparasol 300 cm'), 'Garden Furniture & Outdoor Living / Parasols, gazebos & shade');
+  assert.equal(P('ggw', 'Kussenbox 270 liter'), 'Garden Buildings, Fencing & Storage / Garden storage');
+  assert.equal(P('ggw', 'Regenton 200 liter'), 'Watering & Irrigation / Watering Accessories');
+  assert.equal(P('ggw', 'Gardena sproeier'), 'Watering & Irrigation / Garden Sprinklers');
+  assert.equal(P('ggw', 'Gazonmest'), 'Plants, Growing & Garden Care / Plant feed');
+  assert.equal(P('ggw', 'Potgrond'), 'Plants, Growing & Garden Care / Growing media');
+  assert.equal(P('ggw', 'Felco snoeischaar'), 'Garden Tools / Secateurs');
+  assert.equal(P('ggw', 'Bladhark'), 'Garden Tools / Rakes');
+  assert.equal(P('ggw', 'Knielkussen'), 'Plants, Growing & Garden Care / Garden Kneelers');
+  // CGW: its broad groups; work gloves are Workwear there.
+  assert.equal(P('cgw', 'Knipex combinatietang'), 'Hand Tools / Hand Tools');
+  assert.equal(P('cgw', 'Makita haakse slijper'), 'Power Tools / Power Tools');
+  assert.equal(P('cgw', 'Altrex huishoudtrap'), 'Site Equipment / Site Equipment');
+  // MGW and KGW: no near-copies (Jackets, Nightwear & Loungewear, Kids Watches), KGW's broad Clothing and Accessories.
+  assert.equal(P('mgw', 'Heren winterjas'), 'Clothing / Jackets');
+  assert.equal(P('kgw', 'Kinder pyjama dino'), 'Clothing / Nightwear & Loungewear');
+  assert.equal(P('kgw', 'Kinderhorloge'), 'Accessories / Kids Watches');
+  assert.equal(P('kgw', 'Kinder muts'), 'Accessories / Accessories');
+  assert.equal(P('kgw', 'Kinder sokken'), 'Clothing / Socks');
+  assert.equal(P('wgw', 'Dames winterjas'), 'Clothing / Jackets & Coats', 'WGW has Jackets & Coats');
+  assert.equal(B.siteName('agw', 'car-electronics', 'Dash Cams').sub, 'Dash Cams', 'the newer sites keep the rules\' names');
+});
+
+test('L243: on the older sites a place found only from the name (no agreeing bol.com path) is left out; fashion keeps it', () => {
+  const at = (categoryId, name, gpc = '') => { const p = B.bolPlace({ categoryId, name, rawName: name, gpc }); return p.reject ? `out: ${p.reject}` : `${p.site} ${p.cat} / ${p.sub}`; };
+  assert.equal(at('12001', 'Philips Airfryer XL HD9270 - 6,2 L', 'Kitchen Appliances > Airfryers'), 'hgw Home Appliances / Air Fryer');
+  assert.match(at('12001', 'Philips Airfryer XL HD9270 - 6,2 L'), /^out: placed only by the bol.com category, no clear word in the name/);
+  assert.equal(at('13155', 'Badmat antislip 60x90 cm', 'Bathroom Accessories > Badmatten'), 'hgw Bedding & Bath / Bath Mat');
+  // Kindermode keeps a pyjama placed by its name (the category says it is children's clothing).
+  assert.equal(at('16947', 'Paw Patrol Coral-Fleece Pyjama - Maat 122/128 - Blauw - Kind'), 'kgw Clothing / Nightwear & Loungewear');
+  // A kitchen, home, garden or pet product with a child's word is never moved to a fashion site.
+  assert.match(at('12748', 'PURINA ONE Junior - Kattenbrokjes - Kip & Volkoren Granen - 4 x 1.5 kg', 'Pet Care/Food > Katten droogvoer'), /^out:/);
+  assert.match(at('11764', "Disney's Stitch Top Lock drinkfles - 1075 ml - Drinkfles voor kinderen"), /^out:/);
+  // Sport, Kamperen & Outdoor, Klussen and Auto & Motor still send gendered clothing by its NAME (never by that path).
+  assert.equal(at('15270', 'Kjelvik Poppy Dames Outdoorjas - Licht Groen', 'Outdoor Clothing > Outdoorjassen'), 'wgw Clothing / Jackets & Coats');
+  assert.equal(at('13155', 'Caterpillar 12 Paar Werksokken Heren', 'Workwear > Werksokken'), 'mgw Clothing / Socks');
+  assert.ok(B.CROSS_TO_FASHION.has('14648') && !B.CROSS_TO_FASHION.has('12748') && !B.CROSS_TO_FASHION.has('11764'));
 });

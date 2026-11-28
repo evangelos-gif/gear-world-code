@@ -328,20 +328,22 @@ export const PLACES = {
     ['Hand Tools', 'Chisels & Files', m({ end: ['beitel', 'beitels', 'beitelset', 'vijl', 'vijlen', 'rasp'] })]
   ],
   ggw: [
-    ['Power Garden Tools', 'Lawn Mowers', m({ end: ['grasmaaier', 'grasmaaiers', 'robotmaaier', 'robotmaaiers', 'cirkelmaaier', 'kooimaaier', 'zitmaaier'] })],
-    ['Power Garden Tools', 'Trimmers', m({ end: ['grastrimmer', 'grastrimmers', 'bosmaaier', 'kantenmaaier'] })],
+    // GGW's own subcategory names (lessons L56, L243: the dry run of 28 Nov 2026 showed 12 near-copies of them).
+    ['Power Garden Tools', 'Lawnmowers & Accessories', m({ end: ['grasmaaier', 'grasmaaiers', 'robotmaaier', 'robotmaaiers', 'cirkelmaaier', 'kooimaaier', 'zitmaaier'] })],
+    ['Power Garden Tools', 'Grass Trimmers', m({ end: ['grastrimmer', 'grastrimmers', 'bosmaaier', 'kantenmaaier'] })],
     ['Power Garden Tools', 'Hedge Trimmers', m({ end: ['heggenschaar', 'heggenscharen', 'heggentrimmer'] }), /accu|elektr|\d+\s?v\b|\d+\s?w\b|benzine/i],
-    ['Power Garden Tools', 'Leaf Blowers', m({ end: ['bladblazer', 'bladblazers', 'bladzuiger'] })],
-    ['Power Garden Tools', 'Chainsaws', m({ end: ['kettingzaag', 'kettingzagen', 'snoeizaag elektrisch', 'stokzaag'] })],
-    ['Power Garden Tools', 'Pressure Washers', m({ end: ['hogedrukreiniger', 'hogedrukreinigers', 'terrasreiniger'] })],
-    ['Power Garden Tools', 'Shredders & Scarifiers', m({ end: ['hakselaar', 'versnipperaar', 'verticuteermachine', 'verticuteerder'] })],
+    ['Power Garden Tools', 'Garden Blowers', m({ end: ['bladblazer', 'bladblazers', 'bladzuiger'] })],
+    ['Power Garden Tools', 'Chainsaws & Accessories', m({ end: ['kettingzaag', 'kettingzagen', 'snoeizaag elektrisch', 'stokzaag'] })],
+    ['Power Garden Tools', 'Outdoor Power Tools', m({ end: ['hogedrukreiniger', 'hogedrukreinigers', 'terrasreiniger'] })],
+    ['Power Garden Tools', 'Garden Shredders', m({ end: ['hakselaar', 'versnipperaar'] })],
+    ['Power Garden Tools', 'Lawn Rakers & Scarifiers', m({ end: ['verticuteermachine', 'verticuteerder'] })],
     ['BBQ & Outdoor Cooking', 'Pizza ovens', m({ end: ['pizzaoven', 'pizzaovens'] })],
     ['BBQ & Outdoor Cooking', 'Smokers & grills', m({ end: ['kamado', 'rookoven', 'smoker', 'gasbarbecue', 'houtskoolbarbecue', 'barbecue', 'barbecues', 'bbq', 'grill'] })],
     ['BBQ & Outdoor Cooking', 'BBQ accessories', m({ end: ['barbecuehoes', 'bbq-hoes', 'grillrooster', 'barbecuetang', 'aansteekblokjes', 'houtskool', 'briketten', 'grillborstel'] })],
     ['Garden Furniture & Outdoor Living', 'Fire pits & heaters', m({ end: ['vuurkorf', 'vuurkorven', 'vuurschaal', 'terrasverwarmer', 'terrasverwarming'] })],
     ['Garden Furniture & Outdoor Living', 'Loungers', m({ end: ['ligbed', 'ligbedden', 'zonnebed', 'strandbed'] })],
     ['Garden Furniture & Outdoor Living', 'Hammocks & swing seats', m({ end: ['hangmat', 'hangmatten', 'hangstoel', 'schommelbank'] })],
-    ['Garden Furniture & Outdoor Living', 'Parasols', m({ end: ['parasol', 'parasols', 'zweefparasol', 'parasolvoet', 'schaduwdoek'] })],
+    ['Garden Furniture & Outdoor Living', 'Parasols, gazebos & shade', m({ end: ['parasol', 'parasols', 'zweefparasol', 'parasolvoet', 'schaduwdoek'] })],
     ['Garden Furniture & Outdoor Living', 'Lounge & corner sets', m({ end: ['loungeset', 'loungesets', 'hoekbank tuin', 'tuinbank'] })],
     ['Garden Furniture & Outdoor Living', 'Dining sets', m({ end: ['tuinset', 'tuinsets', 'diningset', 'bistroset'] })],
     ['Garden Furniture & Outdoor Living', 'Chairs & benches', m({ end: ['tuinstoel', 'tuinstoelen', 'stapelstoel', 'tuinbankje'] })],
@@ -350,20 +352,33 @@ export const PLACES = {
     ['Garden Furniture & Outdoor Living', 'Furniture covers', m({ end: ['tuinmeubelhoes', 'beschermhoes tuinset', 'loungesethoes'] })],
     ['Garden Buildings, Fencing & Storage', 'Greenhouses', m({ end: ['kas', 'broeikas', 'tuinkas', 'kweekkas'] })],
     ['Garden Buildings, Fencing & Storage', 'Sheds', m({ end: ['tuinhuis', 'tuinhuisje', 'berging', 'schuur', 'tuinschuur'] })],
-    ['Garden Buildings, Fencing & Storage', 'Storage', m({ end: ['kussenbox', 'tuinkist', 'opbergbox tuin', 'containerberging'] })],
+    ['Garden Buildings, Fencing & Storage', 'Garden storage', m({ end: ['kussenbox', 'tuinkist', 'opbergbox tuin', 'containerberging'] })],
     ['Garden Buildings, Fencing & Storage', 'Fencing & screening', m({ end: ['schutting', 'tuinscherm', 'tuinschermen', 'tuinhek', 'balkonscherm', 'windscherm', 'gaas'] })],
-    ['Watering & Irrigation', 'Hoses & reels', m({ end: ['tuinslang', 'tuinslangen', 'slanghaspel', 'slangwagen', 'spuitpistool', 'druppelslang'] })],
-    ['Watering & Irrigation', 'Sprinklers & water butts', m({ end: ['sproeier', 'sproeiers', 'regenton', 'regentonnen', 'gieter', 'gieters', 'irrigatieset', 'beregeningscomputer'] })],
+    ['Watering & Irrigation', 'Hose Pipes', m({ end: ['tuinslang', 'tuinslangen'] })],
+    ['Watering & Irrigation', 'Hose Reels & Storage', m({ end: ['slanghaspel', 'slangwagen'] })],
+    ['Watering & Irrigation', 'Spray Nozzles & Guns', m({ end: ['spuitpistool'] })],
+    ['Watering & Irrigation', 'Irrigation Systems', m({ end: ['druppelslang', 'irrigatieset'] })],
+    ['Watering & Irrigation', 'Garden Sprinklers', m({ end: ['sproeier', 'sproeiers'] })],
+    ['Watering & Irrigation', 'Water Timers', m({ end: ['beregeningscomputer'] })],
+    ['Watering & Irrigation', 'Watering Accessories', m({ end: ['regenton', 'regentonnen', 'gieter', 'gieters'] })],
     ['Outdoor Lighting & Garden Electrical', 'Solar lights', m({ end: ['solarlamp', 'solarlampen', 'solar tuinverlichting', 'solarlichtsnoer'] })],
     ['Outdoor Lighting & Garden Electrical', 'String & festoon lights', m({ end: ['lichtsnoer', 'lichtsnoeren', 'prikkabel'] })],
     ['Outdoor Lighting & Garden Electrical', 'Outdoor lights', m({ end: ['tuinverlichting', 'buitenlamp', 'buitenlampen', 'tuinlamp', 'tuinspot', 'prikspot', 'wandlamp buiten'] })],
     ['Plants, Growing & Garden Care', 'Seeds & bulbs', m({ end: ['zaden', 'zaadjes', 'bloembollen', 'bollen', 'graszaad'] })],
-    ['Plants, Growing & Garden Care', 'Compost & feed', m({ end: ['potgrond', 'tuinaarde', 'meststof', 'mest', 'compost', 'kalk', 'gazonmest', 'plantenvoeding'] })],
+    ['Plants, Growing & Garden Care', 'Growing media', m({ end: ['potgrond', 'tuinaarde', 'compost'] })],
+    ['Plants, Growing & Garden Care', 'Plant feed', m({ end: ['meststof', 'mest', 'kalk', 'gazonmest', 'plantenvoeding'] })],
     ['Plants, Growing & Garden Care', 'Pots & planters', m({ end: ['plantenbak', 'plantenbakken', 'bloembak', 'bloembakken', 'kweekbak', 'kweekset', 'moestuinbak'] })],
-    ['Garden Tools', 'Pruning', m({ end: ['snoeischaar', 'snoeischaren', 'takkenschaar', 'snoeizaag', 'heggenschaar', 'grasschaar'] })],
-    ['Garden Tools', 'Digging & raking', m({ end: ['schop', 'schoppen', 'spade', 'spades', 'hark', 'harken', 'schoffel', 'grondboor', 'plantschep', 'bladhark'] })],
+    ['Garden Tools', 'Secateurs', m({ end: ['snoeischaar', 'snoeischaren'] })],
+    ['Garden Tools', 'Loppers', m({ end: ['takkenschaar'] })],
+    ['Garden Tools', 'Pruning Saws', m({ end: ['snoeizaag'] })],
+    ['Garden Tools', 'Garden Shears', m({ end: ['heggenschaar', 'grasschaar'] })],
+    ['Garden Tools', 'Spades', m({ end: ['schop', 'schoppen', 'spade', 'spades', 'plantschep'] })],
+    ['Garden Tools', 'Rakes', m({ end: ['hark', 'harken', 'bladhark'] })],
+    ['Garden Tools', 'Hoes', m({ end: ['schoffel'] })],
+    ['Garden Tools', 'Post Hole Augers', m({ end: ['grondboor'] })],
     ['Garden Tools', 'Wheelbarrows', m({ end: ['kruiwagen', 'kruiwagens', 'tuinkar'] })],
-    ['Garden Tools', 'Gloves & kneelers', m({ end: ['tuinhandschoenen', 'tuinhandschoen', 'knielkussen'] })]
+    ['Plants, Growing & Garden Care', 'Garden Kneelers', m({ end: ['knielkussen'] })],
+    ['Garden Tools', 'Other Garden Accessories', m({ end: ['tuinhandschoenen', 'tuinhandschoen'] })]
   ],
   // Fashion (Damesmode, Herenmode, Kindermode and the perfume search). WGW/MGW/KGW category names, then the subcategory.
   fashion: [
@@ -435,8 +450,30 @@ export const HGW_FIRST = [
   ['Cleaning & Laundry', 'Clothes Airer', m({ end: ['droogrek', 'droogrekken', 'wasrek', 'wasrekken', 'droogmolen'] })],
   ['Cleaning & Laundry', 'Mop', m({ end: ['dweil', 'dweilen', 'vloerwisser', 'mop', 'mops', 'dweilsysteem', 'raamwisser', 'ramenwasser'] })],
   ['Cleaning & Laundry', 'Cleaning Products', m({ end: ['schoonmaakmiddel', 'allesreiniger', 'ontkalker', 'vaatwastabletten', 'wasmiddel', 'wasverzachter', 'afwasmiddel', 'schoonmaakdoekjes'] })],
-  ['Storage & Organisation', 'Laundry Basket', m({ end: ['wasmand', 'wasmanden', 'wasbox'] })]
+  // HGW has its laundry baskets under Cleaning & Laundry (L56, L243).
+  ['Cleaning & Laundry', 'Laundry Basket', m({ end: ['wasmand', 'wasmanden', 'wasbox'] })]
 ];
+
+// The older sites' own subcategory names (lessons L56, L243): the dry run of 28 Nov 2026 showed new near-copies of names
+// the site already has (MGW "Jackets & Coats" beside "Jackets", KGW "Nightwear" beside "Nightwear & Loungewear") and many
+// tiny new groups on sites whose groups are broad (CGW "Hand Tools" / "Power Tools", KGW "Clothing" / "Accessories").
+// The rules keep their own words (the routing and the size rules read them); a product is SHOWN under the site's name.
+// A value is the site's subcategory, or [site category, subcategory] (CGW work gloves are Workwear there); '*' = the rest.
+const SITE_NAMES = {
+  cgw: { 'Hand Tools': { '*': 'Hand Tools' }, 'Power Tools': { '*': 'Power Tools' }, 'Site Equipment': { Ladders: 'Site Equipment' },
+    PPE: { 'Work Gloves': ['Workwear', 'Work Gloves'] } },
+  wgw: { Clothing: { Swimwear: 'Clothing', 'Polo Shirts': 'Tops & Blouses', Sets: 'Clothing' } },
+  mgw: { Clothing: { 'Jackets & Coats': 'Jackets', Swimwear: 'Shorts', 'Polo Shirts': 'T-Shirts', Sets: 'Clothing', Dresses: 'Clothing', Skirts: 'Clothing' } },
+  kgw: { Clothing: { Socks: 'Socks', Nightwear: 'Nightwear & Loungewear', '*': 'Clothing' }, Shoes: { Sandals: 'Shoes' },
+    Accessories: { Watches: 'Kids Watches', '*': 'Accessories' } }
+};
+export function siteName(site, cat, sub) {
+  const t = SITE_NAMES[site] && SITE_NAMES[site][cat];
+  if (!t) return { cat, sub };
+  const v = Object.prototype.hasOwnProperty.call(t, sub) ? t[sub] : t['*'];
+  if (v === undefined) return { cat, sub };
+  return Array.isArray(v) ? { cat: v[0], sub: v[1] } : { cat, sub: v };
+}
 
 // The sub-categories that the WGW, MGW and KGW category names stand for (site_category of the older databases).
 const FASHION_CATEGORY = {
@@ -506,7 +543,7 @@ export function placeBol(site, { name, gpc = '', search = '' }) {
     if (!p) return { reject: 'not a fashion product of the site, or not sure where it goes' };
     const cat = FASHION_CATEGORY[site][p.cat];
     if (!cat) return { reject: 'not a fashion product of the site, or not sure where it goes' };
-    return { cat, sub: p.sub, ...(p.doubt ? { doubt: true } : {}) };
+    return { ...siteName(site, cat, p.sub), ...(p.doubt ? { doubt: true } : {}) };
   }
   const rules = PLACES[site];
   if (!rules) return { reject: `site ${site} has no bol.com rules` };
@@ -515,7 +552,7 @@ export function placeBol(site, { name, gpc = '', search = '' }) {
   if (site === 'cgw' && NOT_DIY.test(n)) return { reject: 'not a DIY tool or hardware (Klussen)' };
   const p = placeIn(rules, texts, n, fromName);
   if (!p) return { reject: 'not sure where it goes on the site (left out)' };
-  return { cat: p.cat, sub: p.sub, ...(p.doubt ? { doubt: true } : {}) };
+  return { ...siteName(site, p.cat, p.sub), ...(p.doubt ? { doubt: true } : {}) };
 }
 
 // The newer sites (tools/tgw-import-plan.mjs, sources.json "sections": "bol-nl"): { ok, slug, sub, name } or { ok: false, reason }.
@@ -549,6 +586,8 @@ export function genderSite(name, rawName = name) {
   return '';
 }
 export const FASHION_SITES = ['wgw', 'mgw', 'kgw'];
+// The bol.com categories whose gendered clothing may move to a fashion site (Sport, Kamperen & Outdoor, Klussen, Auto & Motor).
+export const CROSS_TO_FASHION = new Set(['14648', '15270', '13155', '43646']);
 // Tuin: party items ("feest lampion", "Feestartikelen") are not garden products.
 const PARTY = /(?:feest|lampion|ballon|slinger|confetti|verjaardag|carnaval|party(?!tent))/iu;
 // Klussen: what is not a DIY tool or hardware; bath and shower mats or packing tape may be home products (HGW).
@@ -566,9 +605,20 @@ const HOME_ENERGY = /(?:thuisbatterij|thuisaccu|solarbank|energieopslag|home ?ba
 export function bolPlace({ categoryId = '', search = '', name = '', rawName = '', gpc = '' }) {
   const r = routeOf({ categoryId, search, name });
   if (r.reject) return { reject: r.reject };
-  const at = (site, extra = {}) => {
-    const p = placeBol(site, { name, gpc, search: r.source.search || '' });
-    return p.reject ? p : { site, source: r.source, ...p, ...extra };
+  // nameOnly (L243): a product of another bol.com category moved to a fashion site by its gender words is placed by its
+  // NAME alone, never by that other category's path ("Pet Care/Food > Katten droogvoer" is not a cap).
+  const at = (site, extra = {}, nameOnly = false) => {
+    const p = placeBol(site, { name, gpc: nameOnly ? '' : gpc, search: r.source.search || '' });
+    if (p.reject) return p;
+    if (nameOnly) { delete p.doubt; return { site, source: r.source, ...p, ...extra }; }
+    // Lessons L243 (dry run of 28 Nov 2026): on the older sites a place found only from the feed category, with no clear
+    // word in the name ("doubt"), was wrong about 4 times in 10 on HGW (a dishwasher as cookware, draught tape as a mattress
+    // topper, cat food as kids' accessories): left out. Only the fashion categories keep them (a pyjama of Kindermode).
+    // The two searches ("parfum", "werkschoenen") asked bol.com for exactly that kind of product: they keep it too.
+    if (p.doubt && !r.source.search && LEGACY_SITES.includes(site) && !(FASHION_SITES.includes(site) && FASHION_CATEGORY_IDS.has(String(categoryId)))) {
+      return { reject: 'placed only by the bol.com category, no clear word in the name (left out, L243)' };
+    }
+    return { site, source: r.source, ...p, ...extra };
   };
   if (r.source.search) return at(r.site);
   const n = bolBaseName(name, FASHION_CATEGORY_IDS.has(String(categoryId)) || undefined);
@@ -583,8 +633,11 @@ export function bolPlace({ categoryId = '', search = '', name = '', rawName = ''
   const own = at(r.site);
   if (!own.reject) return own;
   const notPlaced = /not sure|not a DIY tool/.test(own.reject);
-  if (g && notPlaced) {
-    const f = at(g);
+  // Only categories that sell clothing too (Sport, Kamperen & Outdoor, Klussen's work socks, Auto & Motor's riding gloves):
+  // a kitchen, home, garden or pet product with a child's or a gender word is never clothing (L243: "Kattenbrokjes" is
+  // not a skirt, a "Stitch Top Lock drinkfles" is not a top).
+  if (g && notPlaced && CROSS_TO_FASHION.has(String(categoryId))) {
+    const f = at(g, {}, true);
     if (!f.reject) return f;
   }
   if (r.site === 'cgw' && notPlaced) {
